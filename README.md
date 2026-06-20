@@ -2,7 +2,7 @@
 
 [![Downloads](https://pepy.tech/badge/streamrip)](https://pepy.tech/project/streamrip)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
-[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/berettavexee/fd7a1415ef7a725932e26dc42554f754/raw/streamrip_coverage.json)](https://github.com/berettavexee/streamrip/actions/workflows/pytest.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Fberettavexee%2Ffd7a1415ef7a725932e26dc42554f754%2Fraw%2Fstreamrip_coverage.json)](https://github.com/berettavexee/streamrip/actions/workflows/pytest.yml)
 [![Tests](https://github.com/berettavexee/streamrip/actions/workflows/pytest.yml/badge.svg)](https://github.com/berettavexee/streamrip/actions/workflows/pytest.yml)
 [![Ruff](https://github.com/berettavexee/streamrip/actions/workflows/ruff.yml/badge.svg)](https://github.com/berettavexee/streamrip/actions/workflows/ruff.yml)
 
