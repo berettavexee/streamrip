@@ -13,6 +13,7 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - In-memory GW track data cache — `get_track()` stores the GW response so that `get_downloadable()` can reuse it without a second `song.getData` call, halving GW API requests per album download
 - Connection pool sized to `max(max_connections × 4, 32)` to prevent urllib3 "pool full" warnings under concurrent downloads ([#997](https://github.com/nathom/streamrip/pull/997))
 - REST API rate limiter capped at 10 req/sec — Deezer's public API returns errors above this threshold; the limiter prevents throttling under concurrent downloads
+- Fix `search()` bypassing the rate limiter — it was the only REST entry point called without `async with self._api_rate_limiter`, so a Last.fm playlist of N tracks would fire N concurrent search requests via `asyncio.gather`, ignoring the 10 req/s cap
 - Playlist tracks skip the per-track album fetch (saves 2 REST calls per track); GENRE, TRACKTOTAL, and DISCTOTAL tags are omitted for playlist tracks as a result. Reduces download time by 10 seconds for 100 tracks.
 - Quality fallback: if the requested quality is unavailable, silently falls back to a lower tier instead of crashing
 - Composer tag sourced from `SNG_CONTRIBUTORS` via the GW API (absent from the public REST API)
