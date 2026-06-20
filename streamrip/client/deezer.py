@@ -408,7 +408,8 @@ class DeezerClient(Client):
             except AttributeError:
                 raise Exception(f"Invalid media type {media_type}")
 
-        response = await asyncio.to_thread(search_function, query, limit=limit)  # type: ignore
+        async with self._api_rate_limiter:
+            response = await asyncio.to_thread(search_function, query, limit=limit)  # type: ignore
         if response["total"] > 0:
             return [response]
         return []
