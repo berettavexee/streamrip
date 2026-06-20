@@ -92,5 +92,12 @@ skip-magic-trailing-comma = false
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
 
+[tool.coverage.run]
+source = ["streamrip"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+omit = ["tests/*"]
+
 [tool.poetry.extras]
 ssl = ["certifi"]
