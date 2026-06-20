@@ -5,7 +5,7 @@ import os
 import sqlite3
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import ClassVar, Final
+from typing import ClassVar
 
 logger = logging.getLogger("streamrip")
 

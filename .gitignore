@@ -18,6 +18,7 @@ StreamripDownloads
 *.aac
 *.pyc
 *test.py
+!tests/conftest.py
 /.mypy_cache
 .DS_Store
 pyrightconfig.json

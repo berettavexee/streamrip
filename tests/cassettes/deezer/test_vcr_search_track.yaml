@@ -1,0 +1,72 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
+        Safari/537.36
+    method: GET
+    uri: https://api.deezer.com/search/track?q=comfortably+numb&index=0&limit=5
+  response:
+    body:
+      string: '{"data":[{"id":116914122,"readable":true,"title":"Comfortably Numb","title_short":"Comfortably
+        Numb","title_version":"","isrc":"GBN9Y1100113","link":"https:\/\/www.deezer.com\/track\/116914122","duration":382,"rank":849744,"explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":0,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/4\/3\/6\/0\/436032ec967e0282f468e9aaf8f1062b.mp3?hdnea=exp=1781953250~acl=\/api\/1\/1\/4\/3\/6\/0\/436032ec967e0282f468e9aaf8f1062b.mp3*~data=user_id=0,application_id=42~hmac=4b78084afb75a32776d89cb18cdb7b9b896b26430bd9f1de6897647713a72d4b","md5_image":"2bea643b92a8fc6b19a23756f718cbd4","artist":{"id":860,"name":"Pink
+        Floyd","link":"https:\/\/www.deezer.com\/artist\/860","picture":"https:\/\/api.deezer.com\/artist\/860\/image","picture_small":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/56x56-000000-80-0-0.jpg","picture_medium":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/250x250-000000-80-0-0.jpg","picture_big":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/500x500-000000-80-0-0.jpg","picture_xl":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/1000x1000-000000-80-0-0.jpg","tracklist":"https:\/\/api.deezer.com\/artist\/860\/top?limit=50","type":"artist"},"album":{"id":12114248,"title":"The
+        Wall","cover":"https:\/\/api.deezer.com\/album\/12114248\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/2bea643b92a8fc6b19a23756f718cbd4\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/2bea643b92a8fc6b19a23756f718cbd4\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/2bea643b92a8fc6b19a23756f718cbd4\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/2bea643b92a8fc6b19a23756f718cbd4\/1000x1000-000000-80-0-0.jpg","md5_image":"2bea643b92a8fc6b19a23756f718cbd4","tracklist":"https:\/\/api.deezer.com\/album\/12114248\/tracks","type":"album"},"type":"track"},{"id":410006652,"readable":true,"title":"Comfortably
+        Numb (Live At Pompeii 2016)","title_short":"Comfortably Numb","title_version":"(Live
+        At Pompeii 2016)","isrc":"GBLTP1700025","link":"https:\/\/www.deezer.com\/track\/410006652","duration":599,"rank":593875,"explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":2,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/a\/2\/e\/0\/a2e3f85ef5b1051d740852713682fdbe.mp3?hdnea=exp=1781953250~acl=\/api\/1\/1\/a\/2\/e\/0\/a2e3f85ef5b1051d740852713682fdbe.mp3*~data=user_id=0,application_id=42~hmac=68699f0d5c810d1ad7b340dc0a1b2e2a796be345deb521803e6931c863ede63f","md5_image":"55a4dfaca116f1fdf3cb963a8bd7ba5a","artist":{"id":5114,"name":"David
+        Gilmour","link":"https:\/\/www.deezer.com\/artist\/5114","picture":"https:\/\/api.deezer.com\/artist\/5114\/image","picture_small":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/73ef7eb27f1eae34ba06e25a047a917a\/56x56-000000-80-0-0.jpg","picture_medium":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/73ef7eb27f1eae34ba06e25a047a917a\/250x250-000000-80-0-0.jpg","picture_big":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/73ef7eb27f1eae34ba06e25a047a917a\/500x500-000000-80-0-0.jpg","picture_xl":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/73ef7eb27f1eae34ba06e25a047a917a\/1000x1000-000000-80-0-0.jpg","tracklist":"https:\/\/api.deezer.com\/artist\/5114\/top?limit=50","type":"artist"},"album":{"id":48716252,"title":"Live
+        At Pompeii","cover":"https:\/\/api.deezer.com\/album\/48716252\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/55a4dfaca116f1fdf3cb963a8bd7ba5a\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/55a4dfaca116f1fdf3cb963a8bd7ba5a\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/55a4dfaca116f1fdf3cb963a8bd7ba5a\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/55a4dfaca116f1fdf3cb963a8bd7ba5a\/1000x1000-000000-80-0-0.jpg","md5_image":"55a4dfaca116f1fdf3cb963a8bd7ba5a","tracklist":"https:\/\/api.deezer.com\/album\/48716252\/tracks","type":"album"},"type":"track"},{"id":4051822031,"readable":true,"title":"Comfortably
+        Numb","title_short":"Comfortably Numb","title_version":"","isrc":"GBN9Y1100113","link":"https:\/\/www.deezer.com\/track\/4051822031","duration":382,"rank":593409,"explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":2,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/7\/0\/6\/0\/7063390ad4bce4ff7eba275101a68867.mp3?hdnea=exp=1781953250~acl=\/api\/1\/1\/7\/0\/6\/0\/7063390ad4bce4ff7eba275101a68867.mp3*~data=user_id=0,application_id=42~hmac=1f6f045c3cf38b29222e83d01f84fc15514d1dce7fa43e90e3070b7d6bb9ec99","md5_image":"f868a3931618ce5e7ee9d2e74740fe6f","artist":{"id":860,"name":"Pink
+        Floyd","link":"https:\/\/www.deezer.com\/artist\/860","picture":"https:\/\/api.deezer.com\/artist\/860\/image","picture_small":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/56x56-000000-80-0-0.jpg","picture_medium":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/250x250-000000-80-0-0.jpg","picture_big":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/500x500-000000-80-0-0.jpg","picture_xl":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/1000x1000-000000-80-0-0.jpg","tracklist":"https:\/\/api.deezer.com\/artist\/860\/top?limit=50","type":"artist"},"album":{"id":993721011,"title":"8-Tracks","cover":"https:\/\/api.deezer.com\/album\/993721011\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/f868a3931618ce5e7ee9d2e74740fe6f\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/f868a3931618ce5e7ee9d2e74740fe6f\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/f868a3931618ce5e7ee9d2e74740fe6f\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/f868a3931618ce5e7ee9d2e74740fe6f\/1000x1000-000000-80-0-0.jpg","md5_image":"f868a3931618ce5e7ee9d2e74740fe6f","tracklist":"https:\/\/api.deezer.com\/album\/993721011\/tracks","type":"album"},"type":"track"},{"id":1520205192,"readable":true,"title":"Comfortably
+        Numb (Live)","title_short":"Comfortably Numb","title_version":"(Live)","isrc":"GBN9X1800024","link":"https:\/\/www.deezer.com\/track\/1520205192","duration":569,"rank":552194,"explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":2,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/b\/f\/3\/0\/bf3a0d9031dc8eb498d71efe05cb30fd.mp3?hdnea=exp=1781953250~acl=\/api\/1\/1\/b\/f\/3\/0\/bf3a0d9031dc8eb498d71efe05cb30fd.mp3*~data=user_id=0,application_id=42~hmac=d42ba7e7b1522f4fcb288566b825eaaca0b7f18b0d7a30e52f117aab8c1fa449","md5_image":"a1a2b945b4ed8d9f84eda7974696d66c","artist":{"id":860,"name":"Pink
+        Floyd","link":"https:\/\/www.deezer.com\/artist\/860","picture":"https:\/\/api.deezer.com\/artist\/860\/image","picture_small":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/56x56-000000-80-0-0.jpg","picture_medium":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/250x250-000000-80-0-0.jpg","picture_big":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/500x500-000000-80-0-0.jpg","picture_xl":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/1000x1000-000000-80-0-0.jpg","tracklist":"https:\/\/api.deezer.com\/artist\/860\/top?limit=50","type":"artist"},"album":{"id":265182102,"title":"Pulse
+        (Live)","cover":"https:\/\/api.deezer.com\/album\/265182102\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/a1a2b945b4ed8d9f84eda7974696d66c\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/a1a2b945b4ed8d9f84eda7974696d66c\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/a1a2b945b4ed8d9f84eda7974696d66c\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/a1a2b945b4ed8d9f84eda7974696d66c\/1000x1000-000000-80-0-0.jpg","md5_image":"a1a2b945b4ed8d9f84eda7974696d66c","tracklist":"https:\/\/api.deezer.com\/album\/265182102\/tracks","type":"album"},"type":"track"},{"id":116914310,"readable":true,"title":"Comfortably
+        Numb","title_short":"Comfortably Numb","title_version":"","isrc":"GBN9Y1600019","link":"https:\/\/www.deezer.com\/track\/116914310","duration":413,"rank":425280,"explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":0,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/2\/7\/6\/0\/276126e9b12f4448bfd5d5bcb50d4111.mp3?hdnea=exp=1781953250~acl=\/api\/1\/1\/2\/7\/6\/0\/276126e9b12f4448bfd5d5bcb50d4111.mp3*~data=user_id=0,application_id=42~hmac=47f354b3bcc17a925a7b3a43ae4992c14249065b7ace91e798a4165b3b995ffb","md5_image":"af7adc3c0ce592bebcfc9651cb37caed","artist":{"id":860,"name":"Pink
+        Floyd","link":"https:\/\/www.deezer.com\/artist\/860","picture":"https:\/\/api.deezer.com\/artist\/860\/image","picture_small":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/56x56-000000-80-0-0.jpg","picture_medium":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/250x250-000000-80-0-0.jpg","picture_big":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/500x500-000000-80-0-0.jpg","picture_xl":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/1000x1000-000000-80-0-0.jpg","tracklist":"https:\/\/api.deezer.com\/artist\/860\/top?limit=50","type":"artist"},"album":{"id":12114260,"title":"Echoes:
+        The Best of Pink Floyd","cover":"https:\/\/api.deezer.com\/album\/12114260\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/af7adc3c0ce592bebcfc9651cb37caed\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/af7adc3c0ce592bebcfc9651cb37caed\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/af7adc3c0ce592bebcfc9651cb37caed\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/af7adc3c0ce592bebcfc9651cb37caed\/1000x1000-000000-80-0-0.jpg","md5_image":"af7adc3c0ce592bebcfc9651cb37caed","tracklist":"https:\/\/api.deezer.com\/album\/12114260\/tracks","type":"album"},"type":"track"}],"total":266,"next":"https:\/\/api.deezer.com\/search\/track?q=comfortably%20numb&limit=5&index=5"}'
+    headers:
+      Access-Control-Allow-Credentials:
+      - 'true'
+      Access-Control-Allow-Headers:
+      - X-Requested-With, Content-Type, Authorization, Origin, Accept, Accept-Encoding
+      Access-Control-Allow-Methods:
+      - POST, GET, OPTIONS, DELETE, PUT
+      Access-Control-Expose-Headers:
+      - Location
+      Access-Control-Max-Age:
+      - '86400'
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Sat, 20 Jun 2026 10:45:50 GMT
+      Server:
+      - Apache
+      Set-Cookie:
+      - <redacted>
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '10691'
+      p3p:
+      - policyref="/w3c/p3p.xml" CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains
+      x-content-type-options:
+      - nosniff
+      x-host:
+      - blm-web-101
+      x-org:
+      - FR
+    status:
+      code: 200
+      message: OK
+version: 1

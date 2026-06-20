@@ -1,0 +1,197 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
+        Safari/537.36
+    method: GET
+    uri: https://api.deezer.com/track/77874822
+  response:
+    body:
+      string: '{"id":77874822,"readable":true,"title":"Make Me Feel","title_short":"Make
+        Me Feel","title_version":"","isrc":"GBHYE0000131","link":"https:\/\/www.deezer.com\/track\/77874822","share":"https:\/\/www.deezer.com\/track\/77874822?utm_source=deezer&utm_content=track-77874822&utm_term=0_1781952934&utm_medium=web","duration":357,"track_position":1,"disk_number":1,"rank":36972,"release_date":"2014-08-23","explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":2,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/f\/5\/6\/0\/f56fa3454a84a835ce8bd05bb9a52972.mp3?hdnea=exp=1781953834~acl=\/api\/1\/1\/f\/5\/6\/0\/f56fa3454a84a835ce8bd05bb9a52972.mp3*~data=user_id=0,application_id=42~hmac=b28a5cdfd00c1d7aa6f86c1357808deff6ef8717336b1973630f72b264021df0","bpm":87,"gain":-6.81,"available_countries":["AE","AF","AG","AI","AL","AM","AN","AO","AQ","AR","AS","AT","AU","AZ","BA","BB","BD","BE","BF","BG","BH","BI","BJ","BN","BO","BR","BT","BV","BW","BY","CA","CC","CD","CF","CG","CH","CI","CK","CL","CM","CN","CO","CR","CU","CV","CX","CY","CZ","DE","DJ","DK","DM","DO","DZ","EC","EE","EG","EH","ER","ES","ET","FI","FJ","FK","FM","FR","GA","GB","GD","GE","GH","GM","GN","GQ","GR","GS","GT","GU","GW","HK","HM","HN","HR","HU","ID","IE","IL","IN","IO","IQ","IR","IS","IT","JM","JO","JP","KE","KG","KH","KI","KM","KN","KP","KR","KW","KY","KZ","LA","LB","LC","LK","LR","LS","LT","LU","LV","LY","MA","MD","ME","MG","MH","MK","ML","MM","MN","MP","MR","MS","MT","MU","MV","MW","MX","MY","MZ","NA","NE","NF","NG","NI","NL","NO","NP","NR","NU","NZ","OM","PA","PE","PG","PH","PK","PL","PN","PS","PT","PW","PY","QA","RO","RS","RU","RW","SA","SB","SC","SD","SE","SG","SI","SJ","SK","SL","SN","SO","ST","SV","SY","SZ","TC","TD","TG","TH","TJ","TK","TL","TM","TN","TO","TR","TV","TW","TZ","UA","UG","UM","US","UY","UZ","VC","VE","VG","VI","VN","VU","WS","YE","ZA","ZM","ZW"],"contributors":[{"id":276495,"name":"Total
+        Science","link":"https:\/\/www.deezer.com\/artist\/276495","share":"https:\/\/www.deezer.com\/artist\/276495?utm_source=deezer&utm_content=artist-276495&utm_term=0_1781952934&utm_medium=web","picture":"https:\/\/api.deezer.com\/artist\/276495\/image","picture_small":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/56x56-000000-80-0-0.jpg","picture_medium":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/250x250-000000-80-0-0.jpg","picture_big":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/500x500-000000-80-0-0.jpg","picture_xl":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/1000x1000-000000-80-0-0.jpg","radio":true,"tracklist":"https:\/\/api.deezer.com\/artist\/276495\/top?limit=50","type":"artist","role":"Main"}],"md5_image":"b8ec09b0c6ce32fc98227f0071b36041","track_token":"AAAAAWo2caZqN4rmpg5SHpy_IUE0nNxvWecM1_3wBBNUyUi2fxsgPDGlORfOyhi-C1WtruSgKaNA4HULQxY6L04fhjShiEKBylGI4QGVPYU8qzdxKDB-cgbWQTVsVLZt8lZW67Q0TkvwmoDo4PMBFUl0zQINdiGUhUj0xoxf0nvtNsEKGxYywIgpgekqJn0uRAZjCkwnA7DbfLgSbOFtCgakGH7g9axgnPB4ohOb7-BIOWaPGM4vxwZlnzTbuXo9M4PUEruk-TYkXurRP4eoAQUctsJFpXS7BJSfYlm6gZpDpfSQWd32jWrMrdKgA_aM3zCGqPEKRqA","artist":{"id":276495,"name":"Total
+        Science","link":"https:\/\/www.deezer.com\/artist\/276495","share":"https:\/\/www.deezer.com\/artist\/276495?utm_source=deezer&utm_content=artist-276495&utm_term=0_1781952934&utm_medium=web","picture":"https:\/\/api.deezer.com\/artist\/276495\/image","picture_small":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/56x56-000000-80-0-0.jpg","picture_medium":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/250x250-000000-80-0-0.jpg","picture_big":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/500x500-000000-80-0-0.jpg","picture_xl":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/1000x1000-000000-80-0-0.jpg","radio":true,"tracklist":"https:\/\/api.deezer.com\/artist\/276495\/top?limit=50","type":"artist"},"album":{"id":7740248,"title":"Make
+        Me Feel EP","link":"https:\/\/www.deezer.com\/album\/7740248","cover":"https:\/\/api.deezer.com\/album\/7740248\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/1000x1000-000000-80-0-0.jpg","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","release_date":"2000-12-23","tracklist":"https:\/\/api.deezer.com\/album\/7740248\/tracks","type":"album"},"type":"track"}'
+    headers:
+      Access-Control-Allow-Credentials:
+      - 'true'
+      Access-Control-Allow-Headers:
+      - X-Requested-With, Content-Type, Authorization, Origin, Accept, Accept-Encoding
+      Access-Control-Allow-Methods:
+      - POST, GET, OPTIONS, DELETE, PUT
+      Access-Control-Expose-Headers:
+      - Location
+      Access-Control-Max-Age:
+      - '86400'
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Sat, 20 Jun 2026 10:55:34 GMT
+      Server:
+      - Apache
+      Set-Cookie:
+      - <redacted>
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '4879'
+      p3p:
+      - policyref="/w3c/p3p.xml" CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains
+      x-content-type-options:
+      - nosniff
+      x-host:
+      - blm-web-117
+      x-org:
+      - FR
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
+        Safari/537.36
+    method: GET
+    uri: https://api.deezer.com/album/7740248
+  response:
+    body:
+      string: '{"id":7740248,"title":"Make Me Feel EP","upc":"5055201105820","link":"https:\/\/www.deezer.com\/album\/7740248","share":"https:\/\/www.deezer.com\/album\/7740248?utm_source=deezer&utm_content=album-7740248&utm_term=0_1781952934&utm_medium=web","cover":"https:\/\/api.deezer.com\/album\/7740248\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/1000x1000-000000-80-0-0.jpg","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","genre_id":113,"genres":{"data":[{"id":113,"name":"Dance","picture":"https:\/\/api.deezer.com\/genre\/113\/image","type":"genre"}]},"label":"Computer
+        Integrated Audio","nb_tracks":5,"duration":1781,"fans":27,"release_date":"2000-12-23","record_type":"ep","available":true,"tracklist":"https:\/\/api.deezer.com\/album\/7740248\/tracks","explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":2,"contributors":[{"id":276495,"name":"Total
+        Science","link":"https:\/\/www.deezer.com\/artist\/276495","share":"https:\/\/www.deezer.com\/artist\/276495?utm_source=deezer&utm_content=artist-276495&utm_term=0_1781952934&utm_medium=web","picture":"https:\/\/api.deezer.com\/artist\/276495\/image","picture_small":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/56x56-000000-80-0-0.jpg","picture_medium":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/250x250-000000-80-0-0.jpg","picture_big":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/500x500-000000-80-0-0.jpg","picture_xl":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/1000x1000-000000-80-0-0.jpg","radio":true,"tracklist":"https:\/\/api.deezer.com\/artist\/276495\/top?limit=50","type":"artist","role":"Main"}],"artist":{"id":276495,"name":"Total
+        Science","picture":"https:\/\/api.deezer.com\/artist\/276495\/image","picture_small":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/56x56-000000-80-0-0.jpg","picture_medium":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/250x250-000000-80-0-0.jpg","picture_big":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/500x500-000000-80-0-0.jpg","picture_xl":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/ba7dddb230d5856895847c09b279f186\/1000x1000-000000-80-0-0.jpg","tracklist":"https:\/\/api.deezer.com\/artist\/276495\/top?limit=50","type":"artist"},"type":"album","tracks":{"data":[{"id":77874822,"readable":true,"title":"Make
+        Me Feel","title_short":"Make Me Feel","title_version":"","link":"https:\/\/www.deezer.com\/track\/77874822","duration":357,"rank":36972,"explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":2,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/f\/5\/6\/0\/f56fa3454a84a835ce8bd05bb9a52972.mp3?hdnea=exp=1781953834~acl=\/api\/1\/1\/f\/5\/6\/0\/f56fa3454a84a835ce8bd05bb9a52972.mp3*~data=user_id=0,application_id=42~hmac=b28a5cdfd00c1d7aa6f86c1357808deff6ef8717336b1973630f72b264021df0","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","artist":{"id":276495,"name":"Total
+        Science","tracklist":"https:\/\/api.deezer.com\/artist\/276495\/top?limit=50","type":"artist"},"album":{"id":7740248,"title":"Make
+        Me Feel EP","cover":"https:\/\/api.deezer.com\/album\/7740248\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/1000x1000-000000-80-0-0.jpg","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","tracklist":"https:\/\/api.deezer.com\/album\/7740248\/tracks","type":"album"},"type":"track"},{"id":77874823,"readable":true,"title":"Nine
+        Numbers (Remix)","title_short":"Nine Numbers","title_version":"(Remix)","link":"https:\/\/www.deezer.com\/track\/77874823","duration":385,"rank":20415,"explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":2,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/4\/8\/9\/0\/4897626070d280364e0241a4eef745bd.mp3?hdnea=exp=1781953834~acl=\/api\/1\/1\/4\/8\/9\/0\/4897626070d280364e0241a4eef745bd.mp3*~data=user_id=0,application_id=42~hmac=895dec131280cb86090da7c595fc842700fa2a8d33f7ad3f505a771c68f560b1","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","artist":{"id":276495,"name":"Total
+        Science","tracklist":"https:\/\/api.deezer.com\/artist\/276495\/top?limit=50","type":"artist"},"album":{"id":7740248,"title":"Make
+        Me Feel EP","cover":"https:\/\/api.deezer.com\/album\/7740248\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/1000x1000-000000-80-0-0.jpg","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","tracklist":"https:\/\/api.deezer.com\/album\/7740248\/tracks","type":"album"},"type":"track"},{"id":77874824,"readable":true,"title":"After
+        Dark","title_short":"After Dark","title_version":"","link":"https:\/\/www.deezer.com\/track\/77874824","duration":365,"rank":22167,"explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":2,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/9\/e\/4\/0\/9e4e7b545e344763dcc83a401291aea4.mp3?hdnea=exp=1781953834~acl=\/api\/1\/1\/9\/e\/4\/0\/9e4e7b545e344763dcc83a401291aea4.mp3*~data=user_id=0,application_id=42~hmac=68475e122c884850475bb4b2ecc95351198a76842ed1a177eca0492d14ddd799","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","artist":{"id":276495,"name":"Total
+        Science","tracklist":"https:\/\/api.deezer.com\/artist\/276495\/top?limit=50","type":"artist"},"album":{"id":7740248,"title":"Make
+        Me Feel EP","cover":"https:\/\/api.deezer.com\/album\/7740248\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/1000x1000-000000-80-0-0.jpg","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","tracklist":"https:\/\/api.deezer.com\/album\/7740248\/tracks","type":"album"},"type":"track"},{"id":77874825,"readable":true,"title":"Hot
+        Tub","title_short":"Hot Tub","title_version":"","link":"https:\/\/www.deezer.com\/track\/77874825","duration":321,"rank":15630,"explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":2,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/b\/8\/e\/0\/b8efb17c329e5d184754862c0c199ddd.mp3?hdnea=exp=1781953834~acl=\/api\/1\/1\/b\/8\/e\/0\/b8efb17c329e5d184754862c0c199ddd.mp3*~data=user_id=0,application_id=42~hmac=99bfedc6fdf005664836f936247dfb6177908ec2f78e370f578e3a769404651d","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","artist":{"id":276495,"name":"Total
+        Science","tracklist":"https:\/\/api.deezer.com\/artist\/276495\/top?limit=50","type":"artist"},"album":{"id":7740248,"title":"Make
+        Me Feel EP","cover":"https:\/\/api.deezer.com\/album\/7740248\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/1000x1000-000000-80-0-0.jpg","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","tracklist":"https:\/\/api.deezer.com\/album\/7740248\/tracks","type":"album"},"type":"track"},{"id":77874826,"readable":true,"title":"Detox","title_short":"Detox","title_version":"","link":"https:\/\/www.deezer.com\/track\/77874826","duration":353,"rank":12326,"explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":2,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/2\/e\/a\/0\/2ea10eaed640d24a724199cdf20ccb89.mp3?hdnea=exp=1781953834~acl=\/api\/1\/1\/2\/e\/a\/0\/2ea10eaed640d24a724199cdf20ccb89.mp3*~data=user_id=0,application_id=42~hmac=ba72fa22c0eb47a977d99c45c4142841254a8a36d2b5beb4bb727b3ccd432dce","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","artist":{"id":276495,"name":"Total
+        Science","tracklist":"https:\/\/api.deezer.com\/artist\/276495\/top?limit=50","type":"artist"},"album":{"id":7740248,"title":"Make
+        Me Feel EP","cover":"https:\/\/api.deezer.com\/album\/7740248\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b8ec09b0c6ce32fc98227f0071b36041\/1000x1000-000000-80-0-0.jpg","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","tracklist":"https:\/\/api.deezer.com\/album\/7740248\/tracks","type":"album"},"type":"track"}]}}'
+    headers:
+      Access-Control-Allow-Credentials:
+      - 'true'
+      Access-Control-Allow-Headers:
+      - X-Requested-With, Content-Type, Authorization, Origin, Accept, Accept-Encoding
+      Access-Control-Allow-Methods:
+      - POST, GET, OPTIONS, DELETE, PUT
+      Access-Control-Expose-Headers:
+      - Location
+      Access-Control-Max-Age:
+      - '86400'
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Sat, 20 Jun 2026 10:55:34 GMT
+      Server:
+      - Apache
+      Set-Cookie:
+      - <redacted>
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '10227'
+      p3p:
+      - policyref="/w3c/p3p.xml" CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains
+      x-content-type-options:
+      - nosniff
+      x-host:
+      - blm-web-176
+      x-org:
+      - FR
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
+        Safari/537.36
+    method: GET
+    uri: https://api.deezer.com/album/7740248/tracks?index=0&limit=-1
+  response:
+    body:
+      string: '{"data":[{"id":77874822,"readable":true,"title":"Make Me Feel","title_short":"Make
+        Me Feel","title_version":"","isrc":"GBHYE0000131","link":"https:\/\/www.deezer.com\/track\/77874822","duration":357,"track_position":1,"disk_number":1,"rank":36972,"explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":2,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/f\/5\/6\/0\/f56fa3454a84a835ce8bd05bb9a52972.mp3?hdnea=exp=1781953834~acl=\/api\/1\/1\/f\/5\/6\/0\/f56fa3454a84a835ce8bd05bb9a52972.mp3*~data=user_id=0,application_id=42~hmac=b28a5cdfd00c1d7aa6f86c1357808deff6ef8717336b1973630f72b264021df0","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","artist":{"id":276495,"name":"Total
+        Science","tracklist":"https:\/\/api.deezer.com\/artist\/276495\/top?limit=50","type":"artist"},"type":"track"},{"id":77874823,"readable":true,"title":"Nine
+        Numbers (Remix)","title_short":"Nine Numbers","title_version":"(Remix)","isrc":"GBHYE0000132","link":"https:\/\/www.deezer.com\/track\/77874823","duration":385,"track_position":2,"disk_number":1,"rank":20415,"explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":2,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/4\/8\/9\/0\/4897626070d280364e0241a4eef745bd.mp3?hdnea=exp=1781953834~acl=\/api\/1\/1\/4\/8\/9\/0\/4897626070d280364e0241a4eef745bd.mp3*~data=user_id=0,application_id=42~hmac=895dec131280cb86090da7c595fc842700fa2a8d33f7ad3f505a771c68f560b1","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","artist":{"id":276495,"name":"Total
+        Science","tracklist":"https:\/\/api.deezer.com\/artist\/276495\/top?limit=50","type":"artist"},"type":"track"},{"id":77874824,"readable":true,"title":"After
+        Dark","title_short":"After Dark","title_version":"","isrc":"GBHYE0000133","link":"https:\/\/www.deezer.com\/track\/77874824","duration":365,"track_position":3,"disk_number":1,"rank":22167,"explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":2,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/9\/e\/4\/0\/9e4e7b545e344763dcc83a401291aea4.mp3?hdnea=exp=1781953834~acl=\/api\/1\/1\/9\/e\/4\/0\/9e4e7b545e344763dcc83a401291aea4.mp3*~data=user_id=0,application_id=42~hmac=68475e122c884850475bb4b2ecc95351198a76842ed1a177eca0492d14ddd799","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","artist":{"id":276495,"name":"Total
+        Science","tracklist":"https:\/\/api.deezer.com\/artist\/276495\/top?limit=50","type":"artist"},"type":"track"},{"id":77874825,"readable":true,"title":"Hot
+        Tub","title_short":"Hot Tub","title_version":"","isrc":"GBHYE0000134","link":"https:\/\/www.deezer.com\/track\/77874825","duration":321,"track_position":4,"disk_number":1,"rank":15630,"explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":2,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/b\/8\/e\/0\/b8efb17c329e5d184754862c0c199ddd.mp3?hdnea=exp=1781953834~acl=\/api\/1\/1\/b\/8\/e\/0\/b8efb17c329e5d184754862c0c199ddd.mp3*~data=user_id=0,application_id=42~hmac=99bfedc6fdf005664836f936247dfb6177908ec2f78e370f578e3a769404651d","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","artist":{"id":276495,"name":"Total
+        Science","tracklist":"https:\/\/api.deezer.com\/artist\/276495\/top?limit=50","type":"artist"},"type":"track"},{"id":77874826,"readable":true,"title":"Detox","title_short":"Detox","title_version":"","isrc":"GBHYE0000135","link":"https:\/\/www.deezer.com\/track\/77874826","duration":353,"track_position":5,"disk_number":1,"rank":12326,"explicit_lyrics":false,"explicit_content_lyrics":0,"explicit_content_cover":2,"preview":"https:\/\/cdnt-preview.dzcdn.net\/api\/1\/1\/2\/e\/a\/0\/2ea10eaed640d24a724199cdf20ccb89.mp3?hdnea=exp=1781953834~acl=\/api\/1\/1\/2\/e\/a\/0\/2ea10eaed640d24a724199cdf20ccb89.mp3*~data=user_id=0,application_id=42~hmac=ba72fa22c0eb47a977d99c45c4142841254a8a36d2b5beb4bb727b3ccd432dce","md5_image":"b8ec09b0c6ce32fc98227f0071b36041","artist":{"id":276495,"name":"Total
+        Science","tracklist":"https:\/\/api.deezer.com\/artist\/276495\/top?limit=50","type":"artist"},"type":"track"}],"total":5,"next":"https:\/\/api.deezer.com\/album\/7740248\/tracks?limit=-1&index=-1"}'
+    headers:
+      Access-Control-Allow-Credentials:
+      - 'true'
+      Access-Control-Allow-Headers:
+      - X-Requested-With, Content-Type, Authorization, Origin, Accept, Accept-Encoding
+      Access-Control-Allow-Methods:
+      - POST, GET, OPTIONS, DELETE, PUT
+      Access-Control-Expose-Headers:
+      - Location
+      Access-Control-Max-Age:
+      - '86400'
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Sat, 20 Jun 2026 10:55:34 GMT
+      Server:
+      - Apache
+      Set-Cookie:
+      - <redacted>
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '4123'
+      p3p:
+      - policyref="/w3c/p3p.xml" CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains
+      x-content-type-options:
+      - nosniff
+      x-host:
+      - blm-web-142
+      x-org:
+      - FR
+    status:
+      code: 200
+      message: OK
+version: 1
