@@ -1,14 +1,10 @@
 """Tests for streamrip/media/album.py (Album and PendingAlbum)."""
 
-import os
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 
 from streamrip.exceptions import NonStreamableError
 from streamrip.media.album import Album, PendingAlbum
 from streamrip.media.media import DownloadStats
-
 
 # ---------------------------------------------------------------------------
 # Helpers

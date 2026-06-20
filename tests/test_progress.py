@@ -1,12 +1,11 @@
 """Tests for streamrip/progress.py."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 import streamrip.progress as progress_module
 from streamrip.progress import Handle, ProgressManager, get_progress_callback
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

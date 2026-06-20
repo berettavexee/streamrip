@@ -2,12 +2,9 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from streamrip.exceptions import NonStreamableError
 from streamrip.media.artist import Artist, PendingArtist
 from streamrip.media.media import DownloadStats
-
 
 # ---------------------------------------------------------------------------
 # Helpers
