@@ -29,12 +29,12 @@ PLAYLIST_ID 1116189381 Deezer Top France (public chart)
 
 import os
 import sys
-import tomllib
 from contextlib import asynccontextmanager
 from unittest.mock import MagicMock
 
 import pytest
 import requests as req_lib
+import tomllib
 
 from streamrip.client.deezer import DeezerClient
 
