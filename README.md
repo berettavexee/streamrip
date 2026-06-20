@@ -10,64 +10,7 @@
 
 ## Changes from upstream
 
-The following fixes and improvements are present in this fork on top of [`nathom/streamrip:dev`](https://github.com/nathom/streamrip/tree/dev):
-
-**Deezer**
-- Support for `link.deezer.com/s/` short URLs ([#887](https://github.com/nathom/streamrip/pull/887))
-- Download liked tracks from a user profile URL (`/profile/USER_ID/loved`)
-- Use the GW API for playlist fetching to avoid breakage on the public API ([#973](https://github.com/nathom/streamrip/pull/973))
-- Include all artists from the `contributors` array in track and album metadata ([#907](https://github.com/nathom/streamrip/pull/907))
-- Automatic redirect resolution for albums, playlists and artists (handles moved/deleted IDs)
-- In-memory album metadata cache — avoids redundant API calls when the same album is fetched multiple times in one session ([#1000](https://github.com/nathom/streamrip/pull/1000))
-- In-memory GW track data cache — `get_track()` stores the GW response so that `get_downloadable()` can reuse it without a second `song.getData` call, halving GW API requests per album download
-- Connection pool sized to `max(max_connections × 4, 32)` to prevent urllib3 "pool full" warnings under concurrent downloads ([#997](https://github.com/nathom/streamrip/pull/997))
-- REST API rate limiter capped at 10 req/sec — Deezer's public API returns errors above this threshold; the limiter prevents throttling under concurrent downloads
-- Playlist tracks skip the per-track album fetch (saves 2 REST calls per track); GENRE, TRACKTOTAL, and DISCTOTAL tags are omitted for playlist tracks as a result. Reduces download time by 10 seconds for 100 tracks.
-- Quality fallback: if the requested quality is unavailable, silently falls back to a lower tier instead of crashing
-- Composer tag sourced from `SNG_CONTRIBUTORS` via the GW API (absent from the public REST API)
-- Lyricist/author tag sourced from `SNG_CONTRIBUTORS` → `LYRICIST` (FLAC), `TEXT` (MP3), iTunes freeform atom (MP4)
-- BPM tag written when available
-- ReplayGain track gain (`GAIN` field from GW API) written as `REPLAYGAIN_TRACK_GAIN` to FLAC, `TXXX:replaygain_track_gain` to MP3, and iTunes freeform atom to MP4
-- Fix `KeyError` when `disk_number` is absent from the last track in a Deezer album response ([#994](https://github.com/nathom/streamrip/pull/994))
-
-**Tidal**
-- MPEG-DASH manifest (`application/dash+xml`) support for `HI_RES_LOSSLESS` streams — required since Tidal dropped MQA ([#974](https://github.com/nathom/streamrip/issues/974), [#981](https://github.com/nathom/streamrip/issues/981))
-- Updated quality tier name `HI_RES` → `HI_RES_LOSSLESS` throughout the quality maps ([#974](https://github.com/nathom/streamrip/issues/974))
-- Composer tag populated from the `/contributors` endpoint (fetched concurrently with lyrics)
-- Fix `AttributeError` when the DASH `SegmentTemplate` has no `media` attribute
-- Fix infinite recursion / `KeyError` when BTS manifest decode fails at quality 0 ([#892](https://github.com/nathom/streamrip/issues/892))
-- Fix `TypeError: len(None)` when the `artists` field is absent from a track response
-- Fix `KeyError` when `audioQuality` returns an unknown value (e.g. new tiers)
-
-**Qobuz**
-- Fall back to `album.artist.name` when the track-level `performer` field is absent — fixes `AssertionError` on compilation albums ([#610](https://github.com/nathom/streamrip/issues/610))
-- Replace `assert status == 200` guards with proper `NonStreamableError` exceptions (asserts are silently disabled by Python's `-O` flag) ([#780](https://github.com/nathom/streamrip/issues/780))
-- Fix silent wrong-quality bug in `get_quality()`: passing `quality=0` would return the 24-bit format via Python's negative index instead of raising an error
-
-**SoundCloud**
-- Replace `assert url is not None` with a graceful `NON_STREAMABLE` return when no HLS stream is found for a track
-- Replace all remaining `assert status == 200` guards in `search`, `resolve_url`, `_get_track`, `_get_playlist`, and `get_downloadable` with `NonStreamableError` exceptions
-
-**All clients**
-- `asyncio.Lock` on each client prevents concurrent login races when multiple URLs from the same source are resolved in parallel
-
-**Downloads**
-- Playlist downloads pipeline the resolve and download phases: while one batch of tracks is downloading, the next batch's metadata and URL resolution runs concurrently, eliminating the idle API time between batches (~2 s saved per additional batch of 20 tracks)
-- `fast_async_download` runs the `requests` HTTP call inside `asyncio.to_thread` so it no longer blocks the event loop during concurrent downloads ([#982](https://github.com/nathom/streamrip/pull/982))
-- `fast_async_download` now calls `raise_for_status()` so HTTP errors (4xx/5xx) surface as exceptions instead of silently writing the error body to disk; the partial file is removed on failure
-- Fix `truncate_str` to explicitly use UTF-8 encoding and skip the encode/decode round-trip when the filename is already within the 255-byte limit
-- Mutagen file I/O (tag read + write) runs in a thread pool via `asyncio.to_thread`, releasing the download slot before tagging completes — the next track's download starts immediately while the previous one is being tagged
-
-**Converter**
-- OGG/OPUS: cover art is embedded post-conversion via `mutagen` (`METADATA_BLOCK_PICTURE`), and `-vn` prevents an unwanted Theora video stream ([#992](https://github.com/nathom/streamrip/pull/992))
-- AAC: uses `libfdk_aac` when available, falls back to the native FFmpeg `aac` encoder ([#990](https://github.com/nathom/streamrip/pull/990))
-- `OPUS` exposed as a `-c`/`--codec` option in the CLI ([#989](https://github.com/nathom/streamrip/pull/989))
-- FFmpeg `stdin` redirected to `/dev/null` to prevent terminal echo/raw-mode corruption after a rip ([#996](https://github.com/nathom/streamrip/pull/996))
-
-**CLI / misc**
-- `-l`/`--log-file` option writes all log messages at DEBUG level to a file for post-mortem analysis ([#81](https://github.com/nathom/streamrip/issues/81)); fix: DEBUG messages from the `streamrip` logger now correctly reach the log file in non-verbose mode
-- Version check is resilient to network errors and non-JSON responses (e.g. GitHub 504) ([#995](https://github.com/nathom/streamrip/pull/995))
-- Version comparison is numeric (`1.10 > 1.9`) rather than lexicographic
+See [CHANGES.md](CHANGES.md) for the full list of fixes and improvements on top of [`nathom/streamrip:dev`](https://github.com/nathom/streamrip/tree/dev).
 
 ---
 
