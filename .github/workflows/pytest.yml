@@ -36,4 +36,21 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Run tests
-        run: poetry run pytest
+        run: poetry run pytest --cov
+
+      - name: Extract coverage total
+        if: github.event_name == 'push'
+        run: echo "COVERAGE=$(poetry run coverage report --format=total)" >> $GITHUB_ENV
+
+      - name: Update coverage badge
+        if: github.event_name == 'push'
+        uses: Schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: fd7a1415ef7a725932e26dc42554f754
+          filename: streamrip_coverage.json
+          label: Coverage
+          message: ${{ env.COVERAGE }}%
+          valColorRange: ${{ env.COVERAGE }}
+          minColorRange: 50
+          maxColorRange: 90
