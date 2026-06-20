@@ -345,11 +345,13 @@ async def test_make_query_found_on_primary():
 
     result_id = MagicMock()
     result_id.id = "track-42"
+    result_id.name = "Song"
+    result_id.artist = "Artist"
     s = PendingLastfmPlaylist.Status(0, 0, 1)
 
     with patch("streamrip.media.playlist.SearchResults.from_pages") as mock_sr:
         mock_sr.return_value.results = [result_id]
-        track_id, from_fallback = await pl._make_query("Song Artist", s, lambda: None)
+        track_id, from_fallback = await pl._make_query("Song", "Artist", s, lambda: None)
 
     assert track_id == "track-42"
     assert from_fallback is False
@@ -361,7 +363,7 @@ async def test_make_query_not_found_no_fallback():
     pl.client.search = AsyncMock(return_value=[])
     s = PendingLastfmPlaylist.Status(0, 0, 1)
 
-    track_id, _from_fallback = await pl._make_query("Unknown Song", s, lambda: None)
+    track_id, _from_fallback = await pl._make_query("Unknown Song", "Artist", s, lambda: None)
 
     assert track_id is None
     assert s.failed == 1
@@ -377,11 +379,13 @@ async def test_make_query_found_on_fallback():
 
     result_id = MagicMock()
     result_id.id = "fb-99"
+    result_id.name = "Song"
+    result_id.artist = "Artist"
     s = PendingLastfmPlaylist.Status(0, 0, 1)
 
     with patch("streamrip.media.playlist.SearchResults.from_pages") as mock_sr:
         mock_sr.return_value.results = [result_id]
-        track_id, from_fallback = await pl._make_query("Song", s, lambda: None)
+        track_id, from_fallback = await pl._make_query("Song", "Artist", s, lambda: None)
 
     assert track_id == "fb-99"
     assert from_fallback is True
@@ -396,7 +400,7 @@ async def test_make_query_not_found_with_fallback():
     pl.client.search = AsyncMock(return_value=[])
 
     s = PendingLastfmPlaylist.Status(0, 0, 1)
-    track_id, _from_fallback = await pl._make_query("Unknown", s, lambda: None)
+    track_id, _from_fallback = await pl._make_query("Unknown", "Whoever", s, lambda: None)
 
     assert track_id is None
     assert s.failed == 1
@@ -408,7 +412,7 @@ async def test_make_query_callback_always_called():
     called = []
     s = PendingLastfmPlaylist.Status(0, 0, 1)
 
-    await pl._make_query("anything", s, lambda: called.append(True))
+    await pl._make_query("anything", "Whoever", s, lambda: called.append(True))
 
     assert called == [True]
 
@@ -437,7 +441,7 @@ async def test_lastfm_resolve_returns_playlist():
     async def fake_parse(_url):
         return "Top Tracks", titles_artists
 
-    async def fake_query(query, s, cb):
+    async def fake_query(title, artist, s, cb):
         s.found += 1
         cb()
         return "track-1", False
@@ -461,7 +465,7 @@ async def test_lastfm_resolve_skips_none_results():
     async def fake_parse(_url):
         return "Playlist", [("A", "X"), ("B", "Y")]
 
-    async def fake_query(query, s, cb):
+    async def fake_query(title, artist, s, cb):
         cb()
         return None, False  # not found
 
@@ -484,7 +488,7 @@ async def test_lastfm_resolve_uses_fallback_client():
     async def fake_parse(_url):
         return "PL", [("Song", "Artist")]
 
-    async def fake_query(query, s, cb):
+    async def fake_query(title, artist, s, cb):
         cb()
         return "id-1", True  # from_fallback=True
 
@@ -671,7 +675,7 @@ async def test_lastfm_resolve_with_progress_bars():
     async def fake_parse(_url):
         return "PL", [("Song", "Artist")]
 
-    async def fake_query(query, s, cb):
+    async def fake_query(title, artist, s, cb):
         s.found += 1
         cb()
         return "id-1", False

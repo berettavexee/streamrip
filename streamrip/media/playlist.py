@@ -23,6 +23,8 @@ from ..metadata import (
     SearchResults,
     TrackMetadata,
 )
+from ..metadata.search_results import TrackSummary
+from ..utils.matching import score_similarity, strip_collab
 from ..utils.ssl_utils import get_aiohttp_connector_kwargs
 from .artwork import download_embed_cover
 from .media import DownloadStats, Media, Pending
@@ -233,7 +235,7 @@ class PendingLastfmPlaylist(Pending):
                     status.update(s.text())
 
                 for title, artist in titles_artists:
-                    requests.append(self._make_query(f"{title} {artist}", s, callback))
+                    requests.append(self._make_query(title, artist, s, callback))
                 results: list[tuple[str | None, bool]] = await asyncio.gather(*requests)
         else:
 
@@ -241,7 +243,7 @@ class PendingLastfmPlaylist(Pending):
                 pass
 
             for title, artist in titles_artists:
-                requests.append(self._make_query(f"{title} {artist}", s, callback))
+                requests.append(self._make_query(title, artist, s, callback))
             results = await asyncio.gather(*requests)
 
         parent = self.config.session.downloads.folder
@@ -278,60 +280,77 @@ class PendingLastfmPlaylist(Pending):
 
     async def _make_query(
         self,
-        query: str,
+        title: str,
+        artist: str,
         search_status: Status,
         callback,
     ) -> tuple[str | None, bool]:
-        """Search for a track with the main source, and use fallback source
-        if that fails.
+        """Search for a track with the main source, and use fallback source if that fails.
+
+        The search query strips collaboration credits (e.g. "feat. X") from the
+        title to improve API hit rate. Candidates are ranked by a weighted
+        title+artist similarity score and the best match is returned.
 
         Args:
-        ----
-            query (str): Query to search
-            s (Status):
-            callback: function to call after each query completes
+            title: Track title from the Last.fm playlist entry.
+            artist: Artist name from the Last.fm playlist entry.
+            search_status: Mutable counter updated with found/failed totals.
+            callback: Callable invoked after each query completes (updates the
+                progress display).
 
-        Returns: A 2-tuple, where the first element contains the ID if it was found,
-        and the second element is True if the fallback source was used.
+        Returns:
+            A 2-tuple ``(id, from_fallback)`` where ``id`` is the best-matching
+            track ID (or ``None`` when nothing was found on any source) and
+            ``from_fallback`` is ``True`` when the fallback client was used.
         """
+        query = f"{strip_collab(title)} {artist}".strip()
+
+        def _best_id(pages: list[dict], source: str) -> str | None:
+            results: list[TrackSummary] = SearchResults.from_pages(source, "track", pages).results  # type: ignore[assignment]
+            if not results:
+                return None
+            scored = [
+                (score_similarity(title, [artist], r.name, r.artist), r)
+                for r in results
+            ]
+            best_score, best = max(scored, key=lambda x: x[0])
+            logger.debug(
+                "Best match for '%s' by '%s' on %s: '%s' by '%s' (score=%.2f)",
+                title, artist, source, best.name, best.artist, best_score,
+            )
+            return best.id
+
         with ExitStack() as stack:
-            # ensure `callback` is always called
             stack.callback(callback)
-            pages = await self.client.search("track", query, limit=1)
+            pages = await self.client.search("track", query, limit=10)
             if len(pages) > 0:
-                logger.debug(f"Found result for {query} on {self.client.source}")
-                search_status.found += 1
-                return (
-                    SearchResults.from_pages(self.client.source, "track", pages)
-                    .results[0]
-                    .id
-                ), False
+                best = _best_id(pages, self.client.source)
+                if best is not None:
+                    search_status.found += 1
+                    return best, False
 
             if self.fallback_client is None:
-                logger.debug(f"No result found for {query} on {self.client.source}")
+                logger.debug(
+                    "No result found for '%s' by '%s' on %s",
+                    title, artist, self.client.source,
+                )
                 search_status.failed += 1
                 return None, False
 
-            pages = await self.fallback_client.search("track", query, limit=1)
+            pages = await self.fallback_client.search("track", query, limit=10)
             if len(pages) > 0:
-                logger.debug(
-                    "Found result for '%s' on fallback source %s",
-                    query, self.fallback_client.source,
-                )
-                search_status.found += 1
-                return (
-                    SearchResults.from_pages(
-                        self.fallback_client.source,
-                        "track",
-                        pages,
+                best = _best_id(pages, self.fallback_client.source)
+                if best is not None:
+                    logger.debug(
+                        "Found result for '%s' by '%s' on fallback source %s",
+                        title, artist, self.fallback_client.source,
                     )
-                    .results[0]
-                    .id
-                ), True
+                    search_status.found += 1
+                    return best, True
 
             logger.debug(
-                "No result found for '%s' on primary source %s or fallback source %s",
-                query, self.client.source, self.fallback_client.source,
+                "No result found for '%s' by '%s' on primary source %s or fallback source %s",
+                title, artist, self.client.source, self.fallback_client.source,
             )
             search_status.failed += 1
         return None, True
