@@ -184,6 +184,37 @@ def test_score_complete_mismatch_is_low() -> None:
     assert score < 0.40
 
 
+def test_score_title_partial_no_artist_returns_partial_credit() -> None:
+    """Line 60: title barely above 0.55 but composite < 0.35 → returns title_score * 0.75.
+
+    "afterlife" vs "afterburn" share only the prefix "after" (5 chars); the
+    suffixes {l,i,f,e} and {b,u,r,n} have no characters in common, giving
+    SequenceMatcher a ratio of 10/18 ≈ 0.556 (just above the 0.55 threshold).
+
+    "Kiss" (k, i, s, s) shares no characters with "afterburn" or "Bloodbound",
+    so best_artist_score = 0 and composite = 0.60 × 0.556 ≈ 0.333 < 0.35.
+    The branch returns title_score × 0.75 ≈ 0.417 instead of the raw 0.333.
+    """
+    score = score_similarity("Afterlife", ["Kiss"], "Afterburn", "Bloodbound")
+    expected = (10 / 18) * 0.75  # title_score * 0.75
+    assert score == pytest.approx(expected, abs=1e-6)
+
+
+def test_score_title_close_wrong_artist_capped_at_055() -> None:
+    """Line 66: title_score ∈ [0.75, 0.90) with best_artist_score < 0.45 → min(composite, 0.55).
+
+    "freedom call" (12 chars) is a strict prefix of "freedom calling" (15 chars),
+    giving SequenceMatcher a ratio of 24/27 = 8/9 ≈ 0.889.
+
+    "Kiss" shares only the single char 'i' with "freedom calling"; the resulting
+    best_artist_score ≈ 0.084 keeps it below the 0.45 threshold.  composite ≈ 0.567
+    is capped at 0.55 by the branch.
+    """
+    score = score_similarity("Freedom Call", ["Kiss"], "Freedom Calling", "Bloodbound")
+    assert score <= 0.55
+    assert score > 0.45  # title proximity still contributes meaningfully
+
+
 # ---------------------------------------------------------------------------
 # duration_close
 # ---------------------------------------------------------------------------
