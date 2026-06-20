@@ -69,7 +69,7 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - Collaboration credits (`feat. X`, `with Y`, etc.) are stripped from the search query before hitting the API, improving hit rate for tracks whose title includes a featured artist — the scorer still compares against the full original title.
 
 
-- HTTP errors (404, 503, etc.) now surface the status code and URL in the error message instead of failing silently with a cryptic parse error
+- HTTP errors (404, 503, etc.) now surface the status code and URL in the error message instead of failing silently with a cryptic parse error; this includes non-standard codes such as `600` that Last.fm's CDN occasionally returns as a transient response — a plain retry is sufficient
 - Distinguish three failure modes: HTTP error from Last.fm, page structure changed/unrecognised, playlist parsed successfully but zero tracks extracted
 - Fix `Exception("msg: %s", page)` bug where the page body was silently dropped from the exception args and never shown in the log
 - Warning when track not found on any source now shows title and artist separately instead of printing the raw Python tuple repr
