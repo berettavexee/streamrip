@@ -1,0 +1,112 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
+        Safari/537.36
+    method: GET
+    uri: https://api.deezer.com/artist/130204
+  response:
+    body:
+      string: '{"id":130204,"name":"3state","link":"https:\/\/www.deezer.com\/artist\/130204","share":"https:\/\/www.deezer.com\/artist\/130204?utm_source=deezer&utm_content=artist-130204&utm_term=0_1781952349&utm_medium=web","picture":"https:\/\/api.deezer.com\/artist\/130204\/image","picture_small":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/99688b0e91d5510d194a630f377376d0\/56x56-000000-80-0-0.jpg","picture_medium":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/99688b0e91d5510d194a630f377376d0\/250x250-000000-80-0-0.jpg","picture_big":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/99688b0e91d5510d194a630f377376d0\/500x500-000000-80-0-0.jpg","picture_xl":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/99688b0e91d5510d194a630f377376d0\/1000x1000-000000-80-0-0.jpg","nb_album":1,"nb_fan":9,"radio":true,"tracklist":"https:\/\/api.deezer.com\/artist\/130204\/top?limit=50","type":"artist"}'
+    headers:
+      Access-Control-Allow-Credentials:
+      - 'true'
+      Access-Control-Allow-Headers:
+      - X-Requested-With, Content-Type, Authorization, Origin, Accept, Accept-Encoding
+      Access-Control-Allow-Methods:
+      - POST, GET, OPTIONS, DELETE, PUT
+      Access-Control-Expose-Headers:
+      - Location
+      Access-Control-Max-Age:
+      - '86400'
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Sat, 20 Jun 2026 10:45:49 GMT
+      Server:
+      - Apache
+      Set-Cookie:
+      - <redacted>
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '893'
+      p3p:
+      - policyref="/w3c/p3p.xml" CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains
+      x-content-type-options:
+      - nosniff
+      x-host:
+      - blm-web-190
+      x-org:
+      - FR
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
+        Safari/537.36
+    method: GET
+    uri: https://api.deezer.com/artist/130204/albums?index=0&limit=-1
+  response:
+    body:
+      string: '{"data":[{"id":211416,"title":"Surreal","link":"https:\/\/www.deezer.com\/album\/211416","cover":"https:\/\/api.deezer.com\/album\/211416\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/99688b0e91d5510d194a630f377376d0\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/99688b0e91d5510d194a630f377376d0\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/99688b0e91d5510d194a630f377376d0\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/99688b0e91d5510d194a630f377376d0\/1000x1000-000000-80-0-0.jpg","md5_image":"99688b0e91d5510d194a630f377376d0","genre_id":113,"fans":6,"release_date":"2008-08-08","record_type":"ep","tracklist":"https:\/\/api.deezer.com\/album\/211416\/tracks","explicit_lyrics":false,"type":"album"}],"total":1,"next":"https:\/\/api.deezer.com\/artist\/130204\/albums?limit=-1&index=-1"}'
+    headers:
+      Access-Control-Allow-Credentials:
+      - 'true'
+      Access-Control-Allow-Headers:
+      - X-Requested-With, Content-Type, Authorization, Origin, Accept, Accept-Encoding
+      Access-Control-Allow-Methods:
+      - POST, GET, OPTIONS, DELETE, PUT
+      Access-Control-Expose-Headers:
+      - Location
+      Access-Control-Max-Age:
+      - '86400'
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Sat, 20 Jun 2026 10:45:49 GMT
+      Server:
+      - Apache
+      Set-Cookie:
+      - <redacted>
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '941'
+      p3p:
+      - policyref="/w3c/p3p.xml" CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains
+      x-content-type-options:
+      - nosniff
+      x-host:
+      - blm-web-172
+      x-org:
+      - FR
+    status:
+      code: 200
+      message: OK
+version: 1

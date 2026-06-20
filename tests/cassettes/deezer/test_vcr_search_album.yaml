@@ -1,0 +1,66 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
+        Safari/537.36
+    method: GET
+    uri: https://api.deezer.com/search/album?q=the+wall&index=0&limit=5
+  response:
+    body:
+      string: '{"data":[{"id":12114248,"title":"The Wall","link":"https:\/\/www.deezer.com\/album\/12114248","cover":"https:\/\/api.deezer.com\/album\/12114248\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/2bea643b92a8fc6b19a23756f718cbd4\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/2bea643b92a8fc6b19a23756f718cbd4\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/2bea643b92a8fc6b19a23756f718cbd4\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/2bea643b92a8fc6b19a23756f718cbd4\/1000x1000-000000-80-0-0.jpg","md5_image":"2bea643b92a8fc6b19a23756f718cbd4","genre_id":152,"nb_tracks":26,"record_type":"album","tracklist":"https:\/\/api.deezer.com\/album\/12114248\/tracks","explicit_lyrics":false,"artist":{"id":860,"name":"Pink
+        Floyd","link":"https:\/\/www.deezer.com\/artist\/860","picture":"https:\/\/api.deezer.com\/artist\/860\/image","picture_small":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/56x56-000000-80-0-0.jpg","picture_medium":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/250x250-000000-80-0-0.jpg","picture_big":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/500x500-000000-80-0-0.jpg","picture_xl":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/d62a818a5de6455f17b6a992cf22b32f\/1000x1000-000000-80-0-0.jpg","tracklist":"https:\/\/api.deezer.com\/artist\/860\/top?limit=50","type":"artist"},"type":"album"},{"id":219344,"title":"Bringing
+        Down The Horse","link":"https:\/\/www.deezer.com\/album\/219344","cover":"https:\/\/api.deezer.com\/album\/219344\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/d3fcc02ae974d3eb6ff036ba325fb1e8\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/d3fcc02ae974d3eb6ff036ba325fb1e8\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/d3fcc02ae974d3eb6ff036ba325fb1e8\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/d3fcc02ae974d3eb6ff036ba325fb1e8\/1000x1000-000000-80-0-0.jpg","md5_image":"d3fcc02ae974d3eb6ff036ba325fb1e8","genre_id":152,"nb_tracks":11,"record_type":"album","tracklist":"https:\/\/api.deezer.com\/album\/219344\/tracks","explicit_lyrics":false,"artist":{"id":3459,"name":"The
+        Wallflowers","link":"https:\/\/www.deezer.com\/artist\/3459","picture":"https:\/\/api.deezer.com\/artist\/3459\/image","picture_small":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/682e6edec799b7715dc53b8f9a04254e\/56x56-000000-80-0-0.jpg","picture_medium":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/682e6edec799b7715dc53b8f9a04254e\/250x250-000000-80-0-0.jpg","picture_big":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/682e6edec799b7715dc53b8f9a04254e\/500x500-000000-80-0-0.jpg","picture_xl":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/682e6edec799b7715dc53b8f9a04254e\/1000x1000-000000-80-0-0.jpg","tracklist":"https:\/\/api.deezer.com\/artist\/3459\/top?limit=50","type":"artist"},"type":"album"},{"id":270619922,"title":"The
+        Walls Are Way Too Thin","link":"https:\/\/www.deezer.com\/album\/270619922","cover":"https:\/\/api.deezer.com\/album\/270619922\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b885338657f18734680848daf0b91b3f\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b885338657f18734680848daf0b91b3f\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b885338657f18734680848daf0b91b3f\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/b885338657f18734680848daf0b91b3f\/1000x1000-000000-80-0-0.jpg","md5_image":"b885338657f18734680848daf0b91b3f","genre_id":132,"nb_tracks":6,"record_type":"ep","tracklist":"https:\/\/api.deezer.com\/album\/270619922\/tracks","explicit_lyrics":false,"artist":{"id":83527112,"name":"Holly
+        Humberstone","link":"https:\/\/www.deezer.com\/artist\/83527112","picture":"https:\/\/api.deezer.com\/artist\/83527112\/image","picture_small":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/410b9d80029f0741bbc6eaed9d451840\/56x56-000000-80-0-0.jpg","picture_medium":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/410b9d80029f0741bbc6eaed9d451840\/250x250-000000-80-0-0.jpg","picture_big":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/410b9d80029f0741bbc6eaed9d451840\/500x500-000000-80-0-0.jpg","picture_xl":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/410b9d80029f0741bbc6eaed9d451840\/1000x1000-000000-80-0-0.jpg","tracklist":"https:\/\/api.deezer.com\/artist\/83527112\/top?limit=50","type":"artist"},"type":"album"},{"id":11272172,"title":"Roger
+        Waters The Wall","link":"https:\/\/www.deezer.com\/album\/11272172","cover":"https:\/\/api.deezer.com\/album\/11272172\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/9fb129a33b7ec3a34ad1e906a561f90d\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/9fb129a33b7ec3a34ad1e906a561f90d\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/9fb129a33b7ec3a34ad1e906a561f90d\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/9fb129a33b7ec3a34ad1e906a561f90d\/1000x1000-000000-80-0-0.jpg","md5_image":"9fb129a33b7ec3a34ad1e906a561f90d","genre_id":132,"nb_tracks":29,"record_type":"album","tracklist":"https:\/\/api.deezer.com\/album\/11272172\/tracks","explicit_lyrics":false,"artist":{"id":10597,"name":"Roger
+        Waters","link":"https:\/\/www.deezer.com\/artist\/10597","picture":"https:\/\/api.deezer.com\/artist\/10597\/image","picture_small":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/160591dc7cbab04d526cc14fcec50bd3\/56x56-000000-80-0-0.jpg","picture_medium":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/160591dc7cbab04d526cc14fcec50bd3\/250x250-000000-80-0-0.jpg","picture_big":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/160591dc7cbab04d526cc14fcec50bd3\/500x500-000000-80-0-0.jpg","picture_xl":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/160591dc7cbab04d526cc14fcec50bd3\/1000x1000-000000-80-0-0.jpg","tracklist":"https:\/\/api.deezer.com\/artist\/10597\/top?limit=50","type":"artist"},"type":"album"},{"id":93205782,"title":"The
+        Walls Of Jerusalem","link":"https:\/\/www.deezer.com\/album\/93205782","cover":"https:\/\/api.deezer.com\/album\/93205782\/image","cover_small":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/7adc03bb28cca90405dc4aca32494257\/56x56-000000-80-0-0.jpg","cover_medium":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/7adc03bb28cca90405dc4aca32494257\/250x250-000000-80-0-0.jpg","cover_big":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/7adc03bb28cca90405dc4aca32494257\/500x500-000000-80-0-0.jpg","cover_xl":"https:\/\/cdn-images.dzcdn.net\/images\/cover\/7adc03bb28cca90405dc4aca32494257\/1000x1000-000000-80-0-0.jpg","md5_image":"7adc03bb28cca90405dc4aca32494257","genre_id":144,"nb_tracks":25,"record_type":"album","tracklist":"https:\/\/api.deezer.com\/album\/93205782\/tracks","explicit_lyrics":false,"artist":{"id":80562,"name":"Yabby
+        You","link":"https:\/\/www.deezer.com\/artist\/80562","picture":"https:\/\/api.deezer.com\/artist\/80562\/image","picture_small":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/472ac82ed91e4cbbd317cf883867446f\/56x56-000000-80-0-0.jpg","picture_medium":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/472ac82ed91e4cbbd317cf883867446f\/250x250-000000-80-0-0.jpg","picture_big":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/472ac82ed91e4cbbd317cf883867446f\/500x500-000000-80-0-0.jpg","picture_xl":"https:\/\/cdn-images.dzcdn.net\/images\/artist\/472ac82ed91e4cbbd317cf883867446f\/1000x1000-000000-80-0-0.jpg","tracklist":"https:\/\/api.deezer.com\/artist\/80562\/top?limit=50","type":"artist"},"type":"album"}],"total":144,"next":"https:\/\/api.deezer.com\/search\/album?q=the%20wall&limit=5&index=5"}'
+    headers:
+      Access-Control-Allow-Credentials:
+      - 'true'
+      Access-Control-Allow-Headers:
+      - X-Requested-With, Content-Type, Authorization, Origin, Accept, Accept-Encoding
+      Access-Control-Allow-Methods:
+      - POST, GET, OPTIONS, DELETE, PUT
+      Access-Control-Expose-Headers:
+      - Location
+      Access-Control-Max-Age:
+      - '86400'
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Sat, 20 Jun 2026 10:45:50 GMT
+      Server:
+      - Apache
+      Set-Cookie:
+      - <redacted>
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '8010'
+      p3p:
+      - policyref="/w3c/p3p.xml" CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains
+      x-content-type-options:
+      - nosniff
+      x-host:
+      - blm-web-140
+      x-org:
+      - FR
+    status:
+      code: 200
+      message: OK
+version: 1
