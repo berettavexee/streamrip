@@ -1,6 +1,5 @@
 """Global pytest configuration and shared fixtures."""
 
-import re
 
 import pytest
 
