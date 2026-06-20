@@ -34,6 +34,7 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 
 ## Qobuz
 
+- Fix unclosed `aiohttp.ClientSession` when `login()` raises (bad credentials, missing credentials, ineligible account, network error) — the session is now closed before the exception propagates ([#1005](https://github.com/nathom/streamrip/pull/1005))
 - Fall back to `album.artist.name` when the track-level `performer` field is absent — fixes `AssertionError` on compilation albums ([#610](https://github.com/nathom/streamrip/issues/610))
 - Replace `assert status == 200` guards with proper `NonStreamableError` exceptions (asserts are silently disabled by Python's `-O` flag) ([#780](https://github.com/nathom/streamrip/issues/780))
 - Fix silent wrong-quality bug in `get_quality()`: passing `quality=0` would return the 24-bit format via Python's negative index instead of raising an error
