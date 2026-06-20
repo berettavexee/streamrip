@@ -100,6 +100,67 @@ class TestFailed:
         assert not os.path.exists(path)
 
 
+class TestDatabaseBaseValidation:
+    def test_dummy_create_noop(self):
+        d = db.Dummy()
+        d.create()  # should not raise
+
+    def test_empty_structure_raises(self, tmp_path_str):
+        class EmptyStructure(db.DatabaseBase):
+            structure = {}
+            name = "test"
+
+        path = os.path.join(tmp_path_str, "es.db")
+        with pytest.raises(ValueError, match="structure must not be empty"):
+            EmptyStructure(path)
+
+    def test_empty_name_raises(self, tmp_path_str):
+        class EmptyName(db.DatabaseBase):
+            structure = {"id": ["text"]}
+            name = ""
+
+        path = os.path.join(tmp_path_str, "en.db")
+        with pytest.raises(ValueError, match="name must not be empty"):
+            EmptyName(path)
+
+    def test_empty_path_raises(self):
+        with pytest.raises(ValueError, match="path must not be empty"):
+            db.Downloads("")
+
+    def test_keys_returns_column_names(self, tmp_path_str):
+        path = os.path.join(tmp_path_str, "d.db")
+        d = db.Downloads(path)
+        assert "id" in d.keys()
+
+    def test_contains_invalid_key_raises(self, tmp_path_str):
+        path = os.path.join(tmp_path_str, "d.db")
+        d = db.Downloads(path)
+        with pytest.raises(ValueError, match="Invalid key"):
+            d.contains(bad_key="x")
+
+    def test_add_wrong_count_raises(self, tmp_path_str):
+        path = os.path.join(tmp_path_str, "d.db")
+        d = db.Downloads(path)
+        with pytest.raises(ValueError, match="Expected 1 values"):
+            d.add(())
+
+    def test_remove_deletes_row(self, tmp_path_str):
+        path = os.path.join(tmp_path_str, "d.db")
+        d = db.Downloads(path)
+        d.add(("to-remove",))
+        assert d.contains(id="to-remove")
+        d.remove(id="to-remove")
+        assert not d.contains(id="to-remove")
+
+    def test_reset_when_file_missing_is_silent(self, tmp_path_str):
+        from unittest.mock import patch
+
+        path = os.path.join(tmp_path_str, "d.db")
+        d = db.Downloads(path)
+        with patch("streamrip.db.os.remove", side_effect=FileNotFoundError):
+            d.reset()  # must not raise
+
+
 class TestDatabase:
     def test_downloaded_and_set_downloaded(self, tmp_path_str):
         dl_path = os.path.join(tmp_path_str, "dl.db")
