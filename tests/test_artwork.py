@@ -16,7 +16,6 @@ from streamrip.media.artwork import (
 )
 from streamrip.metadata.covers import Covers
 
-
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
