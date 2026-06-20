@@ -162,6 +162,17 @@ class DeezerClient(Client):
         except Exception as e:
             raise NonStreamableError(e)
 
+        # deezer-py may return an error dict (e.g. {"error": 800, "message":
+        # "Quota limit exceeded"}) instead of raising when the HTTP status is
+        # 200 but the body is a short JSON error (the 86-byte responses seen
+        # under burst load). Detect this early so callers get a clean
+        # NonStreamableError rather than a KeyError or corrupt metadata.
+        if "error" in item:
+            raise NonStreamableError(
+                f"Deezer API error {item.get('error')} for track {item_id}: "
+                f"{item.get('message', 'unknown error')}"
+            )
+
         try:
             if fetch_album:
                 # Fetch album and GW track info concurrently.

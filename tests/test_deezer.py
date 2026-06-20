@@ -540,6 +540,18 @@ def test_get_track_api_failure(mock_deezer_client):
         arun(mock_deezer_client.get_track("999"))
 
 
+def test_get_track_error_dict_raises(mock_deezer_client):
+    """When deezer-py returns an error dict instead of raising (e.g. quota 800),
+    get_track raises NonStreamableError rather than passing a corrupt dict downstream."""
+    mock_deezer_client.client.api.get_track.return_value = {
+        "error": 800,
+        "message": "Quota limit exceeded",
+        "type": "DataException",
+    }
+    with pytest.raises(NonStreamableError, match="800"):
+        arun(mock_deezer_client.get_track("42"))
+
+
 def test_get_track_gw_fetch_error_returns_partial(mock_deezer_client):
     """When GW data fetch fails, get_track returns the partial track dict."""
     mock_deezer_client.client.api.get_track.return_value = {
