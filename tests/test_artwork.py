@@ -202,7 +202,7 @@ async def test_download_artwork_embed_creates_tempdir(mock_downloadable, tmp_pat
         MagicMock(), str(tmp_path), _covers(), _config(save_artwork=False, embed=True), False
     )
     expected_dir = os.path.join(str(tmp_path), "__artwork")
-    assert os.path.isdir(expected_dir)
+    assert (tmp_path / "__artwork").is_dir()
     assert expected_dir in artwork_module._artwork_tempdirs
 
 
