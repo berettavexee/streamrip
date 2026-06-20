@@ -170,10 +170,10 @@ class LabelSummary(Summary):
         return "label"
 
     def summarize(self) -> str:
-        return str(self)
+        return clean(self.name)
 
     def preview(self) -> str:
-        return str(self)
+        return f"ID: {self.id}"
 
     @classmethod
     def from_item(cls, item: dict):
