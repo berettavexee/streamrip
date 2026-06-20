@@ -521,6 +521,7 @@ async def test_parse_lastfm_single_page(mocker):
     mock_resp = AsyncMock()
     mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
     mock_resp.__aexit__ = AsyncMock(return_value=False)
+    mock_resp.status = 200
     mock_resp.text = AsyncMock(return_value=_LASTFM_HTML_SINGLE_PAGE)
 
     mock_session = MagicMock()
@@ -543,6 +544,7 @@ async def test_parse_lastfm_raises_when_title_missing(mocker):
     mock_resp = AsyncMock()
     mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
     mock_resp.__aexit__ = AsyncMock(return_value=False)
+    mock_resp.status = 200
     mock_resp.text = AsyncMock(return_value="<html>no title here</html>")
 
     mock_session = MagicMock()
@@ -552,7 +554,7 @@ async def test_parse_lastfm_raises_when_title_missing(mocker):
 
     with patch("streamrip.media.playlist.aiohttp.ClientSession", return_value=mock_session):
         with patch("streamrip.media.playlist.aiohttp.TCPConnector"):
-            with pytest.raises(Exception, match="Error finding title"):
+            with pytest.raises(Exception, match="Could not find playlist title"):
                 await pl._parse_lastfm_playlist("https://last.fm/x")
 
 
@@ -571,6 +573,7 @@ async def test_parse_lastfm_raises_when_track_count_missing():
     mock_resp = AsyncMock()
     mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
     mock_resp.__aexit__ = AsyncMock(return_value=False)
+    mock_resp.status = 200
     mock_resp.text = AsyncMock(return_value=_LASTFM_HTML_NO_COUNT)
 
     mock_session = MagicMock()
@@ -580,7 +583,7 @@ async def test_parse_lastfm_raises_when_track_count_missing():
 
     with patch("streamrip.media.playlist.aiohttp.ClientSession", return_value=mock_session):
         with patch("streamrip.media.playlist.aiohttp.TCPConnector"):
-            with pytest.raises(Exception, match="Error parsing lastfm page"):
+            with pytest.raises(Exception, match="Could not find track count"):
                 await pl._parse_lastfm_playlist("https://last.fm/x")
 
 
@@ -614,6 +617,7 @@ async def test_parse_lastfm_multi_page():
     mock_resp = MagicMock()
     mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
     mock_resp.__aexit__ = AsyncMock(return_value=False)
+    mock_resp.status = 200
     mock_resp.text = fake_text
 
     mock_session = MagicMock()
@@ -628,6 +632,36 @@ async def test_parse_lastfm_multi_page():
     assert title == "Big Playlist"
     assert ("Song One", "Artist One") in pairs
     assert ("Song Two", "Artist Two") in pairs
+
+
+def _mock_session_with_status(status: int):
+    mock_resp = AsyncMock()
+    mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_resp.__aexit__ = AsyncMock(return_value=False)
+    mock_resp.status = status
+    mock_session = MagicMock()
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=False)
+    mock_session.get = MagicMock(return_value=mock_resp)
+    return mock_session
+
+
+async def test_parse_lastfm_raises_on_404():
+    pl = _lastfm_playlist()
+    with patch("streamrip.media.playlist.aiohttp.ClientSession",
+               return_value=_mock_session_with_status(404)):
+        with patch("streamrip.media.playlist.aiohttp.TCPConnector"):
+            with pytest.raises(Exception, match="HTTP 404"):
+                await pl._parse_lastfm_playlist("https://last.fm/x")
+
+
+async def test_parse_lastfm_raises_on_5xx():
+    pl = _lastfm_playlist()
+    with patch("streamrip.media.playlist.aiohttp.ClientSession",
+               return_value=_mock_session_with_status(503)):
+        with patch("streamrip.media.playlist.aiohttp.TCPConnector"):
+            with pytest.raises(Exception, match="HTTP 503"):
+                await pl._parse_lastfm_playlist("https://last.fm/x")
 
 
 async def test_lastfm_resolve_with_progress_bars():
