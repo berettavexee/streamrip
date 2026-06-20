@@ -1,0 +1,567 @@
+"""Tests for streamrip/media/track.py."""
+
+import os
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from streamrip.exceptions import NonStreamableError
+from streamrip.media.media import DownloadStats
+from streamrip.media.track import PendingSingle, PendingTrack, Track
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _downloadable(ext="flac", size=1000, source="deezer"):
+    d = MagicMock()
+    d.extension = ext
+    d.size = AsyncMock(return_value=size)
+    d.download = AsyncMock()
+    d.source = source
+    return d
+
+
+def _track_meta(title="Song", tracknumber=1, discnumber=1):
+    m = MagicMock()
+    m.title = title
+    m.tracknumber = tracknumber
+    m.discnumber = discnumber
+    m.format_track_path = MagicMock(return_value=f"{tracknumber:02d} - {title}")
+    m.info = MagicMock()
+    m.info.id = "track-42"
+    return m
+
+
+def _config(
+    restrict_characters=False,
+    truncate_to=0,
+    progress_bars=False,
+    conversion_enabled=False,
+    disc_subdirectories=False,
+    source_subdirectories=False,
+    add_singles_to_folder=True,
+):
+    cfg = MagicMock()
+    cfg.session.filepaths.track_format = "{tracknumber} - {title}"
+    cfg.session.filepaths.restrict_characters = restrict_characters
+    cfg.session.filepaths.truncate_to = truncate_to
+    cfg.session.filepaths.folder_format = "{albumartist}/{album}"
+    cfg.session.filepaths.add_singles_to_folder = add_singles_to_folder
+    cfg.session.cli.progress_bars = progress_bars
+    cfg.session.conversion.enabled = conversion_enabled
+    cfg.session.downloads.disc_subdirectories = disc_subdirectories
+    cfg.session.downloads.source_subdirectories = source_subdirectories
+    cfg.session.downloads.folder = "/dl"
+    cfg.session.get_source.return_value.quality = 2
+    return cfg
+
+
+def _db(downloaded=False):
+    db = MagicMock()
+    db.downloaded.return_value = downloaded
+    return db
+
+
+def _track(is_single=False, cover_path=None, cfg=None):
+    return Track(
+        meta=_track_meta(),
+        downloadable=_downloadable(),
+        config=cfg or _config(),
+        folder="/dl/album",
+        cover_path=cover_path,
+        db=_db(),
+        is_single=is_single,
+    )
+
+
+def _async_cm():
+    cm = MagicMock()
+    cm.__aenter__ = AsyncMock(return_value=None)
+    cm.__aexit__ = AsyncMock(return_value=False)
+    return cm
+
+
+def _sync_cm():
+    cm = MagicMock()
+    cm.__enter__ = MagicMock(return_value=MagicMock())
+    cm.__exit__ = MagicMock(return_value=False)
+    return cm
+
+
+# ---------------------------------------------------------------------------
+# Track._set_download_path
+# ---------------------------------------------------------------------------
+
+
+def test_set_download_path_basic():
+    t = _track()
+    t._set_download_path()
+    assert t.download_path == "/dl/album/01 - Song.flac"
+
+
+def test_set_download_path_truncates():
+    cfg = _config(truncate_to=5)
+    t = _track(cfg=cfg)
+    t._set_download_path()
+    name_no_ext = os.path.basename(t.download_path).rsplit(".", 1)[0]
+    assert len(name_no_ext) <= 5
+
+
+def test_set_download_path_no_truncate_when_zero():
+    t = _track(cfg=_config(truncate_to=0))
+    t.meta.format_track_path = MagicMock(return_value="Long Title Track Name")
+    t._set_download_path()
+    assert "Long Title Track Name" in t.download_path
+
+
+# ---------------------------------------------------------------------------
+# Track.preprocess
+# ---------------------------------------------------------------------------
+
+
+async def test_preprocess_creates_folder(tmp_path):
+    t = _track()
+    t.folder = str(tmp_path / "new_dir")
+    with patch("streamrip.media.track.add_title") as mock_add:
+        await t.preprocess()
+    assert (tmp_path / "new_dir").is_dir()
+    mock_add.assert_not_called()
+
+
+async def test_preprocess_adds_title_when_single(tmp_path):
+    t = _track(is_single=True)
+    t.folder = str(tmp_path)
+    with patch("streamrip.media.track.add_title") as mock_add:
+        await t.preprocess()
+    mock_add.assert_called_once_with(t.meta.title)
+
+
+# ---------------------------------------------------------------------------
+# Track.download
+# ---------------------------------------------------------------------------
+
+
+async def test_download_success_first_attempt():
+    t = _track()
+    t.download_path = "/dl/album/01 - Song.flac"
+    with (
+        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
+    ):
+        await t.download()
+    t.downloadable.download.assert_awaited_once()
+
+
+async def test_download_retries_on_first_failure(caplog):
+    t = _track()
+    t.download_path = "/dl/album/01 - Song.flac"
+    t.downloadable.download = AsyncMock(side_effect=[RuntimeError("network"), None])
+    with (
+        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
+    ):
+        await t.download()
+    assert t.downloadable.download.await_count == 2
+    assert "retrying" in caplog.text
+
+
+async def test_download_marks_failed_after_two_failures(caplog):
+    t = _track()
+    t.download_path = "/dl/album/01 - Song.flac"
+    t.downloadable.download = AsyncMock(side_effect=RuntimeError("bad"))
+    with (
+        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
+    ):
+        await t.download()
+    assert t.downloadable.download.await_count == 2
+    assert "skipping" in caplog.text
+    t.db.set_failed.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Track.postprocess
+# ---------------------------------------------------------------------------
+
+
+async def test_postprocess_tags_file():
+    t = _track()
+    t.download_path = "/dl/album/01 - Song.flac"
+    with (
+        patch("streamrip.media.track.tag_file", new=AsyncMock()) as mock_tag,
+        patch("streamrip.media.track.remove_title"),
+    ):
+        await t.postprocess()
+    mock_tag.assert_awaited_once_with(t.download_path, t.meta, t.cover_path)
+
+
+async def test_postprocess_removes_title_when_single():
+    t = _track(is_single=True)
+    t.download_path = "/dl/album/01 - Song.flac"
+    with (
+        patch("streamrip.media.track.tag_file", new=AsyncMock()),
+        patch("streamrip.media.track.remove_title") as mock_rm,
+    ):
+        await t.postprocess()
+    mock_rm.assert_called_once_with(t.meta.title)
+
+
+async def test_postprocess_no_remove_title_when_not_single():
+    t = _track(is_single=False)
+    t.download_path = "/dl/album/01 - Song.flac"
+    with (
+        patch("streamrip.media.track.tag_file", new=AsyncMock()),
+        patch("streamrip.media.track.remove_title") as mock_rm,
+    ):
+        await t.postprocess()
+    mock_rm.assert_not_called()
+
+
+async def test_postprocess_marks_downloaded():
+    t = _track()
+    t.download_path = "/dl/album/01 - Song.flac"
+    with (
+        patch("streamrip.media.track.tag_file", new=AsyncMock()),
+        patch("streamrip.media.track.remove_title"),
+    ):
+        await t.postprocess()
+    t.db.set_downloaded.assert_called_once_with(t.meta.info.id)
+
+
+async def test_postprocess_runs_conversion_when_enabled():
+    t = _track(cfg=_config(conversion_enabled=True))
+    t.download_path = "/dl/album/01 - Song.flac"
+    with (
+        patch("streamrip.media.track.tag_file", new=AsyncMock()),
+        patch("streamrip.media.track.remove_title"),
+        patch.object(t, "_convert", new=AsyncMock()) as mock_cv,
+    ):
+        await t.postprocess()
+    mock_cv.assert_awaited_once()
+
+
+async def test_postprocess_skips_conversion_when_disabled():
+    t = _track(cfg=_config(conversion_enabled=False))
+    t.download_path = "/dl/album/01 - Song.flac"
+    with (
+        patch("streamrip.media.track.tag_file", new=AsyncMock()),
+        patch("streamrip.media.track.remove_title"),
+        patch.object(t, "_convert", new=AsyncMock()) as mock_cv,
+    ):
+        await t.postprocess()
+    mock_cv.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Track._convert
+# ---------------------------------------------------------------------------
+
+
+async def test_convert_calls_engine_and_updates_path():
+    cfg = _config(conversion_enabled=True)
+    cfg.session.conversion.codec = "MP3"
+    cfg.session.conversion.sampling_rate = 44100
+    cfg.session.conversion.bit_depth = 16
+    t = _track(cfg=cfg)
+    t.download_path = "/dl/album/01 - Song.flac"
+
+    engine = MagicMock()
+    engine.convert = AsyncMock()
+    engine.final_fn = "/dl/album/01 - Song.mp3"
+
+    with patch("streamrip.media.track.converter.get", return_value=MagicMock(return_value=engine)):
+        await t._convert()
+
+    engine.convert.assert_awaited_once()
+    assert t.download_path == "/dl/album/01 - Song.mp3"
+
+
+# ---------------------------------------------------------------------------
+# Track.rip
+# ---------------------------------------------------------------------------
+
+
+async def test_rip_calls_lifecycle_methods():
+    t = _track()
+    with (
+        patch.object(t, "preprocess", new=AsyncMock()) as mock_pre,
+        patch.object(t, "download", new=AsyncMock()) as mock_dl,
+        patch.object(t, "postprocess", new=AsyncMock()) as mock_post,
+    ):
+        await t.rip()
+    mock_pre.assert_awaited_once()
+    mock_dl.assert_awaited_once()
+    mock_post.assert_awaited_once()
+
+
+async def test_rip_records_success_in_stats():
+    t = _track()
+    t.download_path = "/nonexistent/path.flac"
+    stats = DownloadStats()
+    with (
+        patch.object(t, "preprocess", new=AsyncMock()),
+        patch.object(t, "download", new=AsyncMock()),
+        patch.object(t, "postprocess", new=AsyncMock()),
+    ):
+        await t.rip(stats)
+    assert stats.tracks_downloaded == 1
+
+
+async def test_rip_records_failure_and_reraises():
+    t = _track()
+    stats = DownloadStats()
+    with patch.object(t, "preprocess", new=AsyncMock(side_effect=RuntimeError("disk full"))):
+        with pytest.raises(RuntimeError, match="disk full"):
+            await t.rip(stats)
+    assert stats.tracks_failed == 1
+
+
+async def test_rip_reraises_without_stats():
+    t = _track()
+    with patch.object(t, "preprocess", new=AsyncMock(side_effect=RuntimeError("boom"))):
+        with pytest.raises(RuntimeError):
+            await t.rip()
+
+
+# ---------------------------------------------------------------------------
+# PendingTrack.resolve
+# ---------------------------------------------------------------------------
+
+
+def _pending_track(downloaded=False, disc_subdirectories=False):
+    client = MagicMock()
+    client.source = "deezer"
+    client.get_metadata = AsyncMock(return_value={"id": "42", "title": "Song"})
+    client.get_downloadable = AsyncMock(return_value=_downloadable())
+
+    album = MagicMock()
+    album.disctotal = 1
+
+    return PendingTrack(
+        id="42",
+        album=album,
+        client=client,
+        config=_config(disc_subdirectories=disc_subdirectories),
+        folder="/dl/album",
+        db=_db(downloaded=downloaded),
+        cover_path="/cover.jpg",
+    )
+
+
+async def test_pending_track_skips_if_downloaded():
+    pt = _pending_track(downloaded=True)
+    assert await pt.resolve() is None
+    pt.client.get_metadata.assert_not_called()
+
+
+async def test_pending_track_returns_none_on_get_metadata_non_streamable():
+    pt = _pending_track()
+    pt.client.get_metadata = AsyncMock(side_effect=NonStreamableError("geo"))
+    assert await pt.resolve() is None
+
+
+async def test_pending_track_returns_none_on_metadata_exception():
+    pt = _pending_track()
+    with patch("streamrip.media.track.TrackMetadata.from_resp", side_effect=ValueError("bad resp")):
+        assert await pt.resolve() is None
+
+
+async def test_pending_track_returns_none_when_meta_is_none():
+    pt = _pending_track()
+    with patch("streamrip.media.track.TrackMetadata.from_resp", return_value=None):
+        result = await pt.resolve()
+    assert result is None
+    pt.db.set_failed.assert_called_once()
+
+
+async def test_pending_track_returns_none_on_downloadable_non_streamable():
+    pt = _pending_track()
+    pt.client.get_downloadable = AsyncMock(side_effect=NonStreamableError("no dl"))
+    with patch("streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock(tracknumber=1)):
+        assert await pt.resolve() is None
+
+
+async def test_pending_track_returns_track():
+    pt = _pending_track()
+    with patch("streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()):
+        result = await pt.resolve()
+    assert isinstance(result, Track)
+    assert result.folder == "/dl/album"
+
+
+async def test_pending_track_disc_subdirectory():
+    pt = _pending_track(disc_subdirectories=True)
+    pt.album.disctotal = 3
+    meta = MagicMock()
+    meta.discnumber = 2
+    with patch("streamrip.media.track.TrackMetadata.from_resp", return_value=meta):
+        result = await pt.resolve()
+    assert result.folder == "/dl/album/Disc 2"
+
+
+async def test_pending_track_no_disc_folder_when_single_disc():
+    pt = _pending_track(disc_subdirectories=True)
+    pt.album.disctotal = 1
+    with patch("streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()):
+        result = await pt.resolve()
+    assert result.folder == "/dl/album"
+
+
+# ---------------------------------------------------------------------------
+# PendingSingle.resolve
+# ---------------------------------------------------------------------------
+
+
+def _pending_single(downloaded=False, add_singles_to_folder=True, source="deezer"):
+    client = MagicMock()
+    client.source = source
+    client.session = MagicMock()
+    client.get_metadata = AsyncMock(return_value={"id": "1", "title": "Song"})
+    client.get_downloadable = AsyncMock(return_value=_downloadable())
+
+    cfg = _config(add_singles_to_folder=add_singles_to_folder)
+    setattr(cfg.session, source, MagicMock(quality=2))
+
+    return PendingSingle(id="1", client=client, config=cfg, db=_db(downloaded=downloaded))
+
+
+async def test_pending_single_skips_if_downloaded():
+    ps = _pending_single(downloaded=True)
+    assert await ps.resolve() is None
+    ps.client.get_metadata.assert_not_called()
+
+
+async def test_pending_single_returns_none_on_metadata_non_streamable():
+    ps = _pending_single()
+    ps.client.get_metadata = AsyncMock(side_effect=NonStreamableError("geo"))
+    assert await ps.resolve() is None
+
+
+async def test_pending_single_returns_none_on_album_exception():
+    ps = _pending_single()
+    with patch("streamrip.media.track.AlbumMetadata.from_track_resp", side_effect=ValueError("bad")):
+        assert await ps.resolve() is None
+
+
+async def test_pending_single_returns_none_when_album_is_none():
+    ps = _pending_single()
+    with patch("streamrip.media.track.AlbumMetadata.from_track_resp", return_value=None):
+        result = await ps.resolve()
+    assert result is None
+    ps.db.set_failed.assert_called_once()
+
+
+async def test_pending_single_returns_none_on_track_meta_exception():
+    ps = _pending_single()
+    album = MagicMock()
+    with (
+        patch("streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album),
+        patch("streamrip.media.track.TrackMetadata.from_resp", side_effect=ValueError("bad")),
+    ):
+        assert await ps.resolve() is None
+
+
+async def test_pending_single_returns_none_when_track_meta_is_none():
+    ps = _pending_single()
+    album = MagicMock()
+    with (
+        patch("streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album),
+        patch("streamrip.media.track.TrackMetadata.from_resp", return_value=None),
+    ):
+        result = await ps.resolve()
+    assert result is None
+    ps.db.set_failed.assert_called_once()
+
+
+async def test_pending_single_returns_track_with_is_single():
+    ps = _pending_single()
+    album = MagicMock()
+    album.info.quality = 2
+    with (
+        patch("streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album),
+        patch("streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()),
+        patch("streamrip.media.track.download_embed_cover", new=AsyncMock(return_value="/cover.jpg")),
+        patch("streamrip.media.track.os.makedirs"),
+    ):
+        result = await ps.resolve()
+    assert isinstance(result, Track)
+    assert result.is_single is True
+
+
+async def test_pending_single_uses_parent_folder_when_add_singles_to_folder_false():
+    ps = _pending_single(add_singles_to_folder=False)
+    album = MagicMock()
+    with (
+        patch("streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album),
+        patch("streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()),
+        patch("streamrip.media.track.download_embed_cover", new=AsyncMock(return_value=None)),
+        patch("streamrip.media.track.os.makedirs"),
+    ):
+        result = await ps.resolve()
+    assert result.folder == "/dl"
+
+
+async def test_pending_single_uses_format_folder_when_add_singles_to_folder():
+    ps = _pending_single(add_singles_to_folder=True)
+    album = MagicMock()
+    with (
+        patch("streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album),
+        patch("streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()),
+        patch("streamrip.media.track.download_embed_cover", new=AsyncMock(return_value=None)),
+        patch("streamrip.media.track.os.makedirs"),
+        patch.object(ps, "_format_folder", return_value="/dl/Artist/Album") as mock_ff,
+    ):
+        result = await ps.resolve()
+    mock_ff.assert_called_once_with(album)
+    assert result.folder == "/dl/Artist/Album"
+
+
+# ---------------------------------------------------------------------------
+# PendingSingle._format_folder
+# ---------------------------------------------------------------------------
+
+
+def test_format_folder_no_source_subdirectory():
+    ps = _pending_single()
+    ps.config.session.downloads.folder = "/dl"
+    ps.config.session.downloads.source_subdirectories = False
+    ps.config.session.get_source.return_value.quality = 2
+
+    meta = MagicMock()
+    meta.info.quality = 2
+    meta.format_folder_path = MagicMock(return_value="Artist/Album")
+
+    result = ps._format_folder(meta)
+    assert result == "/dl/Artist/Album"
+
+
+def test_format_folder_with_source_subdirectory():
+    ps = _pending_single(source="qobuz")
+    ps.config.session.downloads.folder = "/dl"
+    ps.config.session.downloads.source_subdirectories = True
+    ps.config.session.get_source.return_value.quality = 3
+
+    meta = MagicMock()
+    meta.info.quality = 2
+    meta.format_folder_path = MagicMock(return_value="Artist/Album")
+
+    result = ps._format_folder(meta)
+    assert result == "/dl/Qobuz/Artist/Album"
+
+
+def test_format_folder_clips_quality_to_meta():
+    ps = _pending_single()
+    ps.config.session.downloads.folder = "/dl"
+    ps.config.session.downloads.source_subdirectories = False
+    ps.config.session.get_source.return_value.quality = 5
+
+    meta = MagicMock()
+    meta.info.quality = 1
+    meta.format_folder_path = MagicMock(return_value="Artist/Album")
+
+    ps._format_folder(meta)
+    meta.format_folder_path.assert_called_once_with(
+        ps.config.session.filepaths.folder_format, 1
+    )
