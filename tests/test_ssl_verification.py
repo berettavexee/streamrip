@@ -325,6 +325,22 @@ async def test_client_uses_config_settings():
             pytest.skip(f"Could not test TidalClient: {e}")
 
 
+def test_create_ssl_context_without_certifi():
+    """create_ssl_context falls back to system certs when certifi is unavailable."""
+    with patch("streamrip.utils.ssl_utils.HAS_CERTIFI", False):
+        with patch("ssl.create_default_context") as mock_ctx:
+            mock_ctx.return_value = MagicMock()
+            create_ssl_context(verify=True)
+            mock_ctx.assert_called_once_with()  # no cafile kwarg
+
+
+def test_get_aiohttp_connector_kwargs_without_certifi():
+    """Returns verify_ssl=True when certifi is unavailable."""
+    with patch("streamrip.utils.ssl_utils.HAS_CERTIFI", False):
+        kwargs = get_aiohttp_connector_kwargs(verify_ssl=True)
+        assert kwargs == {"verify_ssl": True}
+
+
 def test_cli_option_registered():
     """Test that the --no-ssl-verify CLI option is registered."""
     # Check if the option exists in the command parameters

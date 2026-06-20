@@ -1,11 +1,11 @@
 import asyncio
 import os
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import deezer
 import pytest
 import tomllib
-from deezer.errors import DataException
+from deezer.errors import DataException, GWAPIError
 from util import arun
 
 from streamrip.client.deezer import DeezerClient
@@ -519,6 +519,236 @@ def test_deezer_search_no_results(mock_deezer_client):
     results = arun(mock_deezer_client.search("track", "nonexistent"))
 
     assert results == []
+
+
+def _setup_head_mock(mock_client, final_url):
+    """Configure mock_client.session.head as an async context manager."""
+    mock_resp = Mock()
+    mock_resp.url = final_url
+    mock_cm = MagicMock()
+    mock_cm.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_cm.__aexit__ = AsyncMock(return_value=None)
+    mock_client.session.head.return_value = mock_cm
+
+
+# ===== get_track — error paths =====
+
+def test_get_track_api_failure(mock_deezer_client):
+    """get_track wraps API errors in NonStreamableError."""
+    mock_deezer_client.client.api.get_track.side_effect = Exception("API down")
+    with pytest.raises(NonStreamableError):
+        arun(mock_deezer_client.get_track("999"))
+
+
+def test_get_track_gw_fetch_error_returns_partial(mock_deezer_client):
+    """When GW data fetch fails, get_track returns the partial track dict."""
+    mock_deezer_client.client.api.get_track.return_value = {
+        "id": "100",
+        "title": "Test Track",
+        "album": {"id": 200},
+    }
+    mock_deezer_client.client.api.get_album.return_value = {"id": "200", "title": "Album"}
+    mock_deezer_client.client.api.get_album_tracks.return_value = {"data": []}
+    mock_deezer_client.client.gw.get_track.side_effect = Exception("GW down")
+
+    track = arun(mock_deezer_client.get_track("100"))
+    assert track["title"] == "Test Track"
+    assert "composer" not in track
+    assert "gain" not in track
+
+
+# ===== get_album — task exception =====
+
+def test_get_album_task_exception_clears_task(mock_deezer_client):
+    """A failed get_album task is removed from _album_tasks so it can be retried."""
+    mock_deezer_client.client.api.get_album.side_effect = DataException
+
+    with patch.object(mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value=None)):
+        with pytest.raises(DataException):
+            arun(mock_deezer_client.get_album("bad_album"))
+
+    assert "bad_album" not in mock_deezer_client._album_tasks
+
+
+# ===== _resolve_redirect =====
+
+def test_resolve_redirect_success(mock_deezer_client):
+    """_resolve_redirect returns the new ID when the server redirects."""
+    _setup_head_mock(mock_deezer_client, "https://www.deezer.com/album/99999")
+    result = arun(mock_deezer_client._resolve_redirect("album", "old_id"))
+    assert result == "99999"
+
+
+def test_resolve_redirect_same_url_returns_none(mock_deezer_client):
+    """_resolve_redirect returns None when there is no redirect."""
+    _setup_head_mock(mock_deezer_client, "https://www.deezer.com/album/old_id")
+    result = arun(mock_deezer_client._resolve_redirect("album", "old_id"))
+    assert result is None
+
+
+def test_resolve_redirect_network_error_returns_none(mock_deezer_client):
+    """_resolve_redirect swallows network errors and returns None."""
+    mock_cm = MagicMock()
+    mock_cm.__aenter__ = AsyncMock(side_effect=Exception("timeout"))
+    mock_cm.__aexit__ = AsyncMock(return_value=None)
+    mock_deezer_client.session.head.return_value = mock_cm
+
+    result = arun(mock_deezer_client._resolve_redirect("album", "old_id"))
+    assert result is None
+
+
+def test_resolve_redirect_no_regex_match_returns_none(mock_deezer_client):
+    """_resolve_redirect returns None when the final URL has no parsable ID."""
+    _setup_head_mock(mock_deezer_client, "https://www.deezer.com/error")
+    result = arun(mock_deezer_client._resolve_redirect("album", "old_id"))
+    assert result is None
+
+
+# ===== get_playlist — GWAPIError =====
+
+def test_get_playlist_gw_error_redirect(mock_deezer_client):
+    """GWAPIError on get_playlist triggers redirect resolution."""
+    call_count = [0]
+
+    def gw_get_playlist(item_id):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            raise GWAPIError("not found")
+        return {"DATA": {"TITLE": "Redirected Playlist"}}
+
+    mock_deezer_client.client.gw.get_playlist.side_effect = gw_get_playlist
+    mock_deezer_client.client.gw.get_playlist_tracks.return_value = [{"SNG_ID": "1"}]
+
+    with patch.object(mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value="new_id")):
+        result = arun(mock_deezer_client.get_playlist("old_id"))
+
+    assert result["title"] == "Redirected Playlist"
+
+
+def test_get_playlist_gw_error_no_redirect_raises(mock_deezer_client):
+    """GWAPIError re-raises when no redirect is available."""
+    mock_deezer_client.client.gw.get_playlist.side_effect = GWAPIError("not found")
+
+    with patch.object(mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value=None)):
+        with pytest.raises(GWAPIError):
+            arun(mock_deezer_client.get_playlist("bad_id"))
+
+
+# ===== get_artist =====
+
+def test_get_artist_redirect(mock_deezer_client):
+    """DataException on get_artist triggers redirect resolution."""
+    def api_get_artist(item_id):
+        if item_id == "old_id":
+            raise DataException
+        return {"id": item_id, "name": "Artist X"}
+
+    mock_deezer_client.client.api.get_artist.side_effect = api_get_artist
+    mock_deezer_client.client.api.get_artist_albums.return_value = {"data": []}
+
+    with patch.object(mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value="new_id")):
+        result = arun(mock_deezer_client.get_artist("old_id"))
+
+    assert result["name"] == "Artist X"
+
+
+def test_get_artist_no_redirect_raises(mock_deezer_client):
+    """DataException re-raises when no redirect is available for the artist."""
+    mock_deezer_client.client.api.get_artist.side_effect = DataException
+
+    with patch.object(mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value=None)):
+        with pytest.raises(DataException):
+            arun(mock_deezer_client.get_artist("bad_id"))
+
+
+# ===== search — featured / invalid type =====
+
+def test_deezer_search_featured_with_query(mock_deezer_client):
+    """search('featured', 'releases') calls get_editorial_releases."""
+    mock_deezer_client.client.api.get_editorial_releases.return_value = {
+        "total": 2,
+        "data": [{"id": "1"}, {"id": "2"}],
+    }
+    results = arun(mock_deezer_client.search("featured", "releases"))
+    assert len(results) == 1
+    mock_deezer_client.client.api.get_editorial_releases.assert_called_once()
+
+
+def test_deezer_search_featured_no_query(mock_deezer_client):
+    """search('featured', '') uses get_editorial_releases without a suffix."""
+    mock_deezer_client.client.api.get_editorial_releases.return_value = {
+        "total": 1,
+        "data": [{"id": "1"}],
+    }
+    results = arun(mock_deezer_client.search("featured", ""))
+    assert len(results) == 1
+
+
+def test_deezer_search_featured_invalid_category(mock_deezer_client):
+    """Unknown editorial category raises Exception."""
+    mock_deezer_client.client.api = MagicMock(spec=["get_editorial_releases"])
+    with pytest.raises(Exception, match="Invalid editorical selection"):
+        arun(mock_deezer_client.search("featured", "nonexistent_xyz"))
+
+
+def test_deezer_search_invalid_media_type(mock_deezer_client):
+    """Unknown media type raises Exception."""
+    mock_deezer_client.client.api = MagicMock(spec=["search_track"])
+    with pytest.raises(Exception, match="Invalid media type"):
+        arun(mock_deezer_client.search("nonexistent_type", "query"))
+
+
+# ===== get_downloadable — additional error paths =====
+
+def test_get_downloadable_gw_fetch_fails(mock_deezer_client):
+    """NonStreamableError when GW track info can't be fetched (cache miss)."""
+    mock_deezer_client.client.gw.get_track.side_effect = Exception("GW error")
+    with pytest.raises(NonStreamableError, match="Could not fetch GW track info"):
+        arun(mock_deezer_client.get_downloadable("no_cache_id", quality=2))
+
+
+def test_get_downloadable_no_token(mock_deezer_client):
+    """NonStreamableError when the track has no TRACK_TOKEN."""
+    mock_deezer_client.client.gw.get_track.return_value = {
+        "FILESIZE_FLAC": 25_000_000,
+        "FILESIZE_MP3_320": 5_000_000,
+        "FILESIZE_MP3_128": 2_000_000,
+        # No TRACK_TOKEN
+    }
+    with pytest.raises(NonStreamableError, match="no TRACK_TOKEN"):
+        arun(mock_deezer_client.get_downloadable("123", quality=2))
+
+
+def test_get_downloadable_missing_cdn_fields(mock_deezer_client):
+    """NonStreamableError when all qualities fail and MD5/MEDIA_VERSION are absent."""
+    mock_deezer_client.client.gw.get_track.return_value = {
+        "FILESIZE_FLAC": 25_000_000,
+        "FILESIZE_MP3_320": 5_000_000,
+        "FILESIZE_MP3_128": 2_000_000,
+        "TRACK_TOKEN": "test_token",
+        # No MD5_ORIGIN or MEDIA_VERSION
+    }
+    mock_deezer_client.client.get_track_url.side_effect = deezer.WrongLicense("any")
+
+    with pytest.raises(NonStreamableError, match="MD5_ORIGIN/MEDIA_VERSION"):
+        arun(mock_deezer_client.get_downloadable("123", quality=2))
+
+
+def test_get_downloadable_encrypted_url_none(mock_deezer_client):
+    """NonStreamableError when the CDN fallback returns an empty URL."""
+    mock_deezer_client.client.gw.get_track.return_value = {
+        "FILESIZE_FLAC": 25_000_000,
+        "FILESIZE_MP3_320": 5_000_000,
+        "FILESIZE_MP3_128": 2_000_000,
+        "TRACK_TOKEN": "test_token",
+        "MD5_ORIGIN": "abc123",
+        "MEDIA_VERSION": "1",
+    }
+    mock_deezer_client.client.get_track_url.side_effect = deezer.WrongLicense("any")
+
+    with patch.object(mock_deezer_client, "_get_encrypted_file_url", return_value=None):
+        with pytest.raises(NonStreamableError, match="Could not retrieve"):
+            arun(mock_deezer_client.get_downloadable("123", quality=2))
 
 
 # ===== Integration test =====

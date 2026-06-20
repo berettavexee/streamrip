@@ -247,5 +247,161 @@ class TestParseUrlFavoriteAndInterpreter(unittest.TestCase):
         self.assertIsInstance(result, QobuzInterpreterURL)
 
 
+class TestGenericURLIntoPending(unittest.TestCase):
+    def test_into_pending_success(self):
+        import asyncio
+
+        url = "https://www.deezer.com/fr/album/123456"
+        result = parse_url(url)
+        self.assertIsInstance(result, GenericURL)
+
+        async def run():
+            mock_client = AsyncMock()
+            mock_client.source = "deezer"
+            return await result.into_pending(mock_client, AsyncMock(), AsyncMock())
+
+        pending = asyncio.run(run())
+        self.assertEqual(pending.__class__.__name__, "PendingAlbum")
+        self.assertEqual(pending.id, "123456")
+
+    def test_into_pending_source_mismatch_raises(self):
+        import asyncio
+
+        url = "https://www.deezer.com/fr/album/123456"
+        result = parse_url(url)
+
+        async def run():
+            mock_client = AsyncMock()
+            mock_client.source = "qobuz"
+            await result.into_pending(mock_client, AsyncMock(), AsyncMock())
+
+        with self.assertRaises(ValueError):
+            asyncio.run(run())
+
+
+class TestQobuzInterpreterExtract(unittest.TestCase):
+    def test_into_pending_non_digit_calls_extract(self):
+        import asyncio
+        from unittest.mock import patch
+        from streamrip.rip.parse_url import QobuzInterpreterURL
+
+        url = "https://www.qobuz.com/us-en/interpreter/pink-floyd/download-streaming-albums"
+        result = QobuzInterpreterURL.from_str(url)
+
+        async def run():
+            mock_client = AsyncMock()
+            with patch.object(
+                QobuzInterpreterURL,
+                "extract_interpreter_url",
+                new=AsyncMock(return_value="99999"),
+            ):
+                return await result.into_pending(mock_client, AsyncMock(), AsyncMock())
+
+        pending = asyncio.run(run())
+        self.assertEqual(pending.__class__.__name__, "PendingArtist")
+        self.assertEqual(pending.id, "99999")
+
+    def _make_session_client(self, page_html: str):
+        from unittest.mock import MagicMock, Mock
+        mock_resp = AsyncMock()
+        mock_resp.text.return_value = page_html
+        mock_cm = MagicMock()
+        mock_cm.__aenter__ = AsyncMock(return_value=mock_resp)
+        mock_cm.__aexit__ = AsyncMock(return_value=None)
+        mock_client = MagicMock()
+        mock_client.session.get = Mock(return_value=mock_cm)
+        return mock_client
+
+    def test_extract_match_found(self):
+        import asyncio
+        from streamrip.rip.parse_url import QobuzInterpreterURL
+
+        mock_client = self._make_session_client("getSimilarArtist('1234567')")
+        result = asyncio.run(
+            QobuzInterpreterURL.extract_interpreter_url("https://qobuz.com/...", mock_client)
+        )
+        self.assertEqual(result, "1234567")
+
+    def test_extract_no_match_raises(self):
+        import asyncio
+        from streamrip.rip.parse_url import QobuzInterpreterURL
+
+        mock_client = self._make_session_client("<html>No artist here</html>")
+        with self.assertRaises(Exception):
+            asyncio.run(
+                QobuzInterpreterURL.extract_interpreter_url("https://qobuz.com/...", mock_client)
+            )
+
+
+class TestDeezerDynamicURLExtract(unittest.TestCase):
+    def _make_client_with_page(self, page_html: str):
+        from unittest.mock import MagicMock, Mock
+        mock_resp = AsyncMock()
+        mock_resp.text.return_value = page_html
+        mock_cm = MagicMock()
+        mock_cm.__aenter__ = AsyncMock(return_value=mock_resp)
+        mock_cm.__aexit__ = AsyncMock(return_value=None)
+        mock_client = MagicMock()
+        mock_client.session.get = Mock(return_value=mock_cm)
+        return mock_client
+
+    def test_extract_success(self):
+        import asyncio
+        from streamrip.rip.parse_url import DeezerDynamicURL
+
+        page = '<a href="https://www.deezer.com/fr/album/99999">click</a>'
+        mock_client = self._make_client_with_page(page)
+        result = asyncio.run(
+            DeezerDynamicURL._extract_info_from_dynamic_link("https://dzr.page.link/xyz", mock_client)
+        )
+        self.assertEqual(result, ("album", "99999"))
+
+    def test_extract_no_match_raises(self):
+        import asyncio
+        from streamrip.rip.parse_url import DeezerDynamicURL
+
+        mock_client = self._make_client_with_page("<html>nothing here</html>")
+        with self.assertRaises(Exception):
+            asyncio.run(
+                DeezerDynamicURL._extract_info_from_dynamic_link("https://dzr.page.link/xyz", mock_client)
+            )
+
+
+class TestSoundcloudURLIntoPending(unittest.TestCase):
+    def _get_url_obj(self, url="https://soundcloud.com/artist/track"):
+        result = parse_url(url)
+        self.assertIsNotNone(result)
+        return result
+
+    def test_into_pending_track(self):
+        import asyncio
+        obj = self._get_url_obj()
+        mock_client = AsyncMock()
+        mock_client.resolve_url.return_value = {"kind": "track", "id": 42}
+
+        pending = asyncio.run(obj.into_pending(mock_client, AsyncMock(), AsyncMock()))
+        self.assertEqual(pending.__class__.__name__, "PendingSingle")
+        self.assertEqual(pending.id, "42")
+
+    def test_into_pending_playlist(self):
+        import asyncio
+        obj = self._get_url_obj("https://soundcloud.com/artist/sets/mix")
+        mock_client = AsyncMock()
+        mock_client.resolve_url.return_value = {"kind": "playlist", "id": 99}
+
+        pending = asyncio.run(obj.into_pending(mock_client, AsyncMock(), AsyncMock()))
+        self.assertEqual(pending.__class__.__name__, "PendingPlaylist")
+        self.assertEqual(pending.id, "99")
+
+    def test_into_pending_unknown_raises(self):
+        import asyncio
+        obj = self._get_url_obj()
+        mock_client = AsyncMock()
+        mock_client.resolve_url.return_value = {"kind": "user", "id": 1}
+
+        with self.assertRaises(NotImplementedError):
+            asyncio.run(obj.into_pending(mock_client, AsyncMock(), AsyncMock()))
+
+
 if __name__ == "__main__":
     unittest.main()
