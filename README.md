@@ -3,6 +3,8 @@
 [![Downloads](https://pepy.tech/badge/streamrip)](https://pepy.tech/project/streamrip)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
 ![Static Badge](https://img.shields.io/badge/Test_coverage-50%25-orange)
+[![Tests](https://github.com/berettavexee/streamrip/actions/workflows/pytest.yml/badge.svg)](https://github.com/berettavexee/streamrip/actions/workflows/pytest.yml)
+[![Ruff](https://github.com/berettavexee/streamrip/actions/workflows/ruff.yml/badge.svg)](https://github.com/berettavexee/streamrip/actions/workflows/ruff.yml)
 
 > **Note:** This is a personal fork of [nathom/streamrip](https://github.com/nathom/streamrip) used to test and integrate pending patches, primarily related to Deezer. It is not intended for general use — refer to the upstream project for stable releases.
 
