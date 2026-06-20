@@ -61,9 +61,26 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - `OPUS` exposed as a `-c`/`--codec` option in the CLI ([#989](https://github.com/nathom/streamrip/pull/989))
 - FFmpeg `stdin` redirected to `/dev/null` to prevent terminal echo/raw-mode corruption after a rip ([#996](https://github.com/nathom/streamrip/pull/996))
 
+## Last.fm
+
+- HTTP errors (404, 503, etc.) now surface the status code and URL in the error message instead of failing silently with a cryptic parse error
+- Distinguish three failure modes: HTTP error from Last.fm, page structure changed/unrecognised, playlist parsed successfully but zero tracks extracted
+- Fix `Exception("msg: %s", page)` bug where the page body was silently dropped from the exception args and never shown in the log
+- Warning when track not found on any source now shows title and artist separately instead of printing the raw Python tuple repr
+- Fix logging bug in fallback search: the fallback source name was logged as the primary source name
+- "No result" log message now names both the primary and fallback source when both fail
+- Fix typo "occured" → "occurred" in error log
+
 ## CLI / misc
 
 - `-l`/`--log-file` option writes all log messages at DEBUG level to a file for post-mortem analysis ([#81](https://github.com/nathom/streamrip/issues/81)); fix: DEBUG messages from the `streamrip` logger now correctly reach the log file in non-verbose mode
 - Version check is resilient to network errors and non-JSON responses (e.g. GitHub 504) ([#995](https://github.com/nathom/streamrip/pull/995))
 - Version comparison is numeric (`1.10 > 1.9`) rather than lexicographic
 - Download summary printed at end of session (tracks downloaded, failed, total size)
+
+## Tests
+
+- Unit test suite added: `metadata/album.py` (99%), `metadata/track.py` (100%), `metadata/playlist.py` (100%), `metadata/covers.py` (100%), `metadata/tagger.py` (99%), `metadata/search_results.py` (98%), `media/track.py` (100%), `media/playlist.py` (100%)
+- Fix `LabelSummary.summarize()` / `preview()` infinite recursion: both returned `str(self)` which called `Summary.__str__` which called `summarize()` in a loop
+- Fix `AlbumSummary` bug where `item.get("artist", {}).get("name")` raised `AttributeError` when the `artist` field was a plain string rather than a dict
+- Dynamic coverage badge wired to CI via GitHub Actions + Gist + shields.io
