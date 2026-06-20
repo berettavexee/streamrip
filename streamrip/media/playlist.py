@@ -220,7 +220,7 @@ class PendingLastfmPlaylist(Pending):
                 self.lastfm_url,
             )
         except Exception as e:
-            logger.error("Error occured while parsing last.fm page: %s", e)
+            logger.error("Error occurred while fetching Last.fm playlist %s: %s", self.lastfm_url, e)
             return None
 
         requests = []
@@ -250,7 +250,10 @@ class PendingLastfmPlaylist(Pending):
         pending_tracks = []
         for pos, (id, from_fallback) in enumerate(results, start=1):
             if id is None:
-                logger.warning(f"No results found for {titles_artists[pos-1]}")
+                title, artist = titles_artists[pos - 1]
+                logger.warning(
+                    "Track not found on any source: '%s' by '%s'", title, artist
+                )
                 continue
 
             if from_fallback:
@@ -311,7 +314,10 @@ class PendingLastfmPlaylist(Pending):
 
             pages = await self.fallback_client.search("track", query, limit=1)
             if len(pages) > 0:
-                logger.debug(f"Found result for {query} on {self.client.source}")
+                logger.debug(
+                    "Found result for '%s' on fallback source %s",
+                    query, self.fallback_client.source,
+                )
                 search_status.found += 1
                 return (
                     SearchResults.from_pages(
@@ -323,7 +329,10 @@ class PendingLastfmPlaylist(Pending):
                     .id
                 ), True
 
-            logger.debug(f"No result found for {query} on {self.client.source}")
+            logger.debug(
+                "No result found for '%s' on primary source %s or fallback source %s",
+                query, self.client.source, self.fallback_client.source,
+            )
             search_status.failed += 1
         return None, True
 
@@ -358,6 +367,12 @@ class PendingLastfmPlaylist(Pending):
 
         async def fetch(session: aiohttp.ClientSession, url, **kwargs):
             async with session.get(url, **kwargs) as resp:
+                if resp.status == 404:
+                    raise Exception(f"Last.fm playlist not found (HTTP 404): {url}")
+                if resp.status != 200:
+                    raise Exception(
+                        f"Last.fm returned HTTP {resp.status} for {url}"
+                    )
                 return await resp.text("utf-8")
 
         # Create new session so we're not bound by rate limit
@@ -369,7 +384,10 @@ class PendingLastfmPlaylist(Pending):
             page = await fetch(session, playlist_url)
             playlist_title_match = re_playlist_title_match.search(page)
             if playlist_title_match is None:
-                raise Exception("Error finding title from response")
+                raise Exception(
+                    f"Could not find playlist title in Last.fm response for {playlist_url}. "
+                    "The page may be an error page or Last.fm's HTML structure may have changed."
+                )
 
             playlist_title: str = html.unescape(playlist_title_match.group(1))
 
@@ -377,8 +395,18 @@ class PendingLastfmPlaylist(Pending):
 
             total_tracks_match = re_total_tracks.search(page)
             if total_tracks_match is None:
-                raise Exception("Error parsing lastfm page: %s", page)
+                raise Exception(
+                    f"Could not find track count in Last.fm response for {playlist_url}. "
+                    "The page structure may have changed."
+                )
             total_tracks = int(total_tracks_match.group(1))
+
+            if not title_artist_pairs:
+                logger.warning(
+                    "Last.fm playlist '%s' was parsed successfully but contains no tracks "
+                    "(total declared: %d). The page structure may have changed.",
+                    playlist_title, total_tracks,
+                )
 
             remaining_tracks = total_tracks - 50  # already got 50 from 1st page
             if remaining_tracks <= 0:
