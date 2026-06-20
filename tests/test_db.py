@@ -106,8 +106,10 @@ class TestDatabaseBaseValidation:
         d.create()  # should not raise
 
     def test_empty_structure_raises(self, tmp_path_str):
+        from typing import ClassVar
+
         class EmptyStructure(db.DatabaseBase):
-            structure = {}
+            structure: ClassVar[dict] = {}
             name = "test"
 
         path = os.path.join(tmp_path_str, "es.db")
@@ -115,8 +117,10 @@ class TestDatabaseBaseValidation:
             EmptyStructure(path)
 
     def test_empty_name_raises(self, tmp_path_str):
+        from typing import ClassVar
+
         class EmptyName(db.DatabaseBase):
-            structure = {"id": ["text"]}
+            structure: ClassVar[dict] = {"id": ["text"]}
             name = ""
 
         path = os.path.join(tmp_path_str, "en.db")

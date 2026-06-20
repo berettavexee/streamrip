@@ -1,9 +1,11 @@
+import asyncio
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from streamrip.rip.parse_url import (
     DeezerDynamicURL,
     GenericURL,
+    QobuzInterpreterURL,
     SoundcloudURL,
     parse_url,
 )
@@ -124,8 +126,6 @@ class TestDeezerDynamicURL(unittest.TestCase):
     @patch("streamrip.rip.parse_url.DeezerDynamicURL._extract_info_from_dynamic_link")
     def test_into_pending_album(self, mock_extract):
         """Test conversion of Deezer dynamic URL to a PendingAlbum."""
-        import asyncio
-
         async def run_test():
             url = "https://dzr.page.link/SnV6hCyHihkmCCwUA"
             result = parse_url(url)
@@ -165,8 +165,6 @@ class TestDeezerFavoriteURL(unittest.TestCase):
         self.assertIsNone(DeezerFavoriteURL.from_str("https://www.deezer.com/fr/album/123"))
 
     def test_into_pending_creates_playlist(self):
-        import asyncio
-
         from streamrip.rip.parse_url import DeezerFavoriteURL
 
         async def run():
@@ -194,8 +192,6 @@ class TestQobuzInterpreterURL(unittest.TestCase):
         self.assertIsNone(QobuzInterpreterURL.from_str("https://www.qobuz.com/fr-fr/album/test/123"))
 
     def test_into_pending_with_digit_id(self):
-        import asyncio
-
         from streamrip.rip.parse_url import QobuzInterpreterURL
 
         async def run():
@@ -249,8 +245,6 @@ class TestParseUrlFavoriteAndInterpreter(unittest.TestCase):
 
 class TestGenericURLIntoPending(unittest.TestCase):
     def test_into_pending_success(self):
-        import asyncio
-
         url = "https://www.deezer.com/fr/album/123456"
         result = parse_url(url)
         self.assertIsInstance(result, GenericURL)
@@ -265,8 +259,6 @@ class TestGenericURLIntoPending(unittest.TestCase):
         self.assertEqual(pending.id, "123456")
 
     def test_into_pending_source_mismatch_raises(self):
-        import asyncio
-
         url = "https://www.deezer.com/fr/album/123456"
         result = parse_url(url)
 
@@ -281,10 +273,6 @@ class TestGenericURLIntoPending(unittest.TestCase):
 
 class TestQobuzInterpreterExtract(unittest.TestCase):
     def test_into_pending_non_digit_calls_extract(self):
-        import asyncio
-        from unittest.mock import patch
-        from streamrip.rip.parse_url import QobuzInterpreterURL
-
         url = "https://www.qobuz.com/us-en/interpreter/pink-floyd/download-streaming-albums"
         result = QobuzInterpreterURL.from_str(url)
 
@@ -302,7 +290,6 @@ class TestQobuzInterpreterExtract(unittest.TestCase):
         self.assertEqual(pending.id, "99999")
 
     def _make_session_client(self, page_html: str):
-        from unittest.mock import MagicMock, Mock
         mock_resp = AsyncMock()
         mock_resp.text.return_value = page_html
         mock_cm = MagicMock()
@@ -313,9 +300,6 @@ class TestQobuzInterpreterExtract(unittest.TestCase):
         return mock_client
 
     def test_extract_match_found(self):
-        import asyncio
-        from streamrip.rip.parse_url import QobuzInterpreterURL
-
         mock_client = self._make_session_client("getSimilarArtist('1234567')")
         result = asyncio.run(
             QobuzInterpreterURL.extract_interpreter_url("https://qobuz.com/...", mock_client)
@@ -323,9 +307,6 @@ class TestQobuzInterpreterExtract(unittest.TestCase):
         self.assertEqual(result, "1234567")
 
     def test_extract_no_match_raises(self):
-        import asyncio
-        from streamrip.rip.parse_url import QobuzInterpreterURL
-
         mock_client = self._make_session_client("<html>No artist here</html>")
         with self.assertRaises(Exception):
             asyncio.run(
@@ -335,7 +316,6 @@ class TestQobuzInterpreterExtract(unittest.TestCase):
 
 class TestDeezerDynamicURLExtract(unittest.TestCase):
     def _make_client_with_page(self, page_html: str):
-        from unittest.mock import MagicMock, Mock
         mock_resp = AsyncMock()
         mock_resp.text.return_value = page_html
         mock_cm = MagicMock()
@@ -346,9 +326,6 @@ class TestDeezerDynamicURLExtract(unittest.TestCase):
         return mock_client
 
     def test_extract_success(self):
-        import asyncio
-        from streamrip.rip.parse_url import DeezerDynamicURL
-
         page = '<a href="https://www.deezer.com/fr/album/99999">click</a>'
         mock_client = self._make_client_with_page(page)
         result = asyncio.run(
@@ -357,9 +334,6 @@ class TestDeezerDynamicURLExtract(unittest.TestCase):
         self.assertEqual(result, ("album", "99999"))
 
     def test_extract_no_match_raises(self):
-        import asyncio
-        from streamrip.rip.parse_url import DeezerDynamicURL
-
         mock_client = self._make_client_with_page("<html>nothing here</html>")
         with self.assertRaises(Exception):
             asyncio.run(
@@ -374,7 +348,6 @@ class TestSoundcloudURLIntoPending(unittest.TestCase):
         return result
 
     def test_into_pending_track(self):
-        import asyncio
         obj = self._get_url_obj()
         mock_client = AsyncMock()
         mock_client.resolve_url.return_value = {"kind": "track", "id": 42}
@@ -384,7 +357,6 @@ class TestSoundcloudURLIntoPending(unittest.TestCase):
         self.assertEqual(pending.id, "42")
 
     def test_into_pending_playlist(self):
-        import asyncio
         obj = self._get_url_obj("https://soundcloud.com/artist/sets/mix")
         mock_client = AsyncMock()
         mock_client.resolve_url.return_value = {"kind": "playlist", "id": 99}
@@ -394,7 +366,6 @@ class TestSoundcloudURLIntoPending(unittest.TestCase):
         self.assertEqual(pending.id, "99")
 
     def test_into_pending_unknown_raises(self):
-        import asyncio
         obj = self._get_url_obj()
         mock_client = AsyncMock()
         mock_client.resolve_url.return_value = {"kind": "user", "id": 1}
