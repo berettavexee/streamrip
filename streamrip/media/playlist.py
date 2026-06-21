@@ -195,6 +195,9 @@ class PendingPlaylist(Pending):
 _LASTFM_USER_LIBRARY_RE = re.compile(
     r"https://www\.last\.fm/user/(\w+)/library/tracks"
 )
+_LASTFM_LOVED_TRACKS_RE = re.compile(
+    r"https://www\.last\.fm/user/(\w+)/loved"
+)
 _LASTFM_ARTIST_TRACKS_RE = re.compile(
     r"https://www\.last\.fm/music/([^/]+)/\+tracks"
 )
@@ -443,6 +446,8 @@ class PendingLastfmPlaylist(Pending):
         """
         if _LASTFM_USER_LIBRARY_RE.match(playlist_url):
             return await self._parse_lastfm_user_top_tracks(playlist_url)
+        if _LASTFM_LOVED_TRACKS_RE.match(playlist_url):
+            return await self._parse_lastfm_loved_tracks(playlist_url)
         if _LASTFM_ARTIST_TRACKS_RE.match(playlist_url):
             return await self._parse_lastfm_artist_top_tracks(playlist_url)
         m = _LASTFM_ARTIST_PAGE_RE.match(playlist_url)
@@ -573,6 +578,72 @@ class PendingLastfmPlaylist(Pending):
         logger.debug(
             "Fetched %d tracks for user '%s' (%s) from Last.fm API",
             len(tracks), username, period,
+        )
+        return playlist_title, tracks
+
+    async def _parse_lastfm_loved_tracks(
+        self, url: str
+    ) -> tuple[str, list[tuple[str, str, int | None]]]:
+        """Fetch a user's loved tracks from the Last.fm API.
+
+        Loved tracks are returned in reverse chronological order (most recently
+        loved first).  The ``user.getLovedTracks`` endpoint does not expose
+        track duration, so every entry carries ``duration=None``.
+
+        Args:
+            url: A URL of the form ``https://www.last.fm/user/{username}/loved``.
+
+        Returns:
+            A 2-tuple of (playlist_title, [(track_title, artist_name, None), ...]).
+
+        Raises:
+            Exception: If the URL cannot be parsed, the API key is missing, or
+                the Last.fm API returns an error.
+        """
+        api_key = self._require_api_key(url)
+        match = _LASTFM_LOVED_TRACKS_RE.match(url)
+        if match is None:
+            raise Exception(f"Could not parse loved tracks URL: {url}")
+        username = match.group(1)
+
+        playlist_title = f"{username}'s Loved Tracks"
+
+        max_tracks = self.config.session.lastfm.max_tracks
+        page_size = min(max_tracks, 200) if max_tracks > 0 else 200
+        limit_str = str(max_tracks) if max_tracks > 0 else "all"
+        logger.info(
+            "Last.fm loved tracks: %s — limit: %s tracks",
+            username, limit_str,
+        )
+
+        verify_ssl = getattr(self.config.session.downloads, "verify_ssl", True)
+        connector = aiohttp.TCPConnector(**get_aiohttp_connector_kwargs(verify_ssl=verify_ssl))
+        tracks: list[tuple[str, str, int | None]] = []
+        page = 1
+
+        async with aiohttp.ClientSession(connector=connector) as session:
+            while True:
+                data = await self._fetch_lastfm_api(session, {
+                    "method": "user.getLovedTracks",
+                    "user": username,
+                    "api_key": api_key,
+                    "format": "json",
+                    "limit": page_size,
+                    "page": page,
+                })
+                loved = data["lovedtracks"]
+                total_pages = int(loved["@attr"]["totalPages"])
+                for track in loved.get("track", []):
+                    tracks.append((track["name"], track["artist"]["name"], None))
+                    if max_tracks > 0 and len(tracks) >= max_tracks:
+                        break
+                if page >= total_pages or (max_tracks > 0 and len(tracks) >= max_tracks):
+                    break
+                page += 1
+
+        logger.debug(
+            "Fetched %d loved tracks for user '%s' from Last.fm API",
+            len(tracks), username,
         )
         return playlist_title, tracks
 

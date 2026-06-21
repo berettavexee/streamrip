@@ -734,6 +734,146 @@ async def test_parse_lastfm_artist_tracks_url_not_caught_as_bare_page():
     assert title == "Artist Top"
 
 
+# ---------------------------------------------------------------------------
+# PendingLastfmPlaylist._parse_lastfm_loved_tracks
+# ---------------------------------------------------------------------------
+
+_LASTFM_LOVED_RESPONSE_P1 = {
+    "lovedtracks": {
+        "track": [
+            {"name": "Song A", "artist": {"name": "Artist A"}},
+            {"name": "Song B", "artist": {"name": "Artist B"}},
+        ],
+        "@attr": {"user": "bob", "page": "1", "totalPages": "2", "perPage": "2", "total": "3"},
+    }
+}
+_LASTFM_LOVED_RESPONSE_P2 = {
+    "lovedtracks": {
+        "track": [
+            {"name": "Song C", "artist": {"name": "Artist C"}},
+        ],
+        "@attr": {"user": "bob", "page": "2", "totalPages": "2", "perPage": "2", "total": "3"},
+    }
+}
+
+
+def _mock_loved_session(pages):
+    """Return a mock aiohttp session that serves successive Last.fm API pages."""
+    call_count = 0
+
+    async def fake_json():
+        nonlocal call_count
+        result = pages[min(call_count, len(pages) - 1)]
+        call_count += 1
+        return result
+
+    mock_resp = AsyncMock()
+    mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_resp.__aexit__ = AsyncMock(return_value=False)
+    mock_resp.status = 200
+    mock_resp.json = fake_json
+
+    mock_session = MagicMock()
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=False)
+    mock_session.get = MagicMock(return_value=mock_resp)
+    return mock_session
+
+
+async def test_parse_lastfm_loved_tracks_dispatcher():
+    """Loved-tracks URL routes to _parse_lastfm_loved_tracks."""
+    pl = _lastfm_playlist()
+    with patch.object(
+        pl,
+        "_parse_lastfm_loved_tracks",
+        new=AsyncMock(return_value=("bob's Loved Tracks", [("S", "A", None)])),
+    ) as mock_loved:
+        title, pairs = await pl._parse_lastfm_playlist(
+            "https://www.last.fm/user/bob/loved"
+        )
+    mock_loved.assert_awaited_once()
+    assert title == "bob's Loved Tracks"
+    assert pairs == [("S", "A", None)]
+
+
+async def test_parse_lastfm_loved_tracks_single_page():
+    pl = _lastfm_playlist()
+    pl.config.session.lastfm.api_key = "key"
+    pl.config.session.lastfm.max_tracks = 50
+
+    single_page = {
+        "lovedtracks": {
+            "track": [
+                {"name": "Song A", "artist": {"name": "Artist A"}},
+            ],
+            "@attr": {"user": "bob", "page": "1", "totalPages": "1", "perPage": "50", "total": "1"},
+        }
+    }
+
+    with (
+        patch("streamrip.media.playlist.aiohttp.ClientSession",
+              return_value=_mock_loved_session([single_page])),
+        patch("streamrip.media.playlist.aiohttp.TCPConnector"),
+    ):
+        title, tracks = await pl._parse_lastfm_loved_tracks(
+            "https://www.last.fm/user/bob/loved"
+        )
+
+    assert title == "bob's Loved Tracks"
+    assert tracks == [("Song A", "Artist A", None)]
+
+
+async def test_parse_lastfm_loved_tracks_multi_page():
+    pl = _lastfm_playlist()
+    pl.config.session.lastfm.api_key = "key"
+    pl.config.session.lastfm.max_tracks = 0  # no limit
+
+    with (
+        patch("streamrip.media.playlist.aiohttp.ClientSession",
+              return_value=_mock_loved_session(
+                  [_LASTFM_LOVED_RESPONSE_P1, _LASTFM_LOVED_RESPONSE_P2]
+              )),
+        patch("streamrip.media.playlist.aiohttp.TCPConnector"),
+    ):
+        title, tracks = await pl._parse_lastfm_loved_tracks(
+            "https://www.last.fm/user/bob/loved"
+        )
+
+    assert title == "bob's Loved Tracks"
+    assert len(tracks) == 3
+    assert tracks[0] == ("Song A", "Artist A", None)
+    assert tracks[2] == ("Song C", "Artist C", None)
+    # Duration is always None for loved tracks
+    assert all(dur is None for _, _, dur in tracks)
+
+
+async def test_parse_lastfm_loved_tracks_respects_max_tracks():
+    pl = _lastfm_playlist()
+    pl.config.session.lastfm.api_key = "key"
+    pl.config.session.lastfm.max_tracks = 1
+
+    with (
+        patch("streamrip.media.playlist.aiohttp.ClientSession",
+              return_value=_mock_loved_session(
+                  [_LASTFM_LOVED_RESPONSE_P1, _LASTFM_LOVED_RESPONSE_P2]
+              )),
+        patch("streamrip.media.playlist.aiohttp.TCPConnector"),
+    ):
+        _title, tracks = await pl._parse_lastfm_loved_tracks(
+            "https://www.last.fm/user/bob/loved"
+        )
+
+    assert len(tracks) == 1
+
+
+async def test_parse_lastfm_loved_tracks_requires_api_key():
+    pl = _lastfm_playlist()
+    pl.config.session.lastfm.api_key = ""
+
+    with pytest.raises(Exception, match="API key"):
+        await pl._parse_lastfm_loved_tracks("https://www.last.fm/user/bob/loved")
+
+
 async def test_lastfm_resolve_with_progress_bars():
     pl = _lastfm_playlist()
     pl.config.session.cli.progress_bars = True
