@@ -82,6 +82,7 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - `-l`/`--log-file` option writes all log messages at DEBUG level to a file for post-mortem analysis ([#81](https://github.com/nathom/streamrip/issues/81)); fix: DEBUG messages from the `streamrip` logger now correctly reach the log file in non-verbose mode; fix: the `RichHandler` is explicitly held at INFO when the root logger is lowered to DEBUG for file output, preventing DEBUG messages from bleeding into the terminal alongside normal output
 - Fix double "Downloading…" banner printed to the terminal at the end of a session — `ProgressManager.cleanup()` now syncs the Rich `Live` display to the cleared state before stopping it, so the last rendered frame no longer re-appears after the progress bars close
 - Last.fm track matching now shows a Rich progress bar (magenta, distinct from the cyan download bars) that advances per track and displays live found/failed counts; replaces the moon-phase spinner
+- Unmatched tracks (not found on any source, or rejected by `min_score`) are written to `unmatched.txt` in the playlist folder after each run — one `Title — Artist` line per track, no file created when all tracks match
 - Version check is resilient to network errors and non-JSON responses (e.g. GitHub 504) ([#995](https://github.com/nathom/streamrip/pull/995))
 - Version comparison is numeric (`1.10 > 1.9`) rather than lexicographic
 - Download summary printed at end of session (tracks downloaded, failed, total size)
