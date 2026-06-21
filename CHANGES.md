@@ -55,6 +55,7 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 ## Downloads
 
 - Playlist downloads pipeline the resolve and download phases: while one batch of tracks is downloading, the next batch's metadata and URL resolution runs concurrently, eliminating the idle API time between batches (~2 s saved per additional batch of 20 tracks)
+- Playlist batch download boundary eliminated: each resolved track now starts downloading immediately via `asyncio.create_task` instead of waiting for all tracks in the current batch to finish. Previously the last few tracks in a batch left up to 5 download slots idle; the fix reduces the inter-batch gap from ~4 s to ~1 s (the time for the first new download to complete)
 - `fast_async_download` runs the `requests` HTTP call inside `asyncio.to_thread` so it no longer blocks the event loop during concurrent downloads ([#982](https://github.com/nathom/streamrip/pull/982))
 - `fast_async_download` now calls `raise_for_status()` so HTTP errors (4xx/5xx) surface as exceptions instead of silently writing the error body to disk; the partial file is removed on failure
 - Fix `truncate_str` to explicitly use UTF-8 encoding and skip the encode/decode round-trip when the filename is already within the 255-byte limit
@@ -86,6 +87,7 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 
 - `-l`/`--log-file` option writes all log messages at DEBUG level to a file for post-mortem analysis ([#81](https://github.com/nathom/streamrip/issues/81)); fix: DEBUG messages from the `streamrip` logger now correctly reach the log file in non-verbose mode; fix: the `RichHandler` is explicitly held at INFO when the root logger is lowered to DEBUG for file output, preventing DEBUG messages from bleeding into the terminal alongside normal output
 - Fix double "Downloading…" banner printed to the terminal at the end of a session — `ProgressManager.cleanup()` now syncs the Rich `Live` display to the cleared state before stopping it, so the last rendered frame no longer re-appears after the progress bars close
+- Global overall progress bar displayed above the per-track download bars: shows `N/total • ETA` in white so the batch completion percentage is visible at a glance. Initialised by album and playlist downloads; advances after each track regardless of outcome (success, failure, already-in-DB skip)
 - Last.fm track matching now shows a Rich progress bar (magenta, distinct from the cyan download bars) that advances per track and displays live found/failed counts; replaces the moon-phase spinner
 - Unmatched tracks (not found on any source, or rejected by `min_score`) are written to `unmatched.txt` in the playlist folder after each run — one `Title — Artist` line per track, no file created when all tracks match
 - Version check is resilient to network errors and non-JSON responses (e.g. GitHub 504) ([#995](https://github.com/nathom/streamrip/pull/995))
