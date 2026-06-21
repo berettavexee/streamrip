@@ -198,6 +198,9 @@ _LASTFM_USER_LIBRARY_RE = re.compile(
 _LASTFM_ARTIST_TRACKS_RE = re.compile(
     r"https://www\.last\.fm/music/([^/]+)/\+tracks"
 )
+_LASTFM_ARTIST_PAGE_RE = re.compile(
+    r"https://www\.last\.fm/music/([^/]+)/?$"
+)
 _LASTFM_API = "https://ws.audioscrobbler.com/2.0/"
 _LASTFM_PERIOD_MAP = {
     "LAST_7_DAYS": "7day",
@@ -416,6 +419,13 @@ class PendingLastfmPlaylist(Pending):
             return await self._parse_lastfm_user_top_tracks(playlist_url)
         if _LASTFM_ARTIST_TRACKS_RE.match(playlist_url):
             return await self._parse_lastfm_artist_top_tracks(playlist_url)
+        m = _LASTFM_ARTIST_PAGE_RE.match(playlist_url)
+        if m:
+            artist = m.group(1)
+            raise ValueError(
+                f"'{playlist_url}' is an artist page, not a track list. "
+                f"Use '{playlist_url}/+tracks' to download {artist}'s top tracks."
+            )
         return await self._parse_lastfm_playlist_html(playlist_url)
 
     def _require_api_key(self, url: str) -> str:
