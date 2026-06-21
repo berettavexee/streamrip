@@ -109,7 +109,7 @@ class TrackSummary(Summary):
 
         raw_dur = item.get("duration")
         try:
-            duration: int | None = int(raw_dur) or None
+            duration: int | None = (int(raw_dur) or None) if raw_dur is not None else None
         except (TypeError, ValueError):
             duration = None
 
