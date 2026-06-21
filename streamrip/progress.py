@@ -54,10 +54,11 @@ class ProgressManager:
 
     def cleanup(self):
         if self.started:
-            # Sync the live display to the current (post-remove_title) state before
-            # stopping, so the final rendered frame doesn't show a stale title.
-            self.live.update(Group(self._text_cache, self.progress))
+            # Update to empty before stopping so live.stop() renders nothing,
+            # leaving a clean terminal for any output printed after this call.
+            self.live.update(Text(""))
             self.live.stop()
+            self.started = False
 
     def add_title(self, title: str):
         self.task_titles.append(title.strip())
