@@ -874,6 +874,38 @@ async def test_parse_lastfm_loved_tracks_requires_api_key():
         await pl._parse_lastfm_loved_tracks("https://www.last.fm/user/bob/loved")
 
 
+# ---------------------------------------------------------------------------
+# PendingLastfmPlaylist.resolve — missing API key (integration)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://www.last.fm/user/bob/loved",
+        "https://www.last.fm/user/bob/library/tracks",
+        "https://www.last.fm/music/Some+Artist/+tracks",
+    ],
+)
+async def test_resolve_returns_none_and_logs_error_when_api_key_missing(url, caplog):
+    """resolve() must return None (not raise) and log a clear error when api_key is absent."""
+    pl = PendingLastfmPlaylist(
+        lastfm_url=url,
+        client=_client(),
+        fallback_client=None,
+        config=_config(),  # api_key="" by default in _config()
+        db=_db(),
+    )
+    import logging
+    with caplog.at_level(logging.ERROR, logger="streamrip"):
+        result = await pl.resolve()
+
+    assert result is None
+    assert any("API key" in r.message for r in caplog.records), (
+        f"Expected 'API key' in error log, got: {[r.message for r in caplog.records]}"
+    )
+
+
 async def test_lastfm_resolve_with_progress_bars():
     pl = _lastfm_playlist()
     pl.config.session.cli.progress_bars = True

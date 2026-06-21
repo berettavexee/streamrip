@@ -205,6 +205,10 @@ _LASTFM_ARTIST_PAGE_RE = re.compile(
     r"https://www\.last\.fm/music/([^/]+)/?$"
 )
 _LASTFM_API = "https://ws.audioscrobbler.com/2.0/"
+
+
+class _LastfmConfigError(Exception):
+    """Raised when required Last.fm configuration (e.g. api_key) is missing."""
 _LASTFM_PERIOD_MAP = {
     "LAST_7_DAYS": "7day",
     "LAST_30_DAYS": "1month",
@@ -242,6 +246,9 @@ class PendingLastfmPlaylist(Pending):
             playlist_title, titles_artists = await self._parse_lastfm_playlist(
                 self.lastfm_url,
             )
+        except _LastfmConfigError as e:
+            logger.error("%s", e)
+            return None
         except Exception as e:
             logger.error("Error occurred while fetching Last.fm playlist %s: %s", self.lastfm_url, e)
             return None
@@ -473,8 +480,8 @@ class PendingLastfmPlaylist(Pending):
         """
         key = self.config.session.lastfm.api_key
         if not key:
-            raise Exception(
-                f"A Last.fm API key is required for {url}\n"
+            raise _LastfmConfigError(
+                f"A Last.fm API key is required to use {url}\n"
                 "Register a free key at https://www.last.fm/api/account/create "
                 "and set api_key in the [lastfm] section of your config."
             )
