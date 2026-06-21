@@ -11,6 +11,7 @@ from ..exceptions import NonStreamableError
 from ..filepath_utils import clean_filename
 from ..metadata import AlbumMetadata, TrackMetadata, tag_file
 from ..progress import add_title, get_progress_callback, remove_title
+from ..utils.integrity import check_integrity
 from .artwork import download_embed_cover
 from .media import DownloadStats, Media, Pending
 from .semaphore import global_download_semaphore
@@ -91,6 +92,17 @@ class Track(Media):
         await tag_file(self.download_path, self.meta, self.cover_path)
         if self.config.session.conversion.enabled:
             await self._convert()
+
+        ok, reason = await asyncio.to_thread(
+            check_integrity, self.download_path, self.meta.info.quality
+        )
+        if not ok:
+            logger.warning(
+                "Integrity check failed for '%s' by '%s': %s",
+                self.meta.title,
+                self.meta.artist,
+                reason,
+            )
 
         self.db.set_downloaded(self.meta.info.id)
 

@@ -231,6 +231,50 @@ async def test_postprocess_marks_downloaded():
     t.db.set_downloaded.assert_called_once_with(t.meta.info.id)
 
 
+async def test_postprocess_logs_warning_when_integrity_fails(caplog):
+    t = _track()
+    t.download_path = "/dl/album/01 - Song.flac"
+    import logging
+    with (
+        patch("streamrip.media.track.tag_file", new=AsyncMock()),
+        patch("streamrip.media.track.remove_title"),
+        patch(
+            "streamrip.media.track.check_integrity",
+            return_value=(False, "effective bitrate 10 kbps is below minimum"),
+        ),
+        caplog.at_level(logging.WARNING, logger="streamrip"),
+    ):
+        await t.postprocess()
+    assert any("Integrity check failed" in r.message for r in caplog.records)
+    assert any("Song" in r.message for r in caplog.records)
+
+
+async def test_postprocess_no_warning_when_integrity_ok():
+    t = _track()
+    t.download_path = "/dl/album/01 - Song.flac"
+    with (
+        patch("streamrip.media.track.tag_file", new=AsyncMock()),
+        patch("streamrip.media.track.remove_title"),
+        patch("streamrip.media.track.check_integrity", return_value=(True, "")),
+    ):
+        await t.postprocess()
+    # db.set_downloaded must still be called even when integrity passes
+    t.db.set_downloaded.assert_called_once()
+
+
+async def test_postprocess_marks_downloaded_even_when_integrity_fails():
+    """Integrity failure is a warning only — track is still recorded as downloaded."""
+    t = _track()
+    t.download_path = "/dl/album/01 - Song.flac"
+    with (
+        patch("streamrip.media.track.tag_file", new=AsyncMock()),
+        patch("streamrip.media.track.remove_title"),
+        patch("streamrip.media.track.check_integrity", return_value=(False, "truncated")),
+    ):
+        await t.postprocess()
+    t.db.set_downloaded.assert_called_once_with(t.meta.info.id)
+
+
 async def test_postprocess_runs_conversion_when_enabled():
     t = _track(cfg=_config(conversion_enabled=True))
     t.download_path = "/dl/album/01 - Song.flac"

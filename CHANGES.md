@@ -48,6 +48,10 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 
 - `asyncio.Lock` on each client prevents concurrent login races when multiple URLs from the same source are resolved in parallel
 
+## Integrity
+
+- Post-download integrity check: after tagging and conversion, each track's effective bitrate (`file_size * 8 / duration`) is compared against a conservative minimum for the requested quality tier (50 kbps for MP3 128, 100 kbps for MP3 320 and FLAC, 200 kbps for Hi-Res FLAC). Files that fall below the threshold — empty files, unreadable formats, or obviously truncated downloads — trigger a WARNING log with file size, duration, and effective bitrate. The download is still recorded in the database (no hard failure); the check is non-blocking (`asyncio.to_thread`). Tracks shorter than 5 seconds are skipped to avoid false positives from header overhead.
+
 ## Downloads
 
 - Playlist downloads pipeline the resolve and download phases: while one batch of tracks is downloading, the next batch's metadata and URL resolution runs concurrently, eliminating the idle API time between batches (~2 s saved per additional batch of 20 tracks)
