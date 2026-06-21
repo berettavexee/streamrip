@@ -171,6 +171,9 @@ class Main:
             if isinstance(result, Exception):
                 logger.error(f"Error processing media item: {result}")
 
+        # Stop the Live display before printing so the summary is never rendered
+        # inside the live context and cannot be overwritten by cleanup().
+        clear_progress()
         console.print(self._format_summary(stats, elapsed))
 
     @staticmethod
