@@ -7,10 +7,12 @@ from streamrip.media.track import Track
 
 
 def _make_track(download_path: str = "/tmp/track.flac") -> Track:
+    config = MagicMock()
+    config.session.cli.dry_run = False
     track = Track(
         meta=MagicMock(),
         downloadable=MagicMock(),
-        config=MagicMock(),
+        config=config,
         folder="/tmp",
         cover_path=None,
         db=MagicMock(),

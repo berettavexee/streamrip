@@ -232,6 +232,8 @@ class CliConfig:
     progress_bars: bool
     # The maximum number of search results to show in the interactive menu
     max_search_results: int
+    # Resolve and match tracks but skip the actual download (for debugging)
+    dry_run: bool = False
 
 
 @dataclass(slots=True)
