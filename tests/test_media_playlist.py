@@ -464,11 +464,60 @@ async def test_lastfm_resolve_skips_none_results():
         patch.object(pl, "_make_query", side_effect=fake_query),
         patch("streamrip.media.playlist.clean_filepath", side_effect=lambda x: x),
         patch("streamrip.media.playlist.clean_filename", side_effect=lambda x: x),
+        patch("streamrip.media.playlist.os.makedirs"),
+        patch("streamrip.media.playlist.asyncio.to_thread", new=AsyncMock()),
     ):
         result = await pl.resolve()
 
     assert isinstance(result, Playlist)
     assert len(result.tracks) == 0
+
+
+async def test_lastfm_resolve_writes_unmatched_file():
+    pl = _lastfm_playlist()
+
+    async def fake_parse(_url):
+        return "Playlist", [("Found Song", "Artist A"), ("Lost Song", "Artist B")]
+
+    async def fake_query(title, artist, s, cb):
+        cb()
+        if title == "Found Song":
+            s.found += 1
+            return "id-1", False
+        s.failed += 1
+        return None, False
+
+    async def fake_to_thread(fn, *args, **kwargs):
+        # Execute the write function synchronously so we can inspect the result
+        fn(*args, **kwargs)
+
+    from unittest.mock import mock_open
+    m = mock_open()
+
+    with (
+        patch.object(pl, "_parse_lastfm_playlist", side_effect=fake_parse),
+        patch.object(pl, "_make_query", side_effect=fake_query),
+        patch("streamrip.media.playlist.clean_filepath", side_effect=lambda x: x),
+        patch("streamrip.media.playlist.clean_filename", side_effect=lambda x: x),
+        patch("streamrip.media.playlist.os.makedirs"),
+        patch("streamrip.media.playlist.asyncio.to_thread", side_effect=fake_to_thread),
+        patch("builtins.open", m),
+    ):
+        result = await pl.resolve()
+
+    assert isinstance(result, Playlist)
+    assert len(result.tracks) == 1
+    # Verify the file was opened for writing
+    m.assert_called_once()
+    open_path = m.call_args[0][0]
+    assert open_path.endswith("unmatched.txt")
+    # Verify the content written contains the unmatched track
+    written_content = "".join(
+        call.args[0] for call in m().write.call_args_list
+    )
+    assert "Lost Song" in written_content
+    assert "Artist B" in written_content
+    assert "Found Song" not in written_content
 
 
 async def test_lastfm_resolve_uses_fallback_client():
@@ -677,7 +726,7 @@ async def test_parse_lastfm_artist_tracks_url_not_caught_as_bare_page():
         "_parse_lastfm_artist_top_tracks",
         new=AsyncMock(return_value=("Artist Top", [("Song", "Artist")])),
     ):
-        title, pairs = await pl._parse_lastfm_playlist(
+        title, _pairs = await pl._parse_lastfm_playlist(
             "https://www.last.fm/music/And+One/+tracks"
         )
     assert title == "Artist Top"

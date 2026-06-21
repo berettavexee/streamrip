@@ -290,12 +290,14 @@ class PendingLastfmPlaylist(Pending):
         folder = os.path.join(parent, clean_filepath(clean_filename(playlist_title)))
 
         pending_tracks = []
+        unmatched: list[tuple[str, str]] = []
         for pos, (id, from_fallback) in enumerate(results, start=1):
+            title, artist = titles_artists[pos - 1]
             if id is None:
-                title, artist = titles_artists[pos - 1]
                 logger.warning(
                     "Track not found on any source: '%s' by '%s'", title, artist
                 )
+                unmatched.append((title, artist))
                 continue
 
             if from_fallback:
@@ -314,6 +316,20 @@ class PendingLastfmPlaylist(Pending):
                     pos,
                     self.db,
                 ),
+            )
+
+        if unmatched:
+            os.makedirs(folder, exist_ok=True)
+            unmatched_path = os.path.join(folder, "unmatched.txt")
+            content = "".join(f"{t} — {a}\n" for t, a in unmatched)
+
+            def _write_unmatched():
+                with open(unmatched_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+
+            await asyncio.to_thread(_write_unmatched)
+            logger.info(
+                "Wrote %d unmatched track(s) to %s", len(unmatched), unmatched_path
             )
 
         return Playlist(playlist_title, self.config, self.client, pending_tracks)
