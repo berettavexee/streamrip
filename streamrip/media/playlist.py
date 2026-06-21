@@ -487,6 +487,11 @@ class PendingLastfmPlaylist(Pending):
 
         max_tracks = self.config.session.lastfm.max_tracks
         page_size = min(max_tracks, 200) if max_tracks > 0 else 200
+        limit_str = str(max_tracks) if max_tracks > 0 else "all"
+        logger.info(
+            "Last.fm user library: %s — period: %s — limit: %s tracks",
+            username, label, limit_str,
+        )
 
         verify_ssl = getattr(self.config.session.downloads, "verify_ssl", True)
         connector = aiohttp.TCPConnector(**get_aiohttp_connector_kwargs(verify_ssl=verify_ssl))
