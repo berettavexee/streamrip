@@ -67,8 +67,7 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 
 - Score-based track matching: instead of blindly accepting the first search result, up to 10 candidates are fetched and ranked by a weighted composite score (60 % title + 40 % artist similarity via `SequenceMatcher`). The best match is returned and its score is logged at DEBUG level for post-mortem analysis.
 - Collaboration credits (`feat. X`, `with Y`, etc.) are stripped from the search query before hitting the API, improving hit rate for tracks whose title includes a featured artist — the scorer still compares against the full original title.
-
-
+- Support user library URLs (`/user/{username}/library/tracks`) and artist top-track URLs (`/music/{Artist}/+tracks`) via the Last.fm public API; requires setting `api_key` in `[lastfm]` (free key at https://www.last.fm/api/account/create). The optional `date_preset` query parameter is honoured for user library URLs; it is not supported by the public API for artist URLs (all-time results are returned with a warning).
 - HTTP errors (404, 503, etc.) now surface the status code and URL in the error message instead of failing silently with a cryptic parse error; this includes non-standard codes such as `600` that Last.fm's CDN occasionally returns as a transient response — a plain retry is sufficient
 - Distinguish three failure modes: HTTP error from Last.fm, page structure changed/unrecognised, playlist parsed successfully but zero tracks extracted
 - Fix `Exception("msg: %s", page)` bug where the page body was silently dropped from the exception args and never shown in the log

@@ -212,6 +212,9 @@ class LastFmConfig:
     # If no results were found with the primary source, the item is searched for
     # on this one.
     fallback_source: str
+    # API key for Last.fm — required for user library and artist track URLs.
+    # Register a free key at https://www.last.fm/api/account/create
+    api_key: str = ""
 
 
 @dataclass(slots=True)

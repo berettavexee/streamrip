@@ -6,6 +6,7 @@ import random
 import re
 from contextlib import ExitStack
 from dataclasses import dataclass
+from urllib.parse import parse_qs, urlparse
 
 import aiohttp
 from rich.text import Text
@@ -191,6 +192,31 @@ class PendingPlaylist(Pending):
         return Playlist(name, self.config, self.client, tracks)
 
 
+_LASTFM_USER_LIBRARY_RE = re.compile(
+    r"https://www\.last\.fm/user/(\w+)/library/tracks"
+)
+_LASTFM_ARTIST_TRACKS_RE = re.compile(
+    r"https://www\.last\.fm/music/([^/]+)/\+tracks"
+)
+_LASTFM_API = "https://ws.audioscrobbler.com/2.0/"
+_LASTFM_PERIOD_MAP = {
+    "LAST_7_DAYS": "7day",
+    "LAST_30_DAYS": "1month",
+    "LAST_90_DAYS": "3month",
+    "LAST_180_DAYS": "6month",
+    "LAST_365_DAYS": "12month",
+    "ALL": "overall",
+}
+_LASTFM_PERIOD_LABEL = {
+    "7day": "Last 7 Days",
+    "1month": "Last Month",
+    "3month": "Last 3 Months",
+    "6month": "Last 6 Months",
+    "12month": "Last Year",
+    "overall": "All Time",
+}
+
+
 @dataclass(slots=True)
 class PendingLastfmPlaylist(Pending):
     lastfm_url: str
@@ -356,6 +382,198 @@ class PendingLastfmPlaylist(Pending):
         return None, True
 
     async def _parse_lastfm_playlist(
+        self, playlist_url: str
+    ) -> tuple[str, list[tuple[str, str]]]:
+        """Dispatch to the appropriate parser based on the Last.fm URL type.
+
+        Args:
+            playlist_url: A Last.fm URL — playlist, user library, or artist tracks.
+
+        Returns:
+            A 2-tuple of (playlist_title, [(track_title, artist_name), ...]).
+        """
+        if _LASTFM_USER_LIBRARY_RE.match(playlist_url):
+            return await self._parse_lastfm_user_top_tracks(playlist_url)
+        if _LASTFM_ARTIST_TRACKS_RE.match(playlist_url):
+            return await self._parse_lastfm_artist_top_tracks(playlist_url)
+        return await self._parse_lastfm_playlist_html(playlist_url)
+
+    def _require_api_key(self, url: str) -> str:
+        """Return the configured Last.fm API key, or raise a descriptive error.
+
+        Args:
+            url: The URL being processed (included in the error message).
+
+        Returns:
+            The non-empty API key string.
+
+        Raises:
+            Exception: When api_key is not set in the [lastfm] config section.
+        """
+        key = self.config.session.lastfm.api_key
+        if not key:
+            raise Exception(
+                f"A Last.fm API key is required for {url}\n"
+                "Register a free key at https://www.last.fm/api/account/create "
+                "and set api_key in the [lastfm] section of your config."
+            )
+        return key
+
+    async def _fetch_lastfm_api(
+        self,
+        session: aiohttp.ClientSession,
+        params: dict,
+    ) -> dict:
+        """Perform a single Last.fm API call and return the parsed JSON.
+
+        Args:
+            session: An active aiohttp session to reuse.
+            params: Query parameters for the API call (method, api_key, etc.).
+
+        Returns:
+            Parsed JSON response as a dict.
+
+        Raises:
+            Exception: On non-200 HTTP status or an API-level error response.
+        """
+        async with session.get(_LASTFM_API, params=params) as resp:
+            if resp.status != 200:
+                raise Exception(
+                    f"Last.fm API returned HTTP {resp.status} for method={params.get('method')}"
+                )
+            data = await resp.json()
+        if "error" in data:
+            raise Exception(
+                f"Last.fm API error {data['error']}: {data.get('message', '')}"
+            )
+        return data
+
+    async def _parse_lastfm_user_top_tracks(
+        self, url: str
+    ) -> tuple[str, list[tuple[str, str]]]:
+        """Fetch a user's top tracks from the Last.fm API.
+
+        Args:
+            url: A URL of the form
+                ``https://www.last.fm/user/{username}/library/tracks``
+                with an optional ``?date_preset=LAST_7_DAYS`` query parameter.
+
+        Returns:
+            A 2-tuple of (playlist_title, [(track_title, artist_name), ...]).
+
+        Raises:
+            Exception: If the URL cannot be parsed, the API key is missing, or
+                the Last.fm API returns an error.
+        """
+        api_key = self._require_api_key(url)
+        match = _LASTFM_USER_LIBRARY_RE.match(url)
+        if match is None:
+            raise Exception(f"Could not parse user library URL: {url}")
+        username = match.group(1)
+
+        date_preset = parse_qs(urlparse(url).query).get("date_preset", ["ALL"])[0]
+        period = _LASTFM_PERIOD_MAP.get(date_preset, "overall")
+        label = _LASTFM_PERIOD_LABEL.get(period, "All Time")
+        playlist_title = f"{username}'s Top Tracks ({label})"
+
+        verify_ssl = getattr(self.config.session.downloads, "verify_ssl", True)
+        connector = aiohttp.TCPConnector(**get_aiohttp_connector_kwargs(verify_ssl=verify_ssl))
+        tracks: list[tuple[str, str]] = []
+        page = 1
+
+        async with aiohttp.ClientSession(connector=connector) as session:
+            while True:
+                data = await self._fetch_lastfm_api(session, {
+                    "method": "user.getTopTracks",
+                    "user": username,
+                    "api_key": api_key,
+                    "format": "json",
+                    "limit": 200,
+                    "page": page,
+                    "period": period,
+                })
+                top = data["toptracks"]
+                total_pages = int(top["@attr"]["totalPages"])
+                for track in top.get("track", []):
+                    tracks.append((track["name"], track["artist"]["name"]))
+                if page >= total_pages:
+                    break
+                page += 1
+
+        logger.debug(
+            "Fetched %d tracks for user '%s' (%s) from Last.fm API",
+            len(tracks), username, period,
+        )
+        return playlist_title, tracks
+
+    async def _parse_lastfm_artist_top_tracks(
+        self, url: str
+    ) -> tuple[str, list[tuple[str, str]]]:
+        """Fetch an artist's all-time top tracks from the Last.fm API.
+
+        The ``date_preset`` query parameter present on the website URL is not
+        supported by the public ``artist.getTopTracks`` API endpoint; when it
+        is present and not ``ALL``, a warning is logged and all-time results
+        are returned instead.
+
+        Args:
+            url: A URL of the form
+                ``https://www.last.fm/music/{Artist}/+tracks``
+                with an optional ``?date_preset=…`` query parameter.
+
+        Returns:
+            A 2-tuple of (playlist_title, [(track_title, artist_name), ...]).
+
+        Raises:
+            Exception: If the URL cannot be parsed, the API key is missing, or
+                the Last.fm API returns an error.
+        """
+        api_key = self._require_api_key(url)
+        match = _LASTFM_ARTIST_TRACKS_RE.match(url)
+        if match is None:
+            raise Exception(f"Could not parse artist tracks URL: {url}")
+        artist_name = match.group(1).replace("+", " ")
+
+        date_preset = parse_qs(urlparse(url).query).get("date_preset", ["ALL"])[0]
+        if date_preset not in ("ALL", ""):
+            logger.warning(
+                "Last.fm artist.getTopTracks does not support date_preset=%s; "
+                "returning all-time top tracks instead.",
+                date_preset,
+            )
+
+        playlist_title = f"{artist_name} — Top Tracks"
+
+        verify_ssl = getattr(self.config.session.downloads, "verify_ssl", True)
+        connector = aiohttp.TCPConnector(**get_aiohttp_connector_kwargs(verify_ssl=verify_ssl))
+        tracks: list[tuple[str, str]] = []
+        page = 1
+
+        async with aiohttp.ClientSession(connector=connector) as session:
+            while True:
+                data = await self._fetch_lastfm_api(session, {
+                    "method": "artist.getTopTracks",
+                    "artist": artist_name,
+                    "api_key": api_key,
+                    "format": "json",
+                    "limit": 50,
+                    "page": page,
+                })
+                top = data["toptracks"]
+                total_pages = int(top["@attr"]["totalPages"])
+                for track in top.get("track", []):
+                    tracks.append((track["name"], track["artist"]["name"]))
+                if page >= total_pages:
+                    break
+                page += 1
+
+        logger.debug(
+            "Fetched %d tracks for artist '%s' from Last.fm API",
+            len(tracks), artist_name,
+        )
+        return playlist_title, tracks
+
+    async def _parse_lastfm_playlist_html(
         self,
         playlist_url: str,
     ) -> tuple[str, list[tuple[str, str]]]:
