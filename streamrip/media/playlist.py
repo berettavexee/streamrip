@@ -131,14 +131,11 @@ class Playlist(Media):
             results = await asyncio.gather(*[safe_resolve(t) for t in batch])
             return [r for r in results if r is not None]
 
-        async def download_batch(tracks: list[Track]) -> None:
-            async def safe_rip(track: Track) -> None:
-                try:
-                    await track.rip(stats)
-                except Exception as e:
-                    logger.error(f"Error downloading track: {e}")
-
-            await asyncio.gather(*[safe_rip(t) for t in tracks])
+        async def safe_rip(track: Track) -> None:
+            try:
+                await track.rip(stats)
+            except Exception as e:
+                logger.error(f"Error downloading track: {e}")
 
         if not batches:
             return
@@ -147,16 +144,24 @@ class Playlist(Media):
             progress.set_overall(len(self.tracks))
 
         resolved = await resolve_batch(batches[0])
+        rip_tasks: list[asyncio.Task] = []
 
         for i in range(len(batches)):
-            # Kick off next batch resolution concurrently with current download.
+            # Kick off next batch resolution concurrently with current downloads.
             next_task = (
                 asyncio.create_task(resolve_batch(batches[i + 1]))
                 if i + 1 < len(batches)
                 else None
             )
-            await download_batch(resolved)
+            # Start each resolved track's download immediately — don't wait for
+            # the whole batch to finish before moving on.  The global semaphore
+            # caps concurrency; batch-N+1 slots can start filling as batch-N
+            # tracks complete, eliminating idle time at batch boundaries.
+            for track in resolved:
+                rip_tasks.append(asyncio.create_task(safe_rip(track)))
             resolved = await next_task if next_task is not None else []
+
+        await asyncio.gather(*rip_tasks)
 
 
 
