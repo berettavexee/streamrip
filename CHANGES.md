@@ -86,6 +86,7 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - Version check is resilient to network errors and non-JSON responses (e.g. GitHub 504) ([#995](https://github.com/nathom/streamrip/pull/995))
 - Version comparison is numeric (`1.10 > 1.9`) rather than lexicographic
 - Download summary printed at end of session (tracks downloaded, failed, total size)
+- `-n`/`--dry-run` flag resolves and matches tracks without downloading anything — each would-be download is logged at INFO level and the end-of-session summary is labelled `[DRY RUN]`; useful for validating Last.fm matching and generating clean debug logs
 
 ## Tests
 
