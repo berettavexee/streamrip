@@ -218,6 +218,10 @@ class LastFmConfig:
     # Maximum number of tracks to fetch for user library and artist top-track URLs.
     # Increase to download more; set to 0 for no limit (may fetch thousands of tracks).
     max_tracks: int = 50
+    # Minimum similarity score (0-1) to accept a search result as a match.
+    # Candidates below this threshold are rejected and logged as warnings.
+    # Raise to reduce false positives; lower if too many tracks are skipped.
+    min_score: float = 0.85
 
 
 @dataclass(slots=True)

@@ -331,6 +331,8 @@ class PendingLastfmPlaylist(Pending):
         """
         query = f"{strip_collab(title)} {artist}".strip()
 
+        min_score = self.config.session.lastfm.min_score
+
         def _best_id(pages: list[dict], source: str) -> str | None:
             results: list[TrackSummary] = SearchResults.from_pages(source, "track", pages).results  # type: ignore[assignment]
             if not results:
@@ -344,6 +346,13 @@ class PendingLastfmPlaylist(Pending):
                 "Best match for '%s' by '%s' on %s: '%s' by '%s' (score=%.2f)",
                 title, artist, source, best.name, best.artist, best_score,
             )
+            if best_score < min_score:
+                logger.warning(
+                    "Rejecting match for '%s' by '%s' on %s: "
+                    "'%s' by '%s' scored %.2f (min_score=%.2f)",
+                    title, artist, source, best.name, best.artist, best_score, min_score,
+                )
+                return None
             return best.id
 
         with ExitStack() as stack:
