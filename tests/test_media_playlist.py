@@ -313,19 +313,6 @@ async def test_pending_playlist_resolve_returns_playlist():
 
 
 # ---------------------------------------------------------------------------
-# PendingLastfmPlaylist.Status.text
-# ---------------------------------------------------------------------------
-
-
-def test_status_text_contains_counts():
-    s = PendingLastfmPlaylist.Status(found=3, failed=1, total=10)
-    text = s.text()
-    rendered = str(text)
-    assert "3" in rendered
-    assert "1" in rendered
-    assert "10" in rendered
-
-
 # ---------------------------------------------------------------------------
 # PendingLastfmPlaylist._make_query
 # ---------------------------------------------------------------------------
@@ -683,17 +670,17 @@ async def test_lastfm_resolve_with_progress_bars():
         cb()
         return "id-1", False
 
-    mock_status = MagicMock()
-    mock_status.__enter__ = MagicMock(return_value=mock_status)
-    mock_status.__exit__ = MagicMock(return_value=False)
-    mock_status.update = MagicMock()
+    mock_prog = MagicMock()
+    mock_prog.__enter__ = MagicMock(return_value=mock_prog)
+    mock_prog.__exit__ = MagicMock(return_value=False)
+    mock_prog.add_task = MagicMock(return_value=0)
 
     with (
         patch.object(pl, "_parse_lastfm_playlist", side_effect=fake_parse),
         patch.object(pl, "_make_query", side_effect=fake_query),
         patch("streamrip.media.playlist.clean_filepath", side_effect=lambda x: x),
         patch("streamrip.media.playlist.clean_filename", side_effect=lambda x: x),
-        patch("streamrip.media.playlist.console.status", return_value=mock_status),
+        patch("streamrip.media.playlist.Progress", return_value=mock_prog),
     ):
         result = await pl.resolve()
 

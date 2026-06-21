@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from urllib.parse import parse_qs, urlparse
 
 import aiohttp
-from rich.text import Text
+from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 
 from .. import progress
 from ..client import Client
@@ -231,17 +231,6 @@ class PendingLastfmPlaylist(Pending):
         failed: int
         total: int
 
-        def text(self) -> Text:
-            return Text.assemble(
-                "Searching for last.fm tracks (",
-                (f"{self.found} found", "bold green"),
-                ", ",
-                (f"{self.failed} failed", "bold red"),
-                ", ",
-                (f"{self.total} total", "bold"),
-                ")",
-            )
-
     async def resolve(self) -> Playlist | None:
         try:
             playlist_title, titles_artists = await self._parse_lastfm_playlist(
@@ -255,10 +244,32 @@ class PendingLastfmPlaylist(Pending):
 
         s = self.Status(0, 0, len(titles_artists))
         if self.config.session.cli.progress_bars:
-            with console.status(s.text(), spinner="moon") as status:
+            with Progress(
+                TextColumn("{task.description}"),
+                BarColumn(
+                    bar_width=None,
+                    style="dim magenta",
+                    complete_style="magenta",
+                    finished_style="magenta",
+                ),
+                MofNCompleteColumn(),
+                console=console,
+            ) as prog:
+                task = prog.add_task(
+                    "[magenta]Matching Last.fm tracks[/magenta]",
+                    total=len(titles_artists),
+                )
 
                 def callback():
-                    status.update(s.text())
+                    prog.advance(task)
+                    prog.update(
+                        task,
+                        description=(
+                            f"[magenta]Matching Last.fm tracks[/magenta]"
+                            f"  [green]{s.found} found[/green]"
+                            f"  [red]{s.failed} failed[/red]"
+                        ),
+                    )
 
                 for title, artist in titles_artists:
                     requests.append(self._make_query(title, artist, s, callback))
