@@ -10,7 +10,7 @@ from ..db import Database
 from ..exceptions import NonStreamableError
 from ..filepath_utils import clean_filename
 from ..metadata import AlbumMetadata, TrackMetadata, tag_file
-from ..progress import add_title, get_progress_callback, remove_title
+from ..progress import add_title, advance_overall, get_progress_callback, remove_title
 from ..utils.integrity import check_integrity
 from .artwork import download_embed_cover
 from .media import DownloadStats, Media, Pending
@@ -33,25 +33,28 @@ class Track(Media):
     is_single: bool = False
 
     async def rip(self, stats: DownloadStats | None = None) -> None:
-        if self.config.session.cli.dry_run:
-            logger.info(
-                "[DRY RUN] Would download: '%s' by '%s'",
-                self.meta.title,
-                self.meta.artist,
-            )
-            if stats is not None:
-                stats.record_success("")
-            return
         try:
-            await self.preprocess()
-            await self.download()
-            await self.postprocess()
-            if stats is not None:
-                stats.record_success(self.download_path)
-        except Exception:
-            if stats is not None:
-                stats.record_failure()
-            raise
+            if self.config.session.cli.dry_run:
+                logger.info(
+                    "[DRY RUN] Would download: '%s' by '%s'",
+                    self.meta.title,
+                    self.meta.artist,
+                )
+                if stats is not None:
+                    stats.record_success("")
+                return
+            try:
+                await self.preprocess()
+                await self.download()
+                await self.postprocess()
+                if stats is not None:
+                    stats.record_success(self.download_path)
+            except Exception:
+                if stats is not None:
+                    stats.record_failure()
+                raise
+        finally:
+            advance_overall()
 
     async def preprocess(self):
         self._set_download_path()

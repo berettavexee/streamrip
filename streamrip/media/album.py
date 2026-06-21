@@ -31,14 +31,22 @@ class Album(Media):
         progress.add_title(self.meta.album)
 
     async def download(self, stats: DownloadStats | None = None):
+        if self.config.session.cli.progress_bars:
+            progress.set_overall(len(self.tracks))
+
         async def _resolve_and_download(pending: Pending):
+            track = None
             try:
                 track = await pending.resolve()
                 if track is None:
+                    progress.advance_overall()  # already in DB or skipped
                     return
-                await track.rip(stats)
+                await track.rip(stats)  # advance_overall() called in rip()'s finally
             except Exception as e:
                 logger.error(f"Error downloading track: {e}")
+                if track is None:
+                    # resolve() raised before rip() could advance
+                    progress.advance_overall()
 
         await asyncio.gather(*[_resolve_and_download(p) for p in self.tracks])
 

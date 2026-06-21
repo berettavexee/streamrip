@@ -118,9 +118,13 @@ class Playlist(Media):
 
         async def safe_resolve(item: PendingPlaylistTrack) -> Track | None:
             try:
-                return await item.resolve()
+                track = await item.resolve()
+                if track is None:
+                    progress.advance_overall()  # already in DB or skipped
+                return track
             except Exception as e:
                 logger.error(f"Error resolving track {item.id}: {e}")
+                progress.advance_overall()  # resolve failed
                 return None
 
         async def resolve_batch(batch: list) -> list[Track]:
@@ -138,6 +142,9 @@ class Playlist(Media):
 
         if not batches:
             return
+
+        if self.config.session.cli.progress_bars:
+            progress.set_overall(len(self.tracks))
 
         resolved = await resolve_batch(batches[0])
 
