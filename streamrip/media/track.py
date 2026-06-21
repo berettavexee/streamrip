@@ -21,6 +21,26 @@ logger = logging.getLogger("streamrip")
 
 @dataclass(slots=True)
 class Track(Media):
+    """A single audio track ready for download and tagging.
+
+    Created by :class:`PendingTrack` or :class:`PendingPlaylistTrack` after
+    metadata resolution.  The :meth:`rip` method drives the full lifecycle:
+    path computation → download (with one retry) → tagging → optional format
+    conversion → integrity check → database recording.
+
+    Attributes:
+        meta: Track and album metadata used for tagging and path formatting.
+        downloadable: Encapsulates the download URL and audio format.
+        config: Session-wide configuration.
+        folder: Directory where the audio file will be written.
+        cover_path: Path to the embedded cover image, or ``None`` when no
+            artwork is available.
+        db: Session database for skip / failure tracking.
+        download_path: Final on-disk path; set during :meth:`preprocess`.
+        is_single: ``True`` when the track is downloaded standalone (not as
+            part of an album), which affects the progress-bar title.
+    """
+
     meta: TrackMetadata
     downloadable: Downloadable
     config: Config
@@ -57,12 +77,28 @@ class Track(Media):
             advance_overall()
 
     async def preprocess(self):
+        """Compute the download path and create the destination directory.
+
+        Also registers the track title in the progress-bar header when the
+        track is downloaded as a standalone single.
+        """
         self._set_download_path()
         os.makedirs(self.folder, exist_ok=True)
         if self.is_single:
             add_title(self.meta.title)
 
     async def download(self, stats: DownloadStats | None = None):
+        """Download the audio file to :attr:`download_path`.
+
+        Acquires the global download semaphore, then attempts the download up
+        to twice (one initial attempt + one retry).  On a second consecutive
+        failure the track is recorded as failed in the database and the method
+        returns without raising.
+
+        Args:
+            stats: Unused (kept for interface symmetry with
+                :meth:`Media.download`).
+        """
         async with global_download_semaphore(self.config.session.downloads):
             for attempt in range(2):
                 suffix = " (retry)" if attempt else ""
@@ -89,6 +125,20 @@ class Track(Media):
                             )
 
     async def postprocess(self):
+        """Tag, convert, and record the downloaded track.
+
+        Steps in order:
+
+        1. Run Mutagen tagging in a thread pool (non-blocking).
+        2. If conversion is enabled, convert to the configured codec and
+           update :attr:`download_path` to the new extension.
+        3. Run the integrity check (effective bitrate vs. quality tier).
+        4. Record the track as downloaded in the database.
+
+        Raises:
+            Exception: Propagated from :func:`tag_file` or :meth:`_convert`
+                on tagging or conversion failure.
+        """
         if self.is_single:
             remove_title(self.meta.title)
 
@@ -139,6 +189,22 @@ class Track(Media):
 
 @dataclass(slots=True)
 class PendingTrack(Pending):
+    """A track awaiting resolution in the context of a known album.
+
+    Used for tracks within an album download: the album metadata and cover art
+    are already available, so resolution only needs to fetch track-level
+    metadata and a download URL.
+
+    Attributes:
+        id: Platform-specific track identifier.
+        album: Pre-resolved album metadata shared by all tracks in the album.
+        client: API client for the source service.
+        config: Session-wide configuration.
+        folder: Destination directory (may be a per-disc sub-directory).
+        db: Session database for skip / failure tracking.
+        cover_path: Path to the shared embedded cover image, or ``None``.
+    """
+
     id: str
     album: AlbumMetadata
     client: Client
