@@ -94,9 +94,16 @@ def coro(f):
     type=click.Path(dir_okay=False, writable=True),
     default=None,
 )
+@click.option(
+    "-n",
+    "--dry-run",
+    help="Resolve and match tracks but do not download anything",
+    is_flag=True,
+    default=False,
+)
 @click.pass_context
 def rip(
-    ctx, config_path, folder, no_db, quality, codec, no_progress, no_ssl_verify, verbose, log_file
+    ctx, config_path, folder, no_db, quality, codec, no_progress, no_ssl_verify, verbose, log_file, dry_run
 ):
     """Streamrip: the all in one music downloader."""
     global logger
@@ -190,6 +197,9 @@ def rip(
 
     if no_progress:
         c.session.cli.progress_bars = False
+
+    if dry_run:
+        c.session.cli.dry_run = True
 
     if no_ssl_verify:
         c.session.downloads.verify_ssl = False

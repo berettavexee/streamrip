@@ -32,6 +32,15 @@ class Track(Media):
     is_single: bool = False
 
     async def rip(self, stats: DownloadStats | None = None) -> None:
+        if self.config.session.cli.dry_run:
+            logger.info(
+                "[DRY RUN] Would download: '%s' by '%s'",
+                self.meta.title,
+                self.meta.artist,
+            )
+            if stats is not None:
+                stats.record_success("")
+            return
         try:
             await self.preprocess()
             await self.download()

@@ -174,19 +174,34 @@ class Main:
         # Stop the Live display before printing so the summary is never rendered
         # inside the live context and cannot be overwritten by cleanup().
         clear_progress()
-        console.print(self._format_summary(stats, elapsed))
+        dry_run = self.config.session.cli.dry_run
+        console.print(self._format_summary(stats, elapsed, dry_run=dry_run))
 
     @staticmethod
-    def _format_summary(stats: DownloadStats, elapsed: float) -> str:
+    def _format_summary(stats: DownloadStats, elapsed: float, dry_run: bool = False) -> str:
         """Build a Rich-markup summary line for the end of a rip session.
 
         Args:
             stats: Accumulated download metrics.
             elapsed: Total wall-clock time in seconds.
+            dry_run: When True, labels the summary as a dry run and omits size.
 
         Returns:
             A Rich markup string ready to pass to console.print().
         """
+        s = int(elapsed)
+        time_str = f"{s // 60}m {s % 60:02d}s" if s >= 60 else f"{s}s"
+
+        if dry_run:
+            parts = [
+                "[dim][DRY RUN][/dim]",
+                f"[green]✔ {stats.tracks_downloaded} tracks matched[/green]",
+            ]
+            if stats.tracks_failed:
+                parts.append(f"[red]✘ {stats.tracks_failed} errors[/red]")
+            parts.append(f"[yellow]⏱ {time_str}[/yellow]")
+            return "  ".join(parts)
+
         n = stats.bytes_downloaded
         if n >= 1_000_000_000:
             size_str = f"{n / 1_000_000_000:.2f} GB"
@@ -194,9 +209,6 @@ class Main:
             size_str = f"{n / 1_000_000:.1f} MB"
         else:
             size_str = f"{n / 1_000:.0f} KB"
-
-        s = int(elapsed)
-        time_str = f"{s // 60}m {s % 60:02d}s" if s >= 60 else f"{s}s"
 
         parts = [f"[green]✔ {stats.tracks_downloaded} tracks[/green]"]
         if stats.tracks_failed:

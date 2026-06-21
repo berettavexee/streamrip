@@ -50,6 +50,7 @@ def _config(
     cfg.session.filepaths.folder_format = "{albumartist}/{album}"
     cfg.session.filepaths.add_singles_to_folder = add_singles_to_folder
     cfg.session.cli.progress_bars = progress_bars
+    cfg.session.cli.dry_run = False
     cfg.session.conversion.enabled = conversion_enabled
     cfg.session.downloads.disc_subdirectories = disc_subdirectories
     cfg.session.downloads.source_subdirectories = source_subdirectories
