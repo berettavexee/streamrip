@@ -108,10 +108,12 @@ class TrackSummary(Summary):
         )
 
         raw_dur = item.get("duration")
-        try:
-            duration: int | None = (int(raw_dur) or None) if raw_dur is not None else None
-        except (TypeError, ValueError):
-            duration = None
+        duration: int | None = None
+        if raw_dur is not None:
+            try:
+                duration = int(raw_dur) or None
+            except (TypeError, ValueError):
+                pass
 
         return cls(id, name.strip(), artist, date_released, duration)  # type: ignore
 
