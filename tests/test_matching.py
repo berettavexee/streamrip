@@ -12,10 +12,9 @@ from streamrip.utils.matching import (
     duration_close,
     normalize,
     score_similarity,
-    strip_collab,
     string_similarity,
+    strip_collab,
 )
-
 
 # ---------------------------------------------------------------------------
 # strip_collab
@@ -105,7 +104,7 @@ def test_string_similarity_unrelated_is_low() -> None:
 # ---------------------------------------------------------------------------
 
 
-# Format: (query_title, query_artist, result_title, result_artist, description)
+# Format: (query_title, query_artist, result_title, result_artist, description)  # noqa: ERA001
 _LOG_PAIRS = [
     # Simple exact match with case variants in artist
     ("Enter The Cipher", "Follow the Cipher", "Enter the Cipher", "Follow The Cipher", "artist capitalisation variant"),
@@ -119,7 +118,7 @@ _LOG_PAIRS = [
     ("Master of the Universe", "Angus McSix", "Master of the Universe", "ANGUS McSIX", "stylised all-caps artist"),
     # Artist uses 'In' capitalisation
     ("True Believer", "Beast in Black", "True Believer", "Beast In Black", "minor caps diff in artist"),
-    # Punctuation in title (apostrophe, dot)
+    # Punctuation in title (apostrophe, dot)  # noqa: ERA001
     ("Mr. White", "Temperance", "Mr. White", "Temperance", "dot in title"),
     ("Circe's Spell", "Kalidia", "Circe's Spell", "Kalidia", "apostrophe in title"),
     ("Draugen's Maelstrom", "Elvenking", "Draugen's Maelstrom", "Elvenking", "apostrophe in title 2"),
@@ -192,8 +191,8 @@ def test_score_title_partial_no_artist_returns_partial_credit() -> None:
     SequenceMatcher a ratio of 10/18 ≈ 0.556 (just above the 0.55 threshold).
 
     "Kiss" (k, i, s, s) shares no characters with "afterburn" or "Bloodbound",
-    so best_artist_score = 0 and composite = 0.60 × 0.556 ≈ 0.333 < 0.35.
-    The branch returns title_score × 0.75 ≈ 0.417 instead of the raw 0.333.
+    so best_artist_score = 0 and composite = 0.60 x 0.556 ≈ 0.333 < 0.35.
+    The branch returns title_score x 0.75 ≈ 0.417 instead of the raw 0.333.
     """
     score = score_similarity("Afterlife", ["Kiss"], "Afterburn", "Bloodbound")
     expected = (10 / 18) * 0.75  # title_score * 0.75
