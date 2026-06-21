@@ -2,7 +2,6 @@ import asyncio
 import html
 import logging
 import os
-import random
 import re
 from contextlib import ExitStack
 from dataclasses import dataclass
@@ -162,7 +161,6 @@ class Playlist(Media):
             resolved = await next_task if next_task is not None else []
 
         await asyncio.gather(*rip_tasks)
-
 
 
 @dataclass(slots=True)
@@ -448,7 +446,7 @@ class PendingLastfmPlaylist(Pending):
                 title, artist, self.client.source, self.fallback_client.source,
             )
             search_status.failed += 1
-        return None, True
+        return None, False
 
     async def _parse_lastfm_playlist(
         self, playlist_url: str
@@ -832,16 +830,3 @@ class PendingLastfmPlaylist(Pending):
 
         return playlist_title, title_artist_pairs
 
-    async def _make_query_mock(
-        self,
-        _: str,
-        s: Status,
-        callback,
-    ) -> tuple[str | None, bool]:
-        await asyncio.sleep(random.uniform(1, 20))
-        if random.randint(0, 4) >= 1:
-            s.found += 1
-        else:
-            s.failed += 1
-        callback()
-        return None, False
