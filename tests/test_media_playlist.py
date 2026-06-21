@@ -44,6 +44,9 @@ def _config(renumber=False, set_to_album=False, progress_bars=False):
     cfg.session.artwork = MagicMock()
     cfg.session.downloads.verify_ssl = True
     cfg.session.get_source.return_value.quality = 2
+    cfg.session.lastfm.min_score = 0.85
+    cfg.session.lastfm.max_tracks = 50
+    cfg.session.lastfm.api_key = ""
     return cfg
 
 
