@@ -658,6 +658,31 @@ async def test_parse_lastfm_raises_on_5xx():
                 await pl._parse_lastfm_playlist("https://last.fm/x")
 
 
+async def test_parse_lastfm_raises_on_bare_artist_page():
+    """Bare artist page URL triggers a descriptive error suggesting /+tracks."""
+    pl = _lastfm_playlist()
+    for url in (
+        "https://www.last.fm/music/And+One",
+        "https://www.last.fm/music/And+One/",
+    ):
+        with pytest.raises(ValueError, match=r"/\+tracks"):
+            await pl._parse_lastfm_playlist(url)
+
+
+async def test_parse_lastfm_artist_tracks_url_not_caught_as_bare_page():
+    """/+tracks URL must NOT trigger the bare-page error."""
+    pl = _lastfm_playlist()
+    with patch.object(
+        pl,
+        "_parse_lastfm_artist_top_tracks",
+        new=AsyncMock(return_value=("Artist Top", [("Song", "Artist")])),
+    ):
+        title, pairs = await pl._parse_lastfm_playlist(
+            "https://www.last.fm/music/And+One/+tracks"
+        )
+    assert title == "Artist Top"
+
+
 async def test_lastfm_resolve_with_progress_bars():
     pl = _lastfm_playlist()
     pl.config.session.cli.progress_bars = True
