@@ -68,6 +68,7 @@ class TrackSummary(Summary):
     name: str
     artist: str
     date_released: str | None
+    duration: int | None = None
 
     def media_type(self):
         return "track"
@@ -105,7 +106,14 @@ class TrackSummary(Summary):
             or item.get("year")
             or "Unknown"
         )
-        return cls(id, name.strip(), artist, date_released)  # type: ignore
+
+        raw_dur = item.get("duration")
+        try:
+            duration: int | None = int(raw_dur) or None
+        except (TypeError, ValueError):
+            duration = None
+
+        return cls(id, name.strip(), artist, date_released, duration)  # type: ignore
 
 
 @dataclass(slots=True)

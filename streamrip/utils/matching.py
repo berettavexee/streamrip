@@ -34,6 +34,8 @@ def score_similarity(
     query_artists: list[str],
     result_title: str,
     result_artist: str,
+    query_duration: int | None = None,
+    result_duration: int | None = None,
 ) -> float:
     """Return a composite [0, 1] score for how well a search result matches a query.
 
@@ -42,6 +44,12 @@ def score_similarity(
         query_artists: Artist names from the Last.fm playlist entry (usually one).
         result_title: Title of the candidate result from the streaming API.
         result_artist: Primary artist of the candidate result.
+        query_duration: Expected track duration in seconds (from Last.fm), or None.
+        result_duration: Candidate track duration in seconds (from the streaming
+            API), or None.  When both are provided and ``duration_close()``
+            confirms they match, an 8 % bonus is applied to the composite score
+            (capped at 1.0).  No penalty is applied when durations differ, to
+            avoid disadvantaging sources that report duration in different units.
 
     Returns:
         A float in [0, 1] where higher means a better match.
@@ -57,17 +65,20 @@ def score_similarity(
     composite = 0.60 * title_score + 0.40 * best_artist_score
 
     if title_score >= 0.55 and composite < 0.35:
-        return title_score * 0.75
-
-    if best_artist_score < 0.45 and result_artist.strip():
+        base = title_score * 0.75
+    elif best_artist_score < 0.45 and result_artist.strip():
         if title_score >= 0.90:
-            pass
+            base = composite
         elif title_score >= 0.75:
-            return min(composite, 0.55)
+            base = min(composite, 0.55)
         else:
-            return min(composite, 0.50)
+            base = min(composite, 0.50)
+    else:
+        base = composite
 
-    return composite
+    if query_duration and result_duration and duration_close(query_duration, result_duration):
+        return min(base * 1.08, 1.0)
+    return base
 
 
 def duration_close(expected_s: float, actual_s: float, tolerance: int = 10) -> bool:
