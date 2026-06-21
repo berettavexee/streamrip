@@ -215,6 +215,9 @@ class LastFmConfig:
     # API key for Last.fm — required for user library and artist track URLs.
     # Register a free key at https://www.last.fm/api/account/create
     api_key: str = ""
+    # Maximum number of tracks to fetch for user library and artist top-track URLs.
+    # Increase to download more; set to 0 for no limit (may fetch thousands of tracks).
+    max_tracks: int = 50
 
 
 @dataclass(slots=True)
