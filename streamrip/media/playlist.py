@@ -476,6 +476,9 @@ class PendingLastfmPlaylist(Pending):
         label = _LASTFM_PERIOD_LABEL.get(period, "All Time")
         playlist_title = f"{username}'s Top Tracks ({label})"
 
+        max_tracks = self.config.session.lastfm.max_tracks
+        page_size = min(max_tracks, 200) if max_tracks > 0 else 200
+
         verify_ssl = getattr(self.config.session.downloads, "verify_ssl", True)
         connector = aiohttp.TCPConnector(**get_aiohttp_connector_kwargs(verify_ssl=verify_ssl))
         tracks: list[tuple[str, str]] = []
@@ -488,7 +491,7 @@ class PendingLastfmPlaylist(Pending):
                     "user": username,
                     "api_key": api_key,
                     "format": "json",
-                    "limit": 200,
+                    "limit": page_size,
                     "page": page,
                     "period": period,
                 })
@@ -496,7 +499,9 @@ class PendingLastfmPlaylist(Pending):
                 total_pages = int(top["@attr"]["totalPages"])
                 for track in top.get("track", []):
                     tracks.append((track["name"], track["artist"]["name"]))
-                if page >= total_pages:
+                    if max_tracks > 0 and len(tracks) >= max_tracks:
+                        break
+                if page >= total_pages or (max_tracks > 0 and len(tracks) >= max_tracks):
                     break
                 page += 1
 
@@ -544,6 +549,9 @@ class PendingLastfmPlaylist(Pending):
 
         playlist_title = f"{artist_name} — Top Tracks"
 
+        max_tracks = self.config.session.lastfm.max_tracks
+        page_size = min(max_tracks, 50) if max_tracks > 0 else 50
+
         verify_ssl = getattr(self.config.session.downloads, "verify_ssl", True)
         connector = aiohttp.TCPConnector(**get_aiohttp_connector_kwargs(verify_ssl=verify_ssl))
         tracks: list[tuple[str, str]] = []
@@ -556,14 +564,16 @@ class PendingLastfmPlaylist(Pending):
                     "artist": artist_name,
                     "api_key": api_key,
                     "format": "json",
-                    "limit": 50,
+                    "limit": page_size,
                     "page": page,
                 })
                 top = data["toptracks"]
                 total_pages = int(top["@attr"]["totalPages"])
                 for track in top.get("track", []):
                     tracks.append((track["name"], track["artist"]["name"]))
-                if page >= total_pages:
+                    if max_tracks > 0 and len(tracks) >= max_tracks:
+                        break
+                if page >= total_pages or (max_tracks > 0 and len(tracks) >= max_tracks):
                     break
                 page += 1
 
