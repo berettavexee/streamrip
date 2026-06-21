@@ -134,6 +134,11 @@ def rip(
         # Attach to the root logger so all modules are captured, not just "streamrip"
         logging.getLogger().addHandler(fh)
         logging.getLogger().setLevel(logging.DEBUG)
+        # Keep the terminal (Rich) handler at INFO — lowering the root logger to DEBUG
+        # would otherwise let DEBUG messages bleed into the terminal output.
+        for h in logging.getLogger().handlers:
+            if isinstance(h, RichHandler):
+                h.setLevel(logging.INFO)
         # The streamrip logger may be set to INFO (non-verbose mode); lower it to DEBUG
         # so its messages propagate to the file handler above.
         logger.setLevel(logging.DEBUG)
