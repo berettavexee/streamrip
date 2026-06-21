@@ -35,7 +35,26 @@ class DownloadStats:
 
 
 class Media(ABC):
+    """Abstract base for all downloadable media objects.
+
+    Concrete subclasses (``Track``, ``Album``, ``Playlist``, ``Artist``,
+    ``Label``) implement three lifecycle phases:
+
+    1. :meth:`preprocess` — create directories, download cover art, etc.
+    2. :meth:`download` — fetch and tag audio files.
+    3. :meth:`postprocess` — update the database, run format conversion, etc.
+
+    The template method :meth:`rip` calls them in order.  ``Track`` overrides
+    ``rip`` to add dry-run support and per-track progress tracking.
+    """
+
     async def rip(self, stats: DownloadStats | None = None) -> None:
+        """Execute the full preprocess → download → postprocess lifecycle.
+
+        Args:
+            stats: Optional accumulator; when provided, each phase records
+                success or failure via :class:`DownloadStats`.
+        """
         await self.preprocess()
         await self.download(stats)
         await self.postprocess()
@@ -57,16 +76,37 @@ class Media(ABC):
 
     @staticmethod
     def batch(iterable, n=1):
-        """Split iterable into consecutive chunks of at most n items."""
+        """Split *iterable* into consecutive chunks of at most *n* items.
+
+        Args:
+            iterable: Any sized iterable to partition.
+            n: Maximum chunk size.
+
+        Yields:
+            Successive slices of *iterable*, each of length ≤ *n*.
+        """
         total = len(iterable)
         for ndx in range(0, total, n):
             yield iterable[ndx : min(ndx + n, total)]
 
 
 class Pending(ABC):
-    """A request to download a `Media` whose metadata has not been fetched."""
+    """A deferred media request whose metadata has not yet been fetched.
+
+    Each concrete subclass (``PendingTrack``, ``PendingAlbum``, etc.) wraps
+    an item ID and the credentials needed to resolve it into a downloadable
+    :class:`Media` object.  Resolution is intentionally deferred to allow
+    batching of API calls: the next batch can be resolved while the current
+    batch is downloading.
+    """
 
     @abstractmethod
     async def resolve(self) -> Media | None:
-        """Fetch metadata and resolve into a downloadable `Media` object."""
+        """Fetch metadata and resolve into a ready-to-download :class:`Media`.
+
+        Returns:
+            A fully initialised :class:`Media` instance, or ``None`` when the
+            item is already in the database, unavailable, or its metadata
+            cannot be fetched.
+        """
         raise NotImplementedError

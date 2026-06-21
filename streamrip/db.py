@@ -11,24 +11,57 @@ logger = logging.getLogger("streamrip")
 
 
 class DatabaseInterface(ABC):
+    """Abstract interface that all persistent storage backends must implement.
+
+    The framework ships two concrete implementations:
+
+    - :class:`DatabaseBase`: a real SQLite-backed table.
+    - :class:`Dummy`: a no-op in-memory stub used when the database is
+      disabled in configuration.
+    """
+
     @abstractmethod
     def create(self):
+        """Create the backing store (table, file, etc.) if it does not exist."""
         pass
 
     @abstractmethod
     def contains(self, **items) -> bool:
+        """Return ``True`` when a row matching *items* exists in the store.
+
+        Args:
+            **items: Column-name / expected-value pairs to match against.
+
+        Returns:
+            ``True`` if a matching row exists, ``False`` otherwise.
+        """
         pass
 
     @abstractmethod
     def add(self, kvs):
+        """Insert a new row into the store.
+
+        Args:
+            kvs: Row values in the order expected by the concrete implementation.
+        """
         pass
 
     @abstractmethod
     def remove(self, kvs):
+        """Remove rows matching *kvs* from the store.
+
+        Args:
+            kvs: Row values that identify the row(s) to delete.
+        """
         pass
 
     @abstractmethod
     def all(self) -> list:
+        """Return all rows currently held in the store.
+
+        Returns:
+            A list of all stored rows.
+        """
         pass
 
 
@@ -183,17 +216,56 @@ class Failed(DatabaseBase):
 
 @dataclass(slots=True)
 class Database:
+    """Thin facade over two :class:`DatabaseInterface` tables.
+
+    Provides the only entry points that the rest of the codebase needs:
+    checking whether a track has already been downloaded and recording
+    successful or failed attempts.
+
+    Attributes:
+        downloads: Backend table that stores IDs of successfully downloaded
+            tracks.
+        failed: Backend table that records source, media type, and ID of
+            tracks that could not be downloaded.
+    """
+
     downloads: DatabaseInterface
     failed: DatabaseInterface
 
     def downloaded(self, item_id: str) -> bool:
+        """Return ``True`` when *item_id* is recorded in the downloads table.
+
+        Args:
+            item_id: Platform-specific track identifier.
+
+        Returns:
+            ``True`` if the track was already downloaded in a previous session.
+        """
         return self.downloads.contains(id=item_id)
 
     def set_downloaded(self, item_id: str):
+        """Mark *item_id* as successfully downloaded.
+
+        Args:
+            item_id: Platform-specific track identifier to persist.
+        """
         self.downloads.add((item_id,))
 
     def get_failed_downloads(self) -> list[tuple[str, str, str]]:
+        """Return all rows from the failed-downloads table.
+
+        Returns:
+            A list of ``(source, media_type, id)`` 3-tuples for every track
+            that failed in a previous session.
+        """
         return self.failed.all()
 
     def set_failed(self, source: str, media_type: str, id: str):
+        """Record a failed download attempt.
+
+        Args:
+            source: Service name (e.g. ``"deezer"``, ``"qobuz"``).
+            media_type: Entity type (e.g. ``"track"``, ``"album"``).
+            id: Platform-specific identifier of the failed item.
+        """
         self.failed.add((source, media_type, id))
