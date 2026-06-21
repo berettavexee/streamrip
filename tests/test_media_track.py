@@ -370,6 +370,35 @@ async def test_rip_reraises_without_stats():
             await t.rip()
 
 
+async def test_rip_dry_run_skips_lifecycle():
+    """dry_run=True records success but skips preprocess/download/postprocess."""
+    t = _track()
+    t.config.session.cli.dry_run = True
+    stats = DownloadStats()
+    with (
+        patch.object(t, "preprocess", new=AsyncMock()) as mock_pre,
+        patch.object(t, "download", new=AsyncMock()) as mock_dl,
+        patch.object(t, "postprocess", new=AsyncMock()) as mock_post,
+    ):
+        await t.rip(stats)
+    mock_pre.assert_not_awaited()
+    mock_dl.assert_not_awaited()
+    mock_post.assert_not_awaited()
+    assert stats.tracks_downloaded == 1
+
+
+async def test_rip_dry_run_no_stats():
+    """dry_run=True with stats=None completes without error."""
+    t = _track()
+    t.config.session.cli.dry_run = True
+    with (
+        patch.object(t, "preprocess", new=AsyncMock()),
+        patch.object(t, "download", new=AsyncMock()),
+        patch.object(t, "postprocess", new=AsyncMock()),
+    ):
+        await t.rip()
+
+
 # ---------------------------------------------------------------------------
 # PendingTrack.resolve
 # ---------------------------------------------------------------------------

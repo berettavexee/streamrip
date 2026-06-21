@@ -249,3 +249,22 @@ def test_album_folder_clips_quality_to_meta():
     meta.format_folder_path.assert_called_once_with(
         pa.config.session.filepaths.folder_format, 1
     )
+
+
+# ---------------------------------------------------------------------------
+# Media.rip (inherited by Album)
+# ---------------------------------------------------------------------------
+
+
+async def test_album_rip_calls_lifecycle():
+    """album.rip() goes through Media.rip() → preprocess → download → postprocess."""
+    album = _album()
+    with (
+        patch.object(album, "preprocess", new=AsyncMock()) as mock_pre,
+        patch.object(album, "download", new=AsyncMock()) as mock_dl,
+        patch.object(album, "postprocess", new=AsyncMock()) as mock_post,
+    ):
+        await album.rip()
+    mock_pre.assert_awaited_once()
+    mock_dl.assert_awaited_once()
+    mock_post.assert_awaited_once()

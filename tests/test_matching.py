@@ -234,3 +234,15 @@ def test_score_title_close_wrong_artist_capped_at_055() -> None:
 )
 def test_duration_close(expected, actual, close: bool) -> None:
     assert duration_close(expected, actual) is close
+
+
+def test_score_duration_bonus_applied() -> None:
+    """Line 80: close durations give an 8% boost to the composite score."""
+    # exact title, mismatched artist → base well below 1.0 so the bonus isn't clamped away
+    base = score_similarity("Afterlife", ["Kiss"], "Afterlife", "Bloodbound")
+    with_dur = score_similarity(
+        "Afterlife", ["Kiss"], "Afterlife", "Bloodbound",
+        query_duration=210, result_duration=215,
+    )
+    assert with_dur > base
+    assert with_dur == pytest.approx(base * 1.08, rel=1e-5)
