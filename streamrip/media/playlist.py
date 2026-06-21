@@ -274,16 +274,16 @@ class PendingLastfmPlaylist(Pending):
                         ),
                     )
 
-                for title, artist in titles_artists:
-                    requests.append(self._make_query(title, artist, s, callback))
+                for title, artist, duration in titles_artists:
+                    requests.append(self._make_query(title, artist, duration, s, callback))
                 results: list[tuple[str | None, bool]] = await asyncio.gather(*requests)
         else:
 
             def callback():
                 pass
 
-            for title, artist in titles_artists:
-                requests.append(self._make_query(title, artist, s, callback))
+            for title, artist, duration in titles_artists:
+                requests.append(self._make_query(title, artist, duration, s, callback))
             results = await asyncio.gather(*requests)
 
         parent = self.config.session.downloads.folder
@@ -292,7 +292,7 @@ class PendingLastfmPlaylist(Pending):
         pending_tracks = []
         unmatched: list[tuple[str, str]] = []
         for pos, (id, from_fallback) in enumerate(results, start=1):
-            title, artist = titles_artists[pos - 1]
+            title, artist, _ = titles_artists[pos - 1]
             if id is None:
                 logger.warning(
                     "Track not found on any source: '%s' by '%s'", title, artist
@@ -338,6 +338,7 @@ class PendingLastfmPlaylist(Pending):
         self,
         title: str,
         artist: str,
+        duration: int | None,
         search_status: Status,
         callback,
     ) -> tuple[str | None, bool]:
@@ -350,6 +351,8 @@ class PendingLastfmPlaylist(Pending):
         Args:
             title: Track title from the Last.fm playlist entry.
             artist: Artist name from the Last.fm playlist entry.
+            duration: Expected track duration in seconds from the Last.fm API,
+                or ``None`` when unavailable (e.g. HTML-scraped playlists).
             search_status: Mutable counter updated with found/failed totals.
             callback: Callable invoked after each query completes (updates the
                 progress display).
@@ -368,13 +371,18 @@ class PendingLastfmPlaylist(Pending):
             if not results:
                 return None
             scored = [
-                (score_similarity(title, [artist], r.name, r.artist), r)
+                (score_similarity(title, [artist], r.name, r.artist, duration, r.duration), r)
                 for r in results
             ]
             best_score, best = max(scored, key=lambda x: x[0])
+            dur_info = (
+                f", dur: {duration}s vs {best.duration}s"
+                if duration and best.duration
+                else ""
+            )
             logger.debug(
-                "Best match for '%s' by '%s' on %s: '%s' by '%s' (score=%.2f)",
-                title, artist, source, best.name, best.artist, best_score,
+                "Best match for '%s' by '%s' on %s: '%s' by '%s' (score=%.2f%s)",
+                title, artist, source, best.name, best.artist, best_score, dur_info,
             )
             if best_score < min_score:
                 logger.warning(
@@ -422,14 +430,16 @@ class PendingLastfmPlaylist(Pending):
 
     async def _parse_lastfm_playlist(
         self, playlist_url: str
-    ) -> tuple[str, list[tuple[str, str]]]:
+    ) -> tuple[str, list[tuple[str, str, int | None]]]:
         """Dispatch to the appropriate parser based on the Last.fm URL type.
 
         Args:
             playlist_url: A Last.fm URL — playlist, user library, or artist tracks.
 
         Returns:
-            A 2-tuple of (playlist_title, [(track_title, artist_name), ...]).
+            A 2-tuple of (playlist_title, [(track_title, artist_name, duration_s), ...])
+            where ``duration_s`` is the track duration in seconds, or ``None`` when
+            unavailable (e.g. HTML-scraped playlists).
         """
         if _LASTFM_USER_LIBRARY_RE.match(playlist_url):
             return await self._parse_lastfm_user_top_tracks(playlist_url)
@@ -496,7 +506,7 @@ class PendingLastfmPlaylist(Pending):
 
     async def _parse_lastfm_user_top_tracks(
         self, url: str
-    ) -> tuple[str, list[tuple[str, str]]]:
+    ) -> tuple[str, list[tuple[str, str, int | None]]]:
         """Fetch a user's top tracks from the Last.fm API.
 
         Args:
@@ -532,7 +542,7 @@ class PendingLastfmPlaylist(Pending):
 
         verify_ssl = getattr(self.config.session.downloads, "verify_ssl", True)
         connector = aiohttp.TCPConnector(**get_aiohttp_connector_kwargs(verify_ssl=verify_ssl))
-        tracks: list[tuple[str, str]] = []
+        tracks: list[tuple[str, str, int | None]] = []
         page = 1
 
         async with aiohttp.ClientSession(connector=connector) as session:
@@ -549,7 +559,11 @@ class PendingLastfmPlaylist(Pending):
                 top = data["toptracks"]
                 total_pages = int(top["@attr"]["totalPages"])
                 for track in top.get("track", []):
-                    tracks.append((track["name"], track["artist"]["name"]))
+                    try:
+                        dur: int | None = int(track.get("duration") or 0) or None
+                    except (TypeError, ValueError):
+                        dur = None
+                    tracks.append((track["name"], track["artist"]["name"], dur))
                     if max_tracks > 0 and len(tracks) >= max_tracks:
                         break
                 if page >= total_pages or (max_tracks > 0 and len(tracks) >= max_tracks):
@@ -564,7 +578,7 @@ class PendingLastfmPlaylist(Pending):
 
     async def _parse_lastfm_artist_top_tracks(
         self, url: str
-    ) -> tuple[str, list[tuple[str, str]]]:
+    ) -> tuple[str, list[tuple[str, str, int | None]]]:
         """Fetch an artist's all-time top tracks from the Last.fm API.
 
         The ``date_preset`` query parameter present on the website URL is not
@@ -605,7 +619,7 @@ class PendingLastfmPlaylist(Pending):
 
         verify_ssl = getattr(self.config.session.downloads, "verify_ssl", True)
         connector = aiohttp.TCPConnector(**get_aiohttp_connector_kwargs(verify_ssl=verify_ssl))
-        tracks: list[tuple[str, str]] = []
+        tracks: list[tuple[str, str, int | None]] = []
         page = 1
 
         async with aiohttp.ClientSession(connector=connector) as session:
@@ -621,7 +635,11 @@ class PendingLastfmPlaylist(Pending):
                 top = data["toptracks"]
                 total_pages = int(top["@attr"]["totalPages"])
                 for track in top.get("track", []):
-                    tracks.append((track["name"], track["artist"]["name"]))
+                    try:
+                        dur: int | None = int(track.get("duration") or 0) or None
+                    except (TypeError, ValueError):
+                        dur = None
+                    tracks.append((track["name"], track["artist"]["name"], dur))
                     if max_tracks > 0 and len(tracks) >= max_tracks:
                         break
                 if page >= total_pages or (max_tracks > 0 and len(tracks) >= max_tracks):
@@ -637,16 +655,17 @@ class PendingLastfmPlaylist(Pending):
     async def _parse_lastfm_playlist_html(
         self,
         playlist_url: str,
-    ) -> tuple[str, list[tuple[str, str]]]:
+    ) -> tuple[str, list[tuple[str, str, int | None]]]:
         """From a last.fm url, return the playlist title, and a list of
-        track titles and artist names.
+        track titles, artist names, and durations.
 
+        Duration is not available from the HTML page and is always ``None``.
         Each page contains 50 results, so `num_tracks // 50 + 1` requests
         are sent per playlist.
 
         :param url:
         :type url: str
-        :rtype: tuple[str, list[tuple[str, str]]]
+        :rtype: tuple[str, list[tuple[str, str, int | None]]]
         """
         logger.debug("Fetching lastfm playlist")
 
@@ -657,10 +676,10 @@ class PendingLastfmPlaylist(Pending):
         )
 
         def find_title_artist_pairs(page_text):
-            info: list[tuple[str, str]] = []
+            info: list[tuple[str, str, int | None]] = []
             titles = title_tags.findall(page_text)  # [2:]
             for i in range(0, len(titles) - 1, 2):
-                info.append((html.unescape(titles[i]), html.unescape(titles[i + 1])))
+                info.append((html.unescape(titles[i]), html.unescape(titles[i + 1]), None))
             return info
 
         async def fetch(session: aiohttp.ClientSession, url, **kwargs):
@@ -689,7 +708,7 @@ class PendingLastfmPlaylist(Pending):
 
             playlist_title: str = html.unescape(playlist_title_match.group(1))
 
-            title_artist_pairs: list[tuple[str, str]] = find_title_artist_pairs(page)
+            title_artist_pairs: list[tuple[str, str, int | None]] = find_title_artist_pairs(page)
 
             total_tracks_match = re_total_tracks.search(page)
             if total_tracks_match is None:
