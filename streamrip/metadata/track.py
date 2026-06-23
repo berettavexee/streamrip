@@ -132,6 +132,8 @@ class TrackMetadata:
         else:
             replaygain_track_gain = None
 
+        lyrics = resp.get("lyrics") or None
+
         info = TrackInfo(
             id=track_id,
             quality=album.info.quality,
@@ -152,6 +154,7 @@ class TrackMetadata:
             bpm=bpm,
             author=author,
             replaygain_track_gain=replaygain_track_gain,
+            lyrics=lyrics,
         )
 
     @classmethod

@@ -132,11 +132,19 @@ class DeezerClient(Client):
         logger.debug("Fetching Deezer %s %s", media_type, item_id)
         return await handler(item_id)
 
+    async def _fetch_lyrics(self, item_id: str) -> str | None:
+        """Fetch plain-text lyrics via GW song.getLyrics. Returns None when unavailable."""
+        try:
+            data = await asyncio.to_thread(self.client.gw.get_track_lyrics, item_id)
+            return data.get("LYRICS_TEXT") or None
+        except Exception:
+            return None
+
     async def get_track(self, item_id: str, fetch_album: bool = True) -> dict:
         """Fetch metadata for a track, optionally including its full album info.
 
         Also fetches GW track info to enrich the REST response with SNG_CONTRIBUTORS
-        (composer/author fields absent from the public REST API).
+        (composer/author fields absent from the public REST API) and lyrics.
 
         When fetch_album is True (the default), the album sub-object in the returned
         dict is replaced with the full album metadata (genres, tracktotal, disctotal,
@@ -144,14 +152,17 @@ class DeezerClient(Client):
         is kept — AlbumMetadata will fall back to from_incomplete_deezer_track_resp,
         which gives tracktotal=1, disctotal=1, and empty genres.
 
+        GW track data pre-fetched during _fetch_album() (via song.getListByAlbum) is
+        reused here to avoid a redundant per-track GW round-trip on album downloads.
+
         Args:
             item_id (str): The Deezer track ID.
             fetch_album (bool): Whether to fetch the full album metadata. Set to
                 False for playlist tracks to save two REST API calls per track.
 
         Returns:
-            dict: The track metadata dict. May include "composer", "author", and
-                  "gain" keys when available from GW data.
+            dict: The track metadata dict. May include "composer", "author", "gain",
+                  and "lyrics" keys when available from GW data.
 
         Raises:
             NonStreamableError: If the track cannot be fetched from the API.
@@ -173,23 +184,42 @@ class DeezerClient(Client):
                 f"{item.get('message', 'unknown error')}"
             )
 
+        # GW data may have been pre-fetched during _fetch_album() batch. Reuse it to
+        # avoid the per-track song.getData round-trip on album downloads.
+        prefetched_gw = item_id in self._gw_track_cache
+
         try:
             if fetch_album:
-                # Fetch album and GW track info concurrently.
                 album_id = item["album"]["id"]
-                album_metadata, gw_info = await asyncio.gather(
-                    self.get_album(str(album_id)),
-                    asyncio.to_thread(self.client.gw.get_track, item_id),
-                )
+                if prefetched_gw:
+                    gw_info = self._gw_track_cache[item_id]
+                    album_metadata, lyrics = await asyncio.gather(
+                        self.get_album(str(album_id)),
+                        self._fetch_lyrics(item_id),
+                    )
+                else:
+                    album_metadata, gw_info, lyrics = await asyncio.gather(
+                        self.get_album(str(album_id)),
+                        asyncio.to_thread(self.client.gw.get_track, item_id),
+                        self._fetch_lyrics(item_id),
+                    )
                 item["album"] = album_metadata
             else:
-                gw_info = await asyncio.to_thread(self.client.gw.get_track, item_id)
+                if prefetched_gw:
+                    gw_info = self._gw_track_cache[item_id]
+                    lyrics = await self._fetch_lyrics(item_id)
+                else:
+                    gw_info, lyrics = await asyncio.gather(
+                        asyncio.to_thread(self.client.gw.get_track, item_id),
+                        self._fetch_lyrics(item_id),
+                    )
         except Exception as e:
             label = "album/GW data" if fetch_album else "GW data"
             logger.error("Error fetching %s for track %s: %s", label, item_id, e)
             return item
 
-        self._gw_track_cache[item_id] = gw_info
+        if not prefetched_gw:
+            self._gw_track_cache[item_id] = gw_info
         contributors = gw_info.get("SNG_CONTRIBUTORS", {})
         if "composer" in contributors:
             item["composer"] = contributors["composer"]
@@ -198,6 +228,8 @@ class DeezerClient(Client):
         gain = gw_info.get("GAIN")
         if gain is not None:
             item["gain"] = gain
+        if lyrics:
+            item["lyrics"] = lyrics
 
         return item
 
@@ -246,6 +278,10 @@ class DeezerClient(Client):
     async def _fetch_album(self, item_id: str) -> dict:
         """Fetch album metadata and track list from the REST API, following redirects.
 
+        Also batch-prefetches GW track data via song.getListByAlbum and populates
+        _gw_track_cache, so that subsequent per-track get_track() calls can skip
+        the individual song.getData round-trip (one GW call replaces N).
+
         Called by get_album via an asyncio.Task; do not call directly.
 
         Args:
@@ -257,11 +293,16 @@ class DeezerClient(Client):
         Raises:
             DataException: If the album is not found and no redirect resolves.
         """
+        async def _get_meta():
+            async with self._api_rate_limiter:
+                return await asyncio.to_thread(self.client.api.get_album, item_id)
+
+        async def _get_tracks():
+            async with self._api_rate_limiter:
+                return await asyncio.to_thread(self.client.api.get_album_tracks, item_id)
+
         try:
-            async with self._api_rate_limiter:
-                album_metadata = await asyncio.to_thread(self.client.api.get_album, item_id)
-            async with self._api_rate_limiter:
-                album_tracks = await asyncio.to_thread(self.client.api.get_album_tracks, item_id)
+            album_metadata, album_tracks = await asyncio.gather(_get_meta(), _get_tracks())
         except DataException:
             new_id = await self._resolve_redirect("album", item_id)
             if new_id:
@@ -269,6 +310,17 @@ class DeezerClient(Client):
                 self._album_cache[item_id] = metadata
                 return metadata
             raise
+
+        # Best-effort: prefetch GW track data for all album tracks at once.
+        # Populates _gw_track_cache so get_track() skips per-track song.getData calls.
+        try:
+            gw_tracks = await asyncio.to_thread(self.client.gw.get_album_tracks, item_id)
+            for gw_track in gw_tracks:
+                tid = str(gw_track.get("SNG_ID", ""))
+                if tid:
+                    self._gw_track_cache.setdefault(tid, gw_track)
+        except Exception as e:
+            logger.debug("GW album track prefetch failed for album %s: %s", item_id, e)
 
         album_metadata["tracks"] = album_tracks["data"]
         album_metadata["track_total"] = len(album_tracks["data"])
