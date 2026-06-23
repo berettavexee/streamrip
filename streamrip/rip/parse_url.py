@@ -14,6 +14,7 @@ from ..media import (
     PendingLabel,
     PendingPlaylist,
     PendingSingle,
+    PendingUserFavorites,
 )
 
 logger = logging.getLogger("streamrip")
@@ -49,6 +50,12 @@ QOBUZ_INTERPRETER_URL_REGEX = re.compile(
     r"https?://www\.qobuz\.com/\w\w-\w\w/interpreter/[-\w]+/([-\w]+)",
 )
 YOUTUBE_URL_REGEX = re.compile(r"https://www\.youtube\.com/watch\?v=[-\w]+")
+TIDAL_COLLECTION_URL_REGEX = re.compile(
+    r"https://tidal\.com/browse/my-collection/(tracks|albums|artists)"
+)
+QOBUZ_FAVORITES_URL_REGEX = re.compile(
+    r"https://play\.qobuz\.com/user/library/favorites/(tracks|albums|artists)"
+)
 
 
 class URL(ABC):
@@ -214,6 +221,42 @@ class DeezerDynamicURL(URL):
         raise Exception("Unable to extract Deezer dynamic link.")
 
 
+class TidalCollectionURL(URL):
+    @classmethod
+    def from_str(cls, url: str) -> URL | None:
+        match = TIDAL_COLLECTION_URL_REGEX.match(url)
+        if match is None:
+            return None
+        return cls(match, "tidal")
+
+    async def into_pending(
+        self,
+        client: Client,
+        config: Config,
+        db: Database,
+    ) -> Pending:
+        media_type = self.match.group(1)  # "tracks", "albums", or "artists"
+        return PendingUserFavorites(media_type, client, config, db)
+
+
+class QobuzFavoritesURL(URL):
+    @classmethod
+    def from_str(cls, url: str) -> URL | None:
+        match = QOBUZ_FAVORITES_URL_REGEX.match(url)
+        if match is None:
+            return None
+        return cls(match, "qobuz")
+
+    async def into_pending(
+        self,
+        client: Client,
+        config: Config,
+        db: Database,
+    ) -> Pending:
+        media_type = self.match.group(1)  # "tracks", "albums", or "artists"
+        return PendingUserFavorites(media_type, client, config, db)
+
+
 class SoundcloudURL(URL):
     source = "soundcloud"
 
@@ -260,6 +303,8 @@ def parse_url(url: str) -> URL | None:
         SoundcloudURL.from_str(url),
         DeezerDynamicURL.from_str(url),
         DeezerFavoriteURL.from_str(url),
+        TidalCollectionURL.from_str(url),
+        QobuzFavoritesURL.from_str(url),
         # TODO: the rest of the url types
     ]
     return next((u for u in parsed_urls if u is not None), None)
