@@ -326,6 +326,28 @@ class QobuzClient(Client):
         epoint = "playlist/getUserPlaylists"
         return await self._paginate(epoint, {}, limit=limit)
 
+    async def get_user_favorite_ids(self, media_type: str) -> list[str]:
+        """Return IDs of the authenticated user's favorited items.
+
+        Args:
+            media_type: One of "tracks", "albums", or "artists".
+
+        Returns:
+            List of item IDs as strings.
+
+        Raises:
+            ValueError: If media_type is not a supported type.
+        """
+        if media_type not in ("tracks", "albums", "artists"):
+            raise ValueError(f"Unsupported Qobuz favorites type: {media_type!r}")
+        singular = media_type.rstrip("s")  # "tracks" → "track", "artists" → "artist"
+        pages = await self.get_user_favorites(singular)
+        ids: list[str] = []
+        for page in pages:
+            for item in page.get("favorites", {}).get("items", []):
+                ids.append(str(item["id"]))
+        return ids
+
     async def get_downloadable(self, item: str, quality: int) -> Downloadable:
         if self.secret is None or not self.logged_in:
             raise Exception("Not logged in to Qobuz")

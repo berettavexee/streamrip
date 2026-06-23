@@ -10,6 +10,7 @@ from .playlist import (
     Playlist,
 )
 from .track import PendingSingle, PendingTrack, Track
+from .user_favorites import PendingUserFavorites, UserFavorites
 
 __all__ = [
     "Album",
@@ -25,7 +26,9 @@ __all__ = [
     "PendingPlaylistTrack",
     "PendingSingle",
     "PendingTrack",
+    "PendingUserFavorites",
     "Playlist",
     "Track",
+    "UserFavorites",
     "remove_artwork_tempdirs",
 ]

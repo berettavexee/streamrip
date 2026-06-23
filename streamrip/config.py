@@ -54,6 +54,8 @@ class TidalConfig:
     quality: int
     # This will download videos included in Video Albums.
     download_videos: bool
+    # Set to false to skip lyrics fetching (avoids Tidal API rate limiting)
+    fetch_lyrics: bool
 
 
 @dataclass(slots=True)

@@ -117,25 +117,32 @@ class TidalClient(Client):
                 self.global_config.session.conversion.enabled
                 and self.global_config.session.conversion.codec.upper() == "MP3"
             )
-            lyrics_result: dict | BaseException
-            contributors_result: dict | BaseException
-            lyrics_result, contributors_result = await asyncio.gather(  # type: ignore[assignment]
-                self._api_request(
-                    f"tracks/{item_id!s}/lyrics", base="https://listen.tidal.com/v1"
-                ),
-                self._api_request(f"tracks/{item_id!s}/contributors"),
-                return_exceptions=True,
+
+            coros: list = [self._api_request(f"tracks/{item_id!s}/contributors")]
+            if self.config.fetch_lyrics:
+                coros.insert(
+                    0,
+                    self._api_request(
+                        f"tracks/{item_id!s}/lyrics", base="https://listen.tidal.com/v1"
+                    ),
+                )
+            results: list[dict | BaseException] = await asyncio.gather(
+                *coros, return_exceptions=True
             )
 
-            if isinstance(lyrics_result, Exception):
-                logger.warning("Failed to get lyrics for %s: %s", item_id, lyrics_result)
-            else:
-                if use_mp3:
-                    item["lyrics"] = lyrics_result.get("lyrics") or ""  # type: ignore[union-attr]
+            if self.config.fetch_lyrics:
+                lyrics_result, contributors_result = results[0], results[1]
+                if isinstance(lyrics_result, Exception):
+                    logger.warning("Failed to get lyrics for %s: %s", item_id, lyrics_result)
                 else:
-                    item["lyrics"] = (
-                        lyrics_result.get("subtitles") or lyrics_result.get("lyrics") or ""  # type: ignore[union-attr]
-                    )
+                    if use_mp3:
+                        item["lyrics"] = lyrics_result.get("lyrics") or ""  # type: ignore[union-attr]
+                    else:
+                        item["lyrics"] = (
+                            lyrics_result.get("subtitles") or lyrics_result.get("lyrics") or ""  # type: ignore[union-attr]
+                        )
+            else:
+                contributors_result = results[0]
 
             if isinstance(contributors_result, Exception):
                 logger.debug("Could not fetch contributors for %s: %s", item_id, contributors_result)
@@ -166,6 +173,27 @@ class TidalClient(Client):
         if len(resp["items"]) > 1:
             return [resp]
         return []
+
+    async def get_user_favorite_ids(self, media_type: str) -> list[str]:
+        """Return IDs of the authenticated user's favorited items.
+
+        Args:
+            media_type: One of "tracks", "albums", or "artists".
+
+        Returns:
+            List of item IDs as strings.
+
+        Raises:
+            Exception: If the user is not authenticated or the API call fails.
+            ValueError: If media_type is not a supported type.
+        """
+        if media_type not in ("tracks", "albums", "artists"):
+            raise ValueError(f"Unsupported Tidal favorites type: {media_type!r}")
+        user_id = self.config.user_id
+        if not user_id:
+            raise Exception("Tidal user not authenticated — run `rip config --tidal`")
+        resp = await self._api_request(f"users/{user_id}/favorites/{media_type}")
+        return [str(entry["item"]["id"]) for entry in resp.get("items", [])]
 
     async def get_downloadable(self, track_id: str, quality: int):
         """Resolve the download URL for a Tidal track.
