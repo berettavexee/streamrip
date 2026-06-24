@@ -82,7 +82,7 @@ class DeezerClient(Client):
     rate-limited helpers:
 
     - ``_rest()`` — calls to ``api.deezer.com`` (REST, capped at 10 req/s)
-    - ``_gw()``   — calls to ``gw-light.php`` (GW, capped at 10 req/s)
+    - ``_gw()``   — calls to ``gw-light.php`` (GW, no rate limit)
 
     GW track data is cached in ``_gw_tracks`` so each track incurs at most
     one GW round-trip across the lifetime of a session (prefetch from album,
@@ -128,7 +128,6 @@ class DeezerClient(Client):
 
         # REST API (api.deezer.com) throttles beyond ~10 req/sec.
         self._rest_limiter = aiolimiter.AsyncLimiter(10, 1)
-        self._gw_limiter = aiolimiter.AsyncLimiter(10, 1)
 
         max_conn = config.session.downloads.max_connections
         adapter = requests.adapters.HTTPAdapter(
@@ -166,7 +165,7 @@ class DeezerClient(Client):
             return await asyncio.to_thread(fn, *args, **kwargs)
 
     async def _gw(self, fn: Callable, /, *args: Any, **kwargs: Any) -> Any:
-        """Run a blocking deezer-py GW call in a thread, rate-limited to 5 req/s.
+        """Run a blocking deezer-py GW call in a thread pool.
 
         Args:
             fn: Callable to invoke (e.g. ``self.client.gw.get_track``).
@@ -176,8 +175,7 @@ class DeezerClient(Client):
         Returns:
             Whatever fn returns.
         """
-        async with self._gw_limiter:
-            return await asyncio.to_thread(fn, *args, **kwargs)
+        return await asyncio.to_thread(fn, *args, **kwargs)
 
     async def _get_gw_track(self, item_id: str) -> dict:
         """Return GW track info from cache, or fetch and cache it on a miss.
