@@ -82,7 +82,7 @@ class DeezerClient(Client):
     rate-limited helpers:
 
     - ``_rest()`` — calls to ``api.deezer.com`` (REST, capped at 10 req/s)
-    - ``_gw()``   — calls to ``gw-light.php`` (GW, capped at 5 req/s)
+    - ``_gw()``   — calls to ``gw-light.php`` (GW, capped at 10 req/s)
 
     GW track data is cached in ``_gw_tracks`` so each track incurs at most
     one GW round-trip across the lifetime of a session (prefetch from album,
@@ -128,8 +128,7 @@ class DeezerClient(Client):
 
         # REST API (api.deezer.com) throttles beyond ~10 req/sec.
         self._rest_limiter = aiolimiter.AsyncLimiter(10, 1)
-        # GW endpoint (gw-light.php) is more conservative.
-        self._gw_limiter = aiolimiter.AsyncLimiter(5, 1)
+        self._gw_limiter = aiolimiter.AsyncLimiter(10, 1)
 
         max_conn = config.session.downloads.max_connections
         adapter = requests.adapters.HTTPAdapter(
