@@ -391,7 +391,7 @@ def test_deezer_gw_track_cache_reuse(mock_deezer_client):
     arun(mock_deezer_client.get_track("100"))
     assert mock_deezer_client.client.gw.get_track.call_count == 1
 
-    # get_downloadable must consume the cache — gw.get_track stays at 1 call total.
+    # get_downloadable reuses the cached GW data — gw.get_track stays at 1 call total.
     arun(mock_deezer_client.get_downloadable("100", quality=2))
     assert mock_deezer_client.client.gw.get_track.call_count == 1
 
