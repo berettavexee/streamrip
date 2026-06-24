@@ -552,8 +552,8 @@ def test_get_track_error_dict_raises(mock_deezer_client):
         arun(mock_deezer_client.get_track("42"))
 
 
-def test_get_track_gw_fetch_error_returns_partial(mock_deezer_client):
-    """When GW data fetch fails, get_track returns the partial track dict."""
+def test_get_track_gw_fetch_error_raises(mock_deezer_client):
+    """When GW data fetch fails with NonStreamableError, get_track propagates it."""
     mock_deezer_client.client.api.get_track.return_value = {
         "id": "100",
         "title": "Test Track",
@@ -563,10 +563,8 @@ def test_get_track_gw_fetch_error_returns_partial(mock_deezer_client):
     mock_deezer_client.client.api.get_album_tracks.return_value = {"data": []}
     mock_deezer_client.client.gw.get_track.side_effect = Exception("GW down")
 
-    track = arun(mock_deezer_client.get_track("100"))
-    assert track["title"] == "Test Track"
-    assert "composer" not in track
-    assert "gain" not in track
+    with pytest.raises(NonStreamableError):
+        arun(mock_deezer_client.get_track("100"))
 
 
 # ===== get_album — task exception =====
