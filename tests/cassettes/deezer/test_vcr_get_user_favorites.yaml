@@ -1,0 +1,479 @@
+interactions:
+- request:
+    body: '{}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '2'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
+        Safari/537.36
+    method: POST
+    uri: http://www.deezer.com/ajax/gw-light.php?api_version=1.0&api_token=null&input=3&method=deezer.getUserData
+  response:
+    body:
+      string: '{"error":[],"results":{"USER":{"USER_ID":1231003,"USER_PICTURE":"","INSCRIPTION_DATE":"2008-01-07","TRY_AND_BUY":{"AVAILABLE":false,"ACTIVE":"0","DATE_START":"2026-03-31
+        09:35:39","DATE_END":"2027-03-31 09:35:39","PLATEFORM":"ogone","DAYS_LEFT_MOB":0},"PARTNERS":"0","TOOLBAR":[],"OPTIONS":{"mobile_preview":true,"mobile_radio":true,"mobile_streaming":true,"mobile_streaming_duration":0,"mobile_offline":true,"mobile_sound_quality":{"low":true,"standard":true,"high":true,"lossless":true,"reality":true},"default_download_on_mobile_network":true,"mobile_hq":true,"mobile_lossless":true,"tablet_sound_quality":{"low":true,"standard":true,"high":true,"lossless":true,"reality":true},"audio_quality_default_preset":"fast","web_preview":true,"web_radio":true,"web_streaming":true,"web_streaming_duration":0,"web_offline":true,"web_hq":true,"web_lossless":true,"web_sound_quality":{"low":true,"standard":true,"high":true,"lossless":true,"reality":true},"license_token":"<redacted>","expiration_timestamp":1783716126,"license_country":"FR","ads_display":false,"ads_audio":false,"dj":false,"nb_devices":"3","multi_account":false,"multi_account_max_allowed":null,"radio_skips":0,"too_many_devices":false,"business":false,"business_mod":false,"business_box_owner":false,"business_box_manager":false,"business_box":false,"business_no_right":false,"allow_subscription":false,"allow_trial_mobile":"1","timestamp":1782420126,"can_subscribe":false,"can_subscribe_family":false,"show_subscription_section":true,"streaming_group":"sub","queuelist_edition":true,"mobile_streaming_used":0,"web_streaming_used":0,"streaming_used":0,"ads":false,"multiaccount_max_children":0,"audio_qualities":{"mobile_download":["standard","standard","high"],"mobile_streaming":["standard","standard","high"],"wifi_download":["standard","high","high"],"wifi_streaming":["standard","high","high"]},"hq":false,"lossless":false,"offline":false,"preview":false,"radio":false,"streaming":false,"streaming_duration":0,"sound_quality":{"standard":true,"high":false,"lossless":false,"reality":false}},"AUDIO_SETTINGS":{"default_preset":"fast","default_download_on_mobile_network":false,"presets":[{"mobile_download":"standard","mobile_streaming":"standard","wifi_download":"standard","wifi_streaming":"standard","id":"fast","title":"Compacte","description":"Qualit\u00e9
+        audio ajust\u00e9e pour r\u00e9duire l''utilisation des donn\u00e9es."},{"mobile_download":"standard","mobile_streaming":"standard","wifi_download":"high","wifi_streaming":"high","id":"balanced","title":"\u00c9quilibr\u00e9e","description":"Qualit\u00e9
+        audio optimis\u00e9e lorsque tu es connect\u00e9 au WiFi."},{"mobile_download":"high","mobile_streaming":"high","wifi_download":"high","wifi_streaming":"high","id":"quality","title":"Sup\u00e9rieure","description":"Meilleure
+        qualit\u00e9 audio disponible."}],"connected_device_streaming_preset":"high"},"SETTING":{"site":{"player_fadein":0,"player_fadeout":0,"push_facebook":0,"player_shuffle":false,"edito_tag":6,"player_fade":0,"player_hq":true,"modal_feed":0,"livebar_state":"open","menu_folders":"{\"f_apps\":\"close\"}","push_lyrics":true,"nb_flowplayer_like_notification":3,"nb_flowplayer_dislike_notification":3,"player_audio_quality":"lossless","labs":{"ElectronUI":false,"HotKeys":true},"player_normalize":false,"player_repeat":0,"sort_profile_playlist":"DATE_UPDATE","livebar_tab":"ticker","push_mobile":0,"howto_step":0,"display_confirm_discovery":0,"cast_audio_quality":"high"},"facebook":{"share_listen":false,"share_comment":false,"share_favourite":false,"share_loved":false,"share_share":true},"global":{"lang":"en","cookie_consent_string":"BOovPJyOtyT9kA7ABCFRC4iAAAAth7_______9______9uz_Ov_v_f__33e8__9v_l_7_-___u_-33d4u_1vf99yfm1-7etr3tp_87ues2_Xur__79__3z3_9pxP78k89r7337Ew_v-_v-b7JCON_Ig","language":"en","dark_mode":"on","happy_hour":"off","social":false,"popup_unload":false,"filter_explicit_lyrics":false,"is_kid":false,"has_up_next":false,"onboarding":false,"onboarding_progress":0,"has_root_consent":0,"recommendation_country":"FR","has_joined_family":false,"explicit_level_forced":false,"has_already_tried_premium":false,"onboarding_musictogether":true,"onboarding_musictogether_progress":0,"accent_palette_identifier":"purple"},"twitter":{"share_comment":true,"share_favourite":true,"share_loved":true,"share_share":true},"notification_mail":{"share":false,"friend_follow":false,"playlist_comment":false,"playlist_follow":false,"artist_new_release":false,"artist_status":false,"new_message":false},"notification_mobile":{"share":false,"friend_follow":false,"playlist_comment":false,"playlist_follow":false,"artist_new_release":false,"artist_status":false,"new_message":false},"location":{"city":"","lat":0,"lon":0,"source":"ip"},"google":{"share_share":true,"share_comment":false,"share_favourite":false,"share_loved":false,"share_listen":false,"country_store":false},"newsletter":{"panel":true,"editor":false,"talk":false,"event":false,"game":false,"special_offer":false},"tips":{"add_to_library":false,"lyrics":0,"flow":false,"up_next":false,"playlist_assistant":true,"playlist_assistant_suggest":true,"player":false},"audio_quality_settings":{"download_on_mobile_network":false,"connected_device_streaming_preset":false,"preset":"fast"},"customer_message":{"conversion":{"properties":{"free":true},"display_count":2,"last_display":"2015-10-15"},"new_home":{"properties":{"other_displayed":true,"desktop_displayed":true},"display_count":2,"last_display":"2015-10-02"},"conversion_family_offer":{"date":"2016-12-01","nb_login":5},"conversion_family":{"ax504e50161a2dd3ce":true,"web":true,"tablet":true,"ax387ec2071686daec":true},"push_trialend_freexp":{"properties":[],"display_count":1,"last_display":"2017-12-04"},"whats_new_flow":{"is_eligible":true,"triggered":"2018-04-20"},"apprating_unsubscribed":{"last_display":"1760691741","display_count":2},"album_new_release":{"display_ts":1586010583,"next_release_ts":1586520000,"album_id":139017632},"churner":{"properties":[],"display_count":3,"last_display":"2020-05-11"},"conversion_pplus":{"desktop":{"seasonal_offer":"20200625"}},"usabilla_campaign":{"properties":[],"display_count":1,"last_display":"2021-07-17"},"login_without_password":{"properties":[],"display_count":1,"last_display":"2022-04-28"},"push_notification_activation_interstitial":{"properties":[],"display_count":1,"last_display":"2023-02-11"},"renewal_failed":{"properties":[],"display_count":2,"last_display":"2025-03-31"}},"beta_user":{"ios":false,"android":false,"windowsphone":false,"windows":false},"adjust":{"device":{"ax504e50161a2dd3ce":{"login":{"last_trigger":1447738865}},"ax387ec2071686daec":{"login":{"last_trigger":1486888848}},"axfec3068eb33f4256":{"login":{"last_trigger":1537541943}}},"first_stream_id":132196994,"devicesInfo":{"00000000-0000-0000-0000-000000000000":{"identifier_type":"gps_adid"},"00000000-0000-0000-0000-000000000000":{"identifier_type":"gps_adid"},"00000000-0000-0000-0000-000000000000":{"identifier_type":"gps_adid"}}},"ads":{"featurefm_token":{"token":"<redacted>","date":"2021-02-23
+        22:17:03","api_url":"https:\/\/api.ffmapi.com\/"},"test_format":false,"force_adsource":"auto","force_mediation":"auto"},"optin_mail":{"update":0,"special_offer":0,"social":0,"event":0,"third_party":0,"survey":1},"optin_push":{"update":0,"special_offer":1,"social":0,"event":0,"third_party":0,"survey":1},"optin_inapp":{"update":1,"special_offer":1,"social":1,"event":0,"third_party":0,"survey":1},"optin_sms":{"update":0,"special_offer":1,"social":1,"event":0,"third_party":0,"survey":0},"webviews":{"domain":false},"tracking":{"apppirate":{"app_version":"7.0.19.60","platform_name":"android","date":"2022-12-18"}},"partner":{"partner_ids":"[]"}},"LASTFM":{"TOKEN":"<redacted>"},"TWITTER":{},"FACEBOOK":{},"GOOGLEPLUS":{},"APPLE":{},"FAVORITE_TAG":0,"ABTEST":{"triforce_queuelist_ui":{"id":"triforce_queuelist_ui","option":"default","behaviour":"Cloud
+        based queue list deactivated","percent":100},"share_android_image_preview":{"id":"share_android_image_preview","option":"A","behaviour":"image
+        preview sharing","percent":50},"module_library_abtest_qa":{"id":"module_library_abtest_qa","option":"B","behaviour":"switch
+        module","percent":100},"poc_aampe":{"id":"poc_aampe","option":"control","behaviour":"Current
+        behavior : no use of AI to personalize communications to users","percent":40}},"MULTI_ACCOUNT":{"ENABLED":true,"ACTIVE":false,"CHILD_COUNT":3,"MAX_CHILDREN":null,"PARENT":null,"IS_KID":false,"IS_SUB_ACCOUNT":false},"ONBOARDING_MODAL":false,"ADS_OFFER":"0","ENTRYPOINTS":{},"ADS_TEST_FORMAT":"","NEW_USER":false,"CONSENT_STRING":[],"RECOMMENDATION_COUNTRY":"FR","CAN_BE_CONVERTED_TO_INDEPENDENT":false,"IS_FREEMIUM_COUNTRY":1,"HARDBOUNCED_EMAIL":false,"EXPLICIT_CONTENT_LEVEL":"explicit_display","EXPLICIT_CONTENT_LEVELS_AVAILABLE":["explicit_display","explicit_no_recommendation","explicit_hide"],"CAN_EDIT_EXPLICIT_CONTENT_LEVEL":true,"BLOG_NAME":"redacted","FIRSTNAME":"Redacted","LASTNAME":"Redacted","USER_GENDER":"","USER_AGE":"","EMAIL":"redacted@example.com","DEVICES_COUNT":1,"HAS_UPNEXT":true,"LOVEDTRACKS_ID":"235132341","OPTINS":{"channel":[{"name":"optin_push","label":"Notifications
+        mobile","description":"Messages qui s''affichent sur ton mobile, m\u00eame
+        lorsque l''application est ferm\u00e9e"},{"name":"optin_mail","label":"Emails","description":"Emails
+        envoy\u00e9s \u00e0 l''adresse associ\u00e9e \u00e0 ton compte"},{"name":"optin_sms","label":"Messages
+        texte","description":"Envoy\u00e9s par SMS au num\u00e9ro de t\u00e9l\u00e9phone
+        associ\u00e9 \u00e0 ton compte"}],"group":[{"name":"music","label":"Musique","description":""},{"name":"podcasts","label":"Podcasts","description":"Pour
+        le moment, les podcasts ne sont pas disponibles dans tous les pays."},{"name":"extras","label":"Extras","description":""}],"optin":[{"name":"edito_reco_music","label":"Recommandations
+        musicales","description":"Derni\u00e8res d\u00e9couvertes de notre \u00e9quipe
+        \u00e9ditoriale & contenus Deezer Originals exclusifs","channel":{"optin_push":true,"optin_sms":true,"optin_mail":true},"group":"music","channels_requiring_validation":[]},{"name":"algo_favorite_artists","label":"Artistes
+        que j''aime","description":"Nouveaut\u00e9s & actualit\u00e9s des artistes
+        que j''aime ou qui peuvent m''int\u00e9resser","channel":{"optin_push":true,"optin_sms":true,"optin_mail":true},"group":"music","channels_requiring_validation":[]},{"name":"algo_favorite_playlists","label":"Playlists
+        que j''aime","description":"Mises \u00e0 jour & nouveaux titres des playlists
+        que j''aime ou qui peuvent m''int\u00e9resser","channel":{"optin_push":true,"optin_sms":true,"optin_mail":true},"group":"music","channels_requiring_validation":[]},{"name":"social","label":"C\u00f4t\u00e9
+        social","description":"Informations sur l''activit\u00e9 des utilisateurs
+        que je suis","channel":{"optin_push":false,"optin_sms":true,"optin_mail":true},"group":"music","channels_requiring_validation":[]},{"name":"reco_podcasts","label":"Recommandations
+        de podcasts","description":"Derni\u00e8res nouveaut\u00e9s & recommandations
+        personnalis\u00e9es","channel":{"optin_push":true,"optin_sms":true,"optin_mail":true},"group":"podcasts","channels_requiring_validation":[]},{"name":"listening_stats","label":"Mes
+        \u00e9coutes","description":"Informations et statistiques sur ce que j''\u00e9coute,
+        fonctionnalit\u00e9s exclusives et interactives li\u00e9es \u00e0 mes \u00e9coutes","channel":{"optin_push":true,"optin_sms":true,"optin_mail":true},"group":"music","channels_requiring_validation":[]},{"name":"news_offers","label":"Actualit\u00e9s,
+        offres et bons plans","description":"L''actualit\u00e9 Deezer, nos conseils
+        et nos offres","channel":{"optin_push":false,"optin_sms":true,"optin_mail":true},"group":"extras","channels_requiring_validation":[]},{"name":"product_features","label":"Nos
+        conseils pour utiliser Deezer","description":"Plus d''informations sur les
+        apps Deezer, leurs fonctionnalit\u00e9s et notre communaut\u00e9 Beta","channel":{"optin_push":false,"optin_sms":true,"optin_mail":true},"group":"extras","channels_requiring_validation":[]},{"name":"compet_events","label":"Jeux
+        concours et concerts","description":"Places de concert \u00e0 gagner & informations
+        sur les \u00e9v\u00e9nements musique","channel":{"optin_push":false,"optin_sms":true,"optin_mail":true},"group":"extras","channels_requiring_validation":[]},{"name":"feedback","label":"Mon
+        opinion","description":"Partager mes suggestions pour am\u00e9liorer l''exp\u00e9rience
+        Deezer","channel":{"optin_push":true,"optin_sms":true,"optin_mail":true},"group":"extras","channels_requiring_validation":[]},{"name":"partners","label":"Actualit\u00e9s
+        de nos partenaires","description":"D\u00e9couvrir les actualit\u00e9s des
+        labels de musique et de tous nos partenaires","channel":{"optin_push":false,"optin_sms":false,"optin_mail":false},"group":"extras","channels_requiring_validation":[]},{"name":"transactional","label":"\u00c0
+        propos de mon compte","description":"Informations et mises \u00e0 jour li\u00e9es
+        \u00e0 mon compte communiqu\u00e9es par message","channel":{"optin_whatsapp":false},"group":"extras","channels_requiring_validation":[]}],"service_name":"deezer"}},"SETTING_LANG":"fr","SETTING_LOCALE":"fr-FR","DIRECTION":"ltr","SESSION_ID":"<redacted>","USER_TOKEN":"<redacted>","PLAYLIST_WELCOME_ID":"53362031","OFFER_ID":1000001,"OFFER_NAME":"Deezer
+        Premium","OFFER_ELIGIBILITIES":[],"COUNTRY":"FR","COUNTRY_CATEGORY":"default","MIN_LEGAL_AGE":16,"FAMILY_KIDS_AGE":12,"SERVER_TIMESTAMP":1782420126,"PLAYER_TOKEN":"<redacted>","checkForm":"N6x1P~VmizINeEWd0RSgbtJ11kqQ-b8Y","FROM_ONBOARDING":"false","CUSTO":"","SETTING_REFERER_UPLOAD":"FR","REG_FLOW":["email"],"LOGIN_FLOW":["email"],"__DZR_GATEKEEPS__":{"audiobook_favorites_sync_write":true,"audiobook_author_favorites_sync_write":true,"audiobook_on_deck_sync_write":true,"audiobook_data_sync_read":true,"secured_change_password":true,"secured_change_email":true,"register_no_emoji":true,"gender_nonbinary":true,"new_social_connect_errors":true,"ad_collect_rec_logs":true,"ad_check_flag_show_is_advertising_allowed":true,"adblock_bait_file":true,"ad_display_hubvisor":true,"vast_impression_at_2s":true,"ad_audio_break_hubvisor":true,"ad_audio_break_vast_audio":true,"auth_ui_integration":true,"appcusto_subscription_renewal":true,"appcusto_homepod_settings":true,"recaptcha_signup":true,"recaptcha_login":true,"cdp_item_added_to_collection":true,"cdp_authentication_started":true,"cdp_search_trendings":true,"cdp_play_clicked":true,"activate_segment":true,"cdp_player_item_clicked":true,"tcfv2_consent_screen_webview":true,"disable_conversion_boxes_family":true,"family_b2c":true,"haas_project":true,"block_braze_in_app_search":true,"fetch_on_background_queue":true,"inbox_v0":true,"metric.merged_uniq_id":true,"metric.mparticle.tracking_migration":true,"metric.auth_vitals":true,"metric.timetocaptcha":true,"metric.account_vitals":true,"metric.payment.in_app_purchase":true,"metric.ads.monitoring":true,"metric.mobile_webviews.monitoring":true,"metric.app_rating.monitoring":true,"activate_mparticle_unauthenticated_event":true,"feature_2025_ai_label":true,"linear_track_preview_album_page":true,"public_api_album":true,"api_mob_ssl":true,"artist_video":true,"artist_highlight":true,"linear_track_preview_artist_page":true,"public_api_visible_test":true,"artist_page_albums_sorted_by_rank":true,"concerts_hub":true,"public_api_concert":true,"dark_mode":true,"datagrid_refacto":true,"dynamic_page_v21":true,"dynamic_pages_sponsored_items":true,"dynamic_calculated_smartcache":true,"christmas_easter_egg_player":true,"open_explicit_display":true,"family_profile_migration":true,"family_picker_with_sub_accounts":true,"family_account_invitation":true,"mymusic_recently_played":true,"mymusic_display_dislikes":true,"mymusic_masthead":true,"mymusic_nodatas":true,"mymusic_tests_2016aug":true,"artist_page_favorite_content":true,"flow_back_queuelist":true,"flow_in_homepage":true,"tuner_flow_config":true,"feature_2025_flow_custo":true,"close_block_feature":true,"contextual_menu_blindtest":true,"remove_lasttab":true,"library_importer_tmm":true,"display_competitor_logos_tmm":true,"livestream_page":true,"lyrics_refacto":true,"lyrics_report_problem":true,"batch_requests":true,"use_media_service":true,"metric.dynamic_page_loading":true,"metric.dynamic_content.screen_view":true,"metric.dynamic_content.item_clicked":true,"metric.dynamic_content.view_all_clicked":true,"metric.dynamic_content.play_clicked":true,"metric.playlist_page_loading":true,"metric.favorite_tracks_page_loading":true,"metric.deezer_story.loading":true,"metric.timetoplay":true,"metric.media_request_errors":true,"metric.podcastdownload":true,"metric.api":true,"cdn_metrics":true,"metric.playback_errors":true,"metric.playback_attempts":true,"music_together":true,"music_together_join":true,"music_together_create":true,"music_together_relive":true,"navbar_partnerlogo":true,"feature_2026_favorite_entrypoint":true,"android_pipe_selected_artist_onboarding":true,"onboarding_artists":true,"launch_onboarding":true,"onboarding_channels":true,"change_chunk_size":true,"gapless_playback":true,"volume_normalization":true,"kmp_queue_synchronizer":true,"queue_synchronizer":true,"linear_track_preview_playlist_page":true,"feature_2025_playlist_cover":true,"feature_2025_add_to_playlist_is_track_in_playlist":true,"feature_2025_loved_tracks_cover_custo":true,"talk":true,"tab_podcast":true,"talk_latest_playlist":true,"podcast_notifications_disabled":true,"latest_episodes":true,"feature_2025_quick_access_v2":true,"feature_2025_quick_access":true,"recommendation_country":true,"feature_2025_algo_settings":true,"network_status_bar":true,"revamp2023":true,"search_autocorrect":true,"search_query_suggestions":true,"trending_queries":true,"search_remove_duplicates_track":true,"search_instant_search":true,"search_refacto_2024":true,"explicit_user_settings":true,"feature_2025_accent_color":true,"share_facebook_story":true,"universal_link_sharing":true,"feature_2025_universal_link_sharing_playlist":true,"single_instance_playback_relive":true,"public_api_track":true,"unlimited_favorite_tracks":true,"unlimited_favorite_tracks_parallel_fetch":true,"android_auto":true,"conversion_entrypoints_ng":true,"electron_html5_playback":true,"filter_content_for_verified_artists":true,"fnac_migration":true,"GDPR":true,"multi_account":true,"multi_account_subscribe":true,"native_reg_wp":true,"notification_center":true,"onboarding_handle_genre":true,"player_ng":true,"up_next":true,"sso_partner_banner":true,"siri_platform_service":true},"thirdParty":{"facebook":{"appData":{"id":241284008322,"namespace":"deezer-app","scope":"email,user_birthday","version":"17.0","channel":"http:\/\/www.deezer.com\/fbgateway.html"},"lang":"fr_FR"},"googleplus":{"appData":{"client_id":"630457285321-d5nmkpnjktjoeh426nvdu40rch1b1qe0.apps.googleusercontent.com","name":"Deezer","scope":"https:\/\/www.googleapis.com\/auth\/userinfo.profile
+        https:\/\/www.googleapis.com\/auth\/userinfo.email https:\/\/www.googleapis.com\/auth\/user.emails.read
+        https:\/\/www.googleapis.com\/auth\/user.birthday.read","redirect_uri":"postmessage","access_type":"offline","cookie_policy":"single_host_origin","request_visible_actions":"http:\/\/schemas.google.com\/AddActivity
+        http:\/\/schemas.google.com\/ListenActivity http:\/\/schemas.google.com\/CommentActivity","version":"v1"}},"braze":{"apiKey":"<redacted>","isAvailable":true}},"URL_MEDIA":"https:\/\/media.deezer.com","GAIN":{"TARGET":"-15","ADS":"-13"}}}'
+    headers:
+      Access-Control-Allow-Headers:
+      - x-deezer-widget, X-Requested-With, Content-Type, Authorization, Origin, Accept,
+        Accept-Encoding
+      Cache-Control:
+      - no-store, no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 25 Jun 2026 20:42:06 GMT
+      Expires:
+      - Thu, 19 Nov 1981 08:52:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - Apache
+      Set-Cookie:
+      - <redacted>
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '21712'
+      p3p:
+      - policyref="/w3c/p3p.xml" CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains
+      x-content-type-options:
+      - nosniff
+      x-deezer-client-ip:
+      - 86.247.87.21
+      x-frame-options:
+      - SAMEORIGIN
+      x-host:
+      - blm-web-103
+      x-org:
+      - FR
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"nb": 100, "start": 0, "checksum": null}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '41'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
+        Safari/537.36
+    method: POST
+    uri: http://www.deezer.com/ajax/gw-light.php?api_version=1.0&api_token=N6x1P~VmizINeEWd0RSgbtJ11kqQ-b8Y&input=3&method=song.getFavoriteIds
+  response:
+    body:
+      string: '{"error":[],"results":{"data":[{"SNG_ID":"4298172","DATE_FAVORITE":1382275413,"__TYPE__":"song"},{"SNG_ID":"74137325","DATE_FAVORITE":1393307702,"__TYPE__":"song"},{"SNG_ID":"75578817","DATE_FAVORITE":1397332817,"__TYPE__":"song"},{"SNG_ID":"71080463","DATE_FAVORITE":1399482904,"__TYPE__":"song"},{"SNG_ID":"79907526","DATE_FAVORITE":1404633361,"__TYPE__":"song"},{"SNG_ID":"232197","DATE_FAVORITE":1422777788,"__TYPE__":"song"},{"SNG_ID":"69106335","DATE_FAVORITE":1443417025,"__TYPE__":"song"},{"SNG_ID":"67352944","DATE_FAVORITE":1447743202,"__TYPE__":"song"},{"SNG_ID":"100243534","DATE_FAVORITE":1447743214,"__TYPE__":"song"},{"SNG_ID":"22529861","DATE_FAVORITE":1447743223,"__TYPE__":"song"},{"SNG_ID":"7217328","DATE_FAVORITE":1447743235,"__TYPE__":"song"},{"SNG_ID":"91856430","DATE_FAVORITE":1447743357,"__TYPE__":"song"},{"SNG_ID":"35362781","DATE_FAVORITE":1447743798,"__TYPE__":"song"},{"SNG_ID":"1754274067","DATE_FAVORITE":1447752233,"__TYPE__":"song"},{"SNG_ID":"43757261","DATE_FAVORITE":1447752253,"__TYPE__":"song"},{"SNG_ID":"43759961","DATE_FAVORITE":1447752256,"__TYPE__":"song"},{"SNG_ID":"16963743","DATE_FAVORITE":1447752270,"__TYPE__":"song"},{"SNG_ID":"71930873","DATE_FAVORITE":1447752288,"__TYPE__":"song"},{"SNG_ID":"43757221","DATE_FAVORITE":1447752295,"__TYPE__":"song"},{"SNG_ID":"13718122","DATE_FAVORITE":1447769292,"__TYPE__":"song"},{"SNG_ID":"108310578","DATE_FAVORITE":1447775180,"__TYPE__":"song"},{"SNG_ID":"44059001","DATE_FAVORITE":1447972633,"__TYPE__":"song"},{"SNG_ID":"61603966","DATE_FAVORITE":1447972638,"__TYPE__":"song"},{"SNG_ID":"68515001","DATE_FAVORITE":1447972676,"__TYPE__":"song"},{"SNG_ID":"5550357","DATE_FAVORITE":1448022837,"__TYPE__":"song"},{"SNG_ID":"610914","DATE_FAVORITE":1448022913,"__TYPE__":"song"},{"SNG_ID":"52972941","DATE_FAVORITE":1448023668,"__TYPE__":"song"},{"SNG_ID":"729516","DATE_FAVORITE":1448023875,"__TYPE__":"song"},{"SNG_ID":"797434","DATE_FAVORITE":1448023878,"__TYPE__":"song"},{"SNG_ID":"102863040","DATE_FAVORITE":1449242801,"__TYPE__":"song"},{"SNG_ID":"732326","DATE_FAVORITE":1449554855,"__TYPE__":"song"},{"SNG_ID":"16963746","DATE_FAVORITE":1449554857,"__TYPE__":"song"},{"SNG_ID":"100239520","DATE_FAVORITE":1449554865,"__TYPE__":"song"},{"SNG_ID":"52991631","DATE_FAVORITE":1449554899,"__TYPE__":"song"},{"SNG_ID":"2842121","DATE_FAVORITE":1449554902,"__TYPE__":"song"},{"SNG_ID":"91856434","DATE_FAVORITE":1449554907,"__TYPE__":"song"},{"SNG_ID":"7680196","DATE_FAVORITE":1450135367,"__TYPE__":"song"},{"SNG_ID":"12249097","DATE_FAVORITE":1450135374,"__TYPE__":"song"},{"SNG_ID":"13921566","DATE_FAVORITE":1451047604,"__TYPE__":"song"},{"SNG_ID":"7953466","DATE_FAVORITE":1451047614,"__TYPE__":"song"},{"SNG_ID":"22089041","DATE_FAVORITE":1451742394,"__TYPE__":"song"},{"SNG_ID":"13718124","DATE_FAVORITE":1453221926,"__TYPE__":"song"},{"SNG_ID":"68515254","DATE_FAVORITE":1453549971,"__TYPE__":"song"},{"SNG_ID":"72790897","DATE_FAVORITE":1457303308,"__TYPE__":"song"},{"SNG_ID":"664107","DATE_FAVORITE":1461332995,"__TYPE__":"song"},{"SNG_ID":"123480162","DATE_FAVORITE":1462978350,"__TYPE__":"song"},{"SNG_ID":"11011566","DATE_FAVORITE":1463052953,"__TYPE__":"song"},{"SNG_ID":"906597","DATE_FAVORITE":1463052977,"__TYPE__":"song"},{"SNG_ID":"561836","DATE_FAVORITE":1463053018,"__TYPE__":"song"},{"SNG_ID":"68513610","DATE_FAVORITE":1463053026,"__TYPE__":"song"},{"SNG_ID":"66600916","DATE_FAVORITE":1463053042,"__TYPE__":"song"},{"SNG_ID":"62419007","DATE_FAVORITE":1463053081,"__TYPE__":"song"},{"SNG_ID":"908124","DATE_FAVORITE":1463053633,"__TYPE__":"song"},{"SNG_ID":"4762629","DATE_FAVORITE":1463053661,"__TYPE__":"song"},{"SNG_ID":"9997018","DATE_FAVORITE":1463150535,"__TYPE__":"song"},{"SNG_ID":"12209331","DATE_FAVORITE":1463150550,"__TYPE__":"song"},{"SNG_ID":"3155488","DATE_FAVORITE":1463150550,"__TYPE__":"song"},{"SNG_ID":"3757018","DATE_FAVORITE":1466460080,"__TYPE__":"song"},{"SNG_ID":"1183278","DATE_FAVORITE":1466669928,"__TYPE__":"song"},{"SNG_ID":"100847506","DATE_FAVORITE":1466979934,"__TYPE__":"song"},{"SNG_ID":"5417165","DATE_FAVORITE":1466980180,"__TYPE__":"song"},{"SNG_ID":"1534947","DATE_FAVORITE":1466980205,"__TYPE__":"song"},{"SNG_ID":"1993694","DATE_FAVORITE":1466980219,"__TYPE__":"song"},{"SNG_ID":"4952827","DATE_FAVORITE":1466980289,"__TYPE__":"song"},{"SNG_ID":"606611","DATE_FAVORITE":1466980304,"__TYPE__":"song"},{"SNG_ID":"69105919","DATE_FAVORITE":1467196910,"__TYPE__":"song"},{"SNG_ID":"70876820","DATE_FAVORITE":1467814550,"__TYPE__":"song"},{"SNG_ID":"70876822","DATE_FAVORITE":1467814569,"__TYPE__":"song"},{"SNG_ID":"101665053","DATE_FAVORITE":1468052250,"__TYPE__":"song"},{"SNG_ID":"2184743","DATE_FAVORITE":1470149535,"__TYPE__":"song"},{"SNG_ID":"107750196","DATE_FAVORITE":1474631401,"__TYPE__":"song"},{"SNG_ID":"10537257","DATE_FAVORITE":1474659457,"__TYPE__":"song"},{"SNG_ID":"10537258","DATE_FAVORITE":1474659479,"__TYPE__":"song"},{"SNG_ID":"626144","DATE_FAVORITE":1474663731,"__TYPE__":"song"},{"SNG_ID":"63681790","DATE_FAVORITE":1478249365,"__TYPE__":"song"},{"SNG_ID":"11099998","DATE_FAVORITE":1479803314,"__TYPE__":"song"},{"SNG_ID":"120738046","DATE_FAVORITE":1481232523,"__TYPE__":"song"},{"SNG_ID":"81288710","DATE_FAVORITE":1482257702,"__TYPE__":"song"},{"SNG_ID":"3968768","DATE_FAVORITE":1482257737,"__TYPE__":"song"},{"SNG_ID":"75702159","DATE_FAVORITE":1484607591,"__TYPE__":"song"},{"SNG_ID":"130250038","DATE_FAVORITE":1485003507,"__TYPE__":"song"},{"SNG_ID":"935528","DATE_FAVORITE":1486163696,"__TYPE__":"song"},{"SNG_ID":"770636","DATE_FAVORITE":1487146763,"__TYPE__":"song"},{"SNG_ID":"102522120","DATE_FAVORITE":1491811553,"__TYPE__":"song"},{"SNG_ID":"22500161","DATE_FAVORITE":1492091577,"__TYPE__":"song"},{"SNG_ID":"22503661","DATE_FAVORITE":1492091598,"__TYPE__":"song"},{"SNG_ID":"140193543","DATE_FAVORITE":1492965320,"__TYPE__":"song"},{"SNG_ID":"102808554","DATE_FAVORITE":1496005573,"__TYPE__":"song"},{"SNG_ID":"91362000","DATE_FAVORITE":1496301167,"__TYPE__":"song"},{"SNG_ID":"98237636","DATE_FAVORITE":1496759456,"__TYPE__":"song"},{"SNG_ID":"345114561","DATE_FAVORITE":1496760862,"__TYPE__":"song"},{"SNG_ID":"79926268","DATE_FAVORITE":1498232183,"__TYPE__":"song"},{"SNG_ID":"557625","DATE_FAVORITE":1498232489,"__TYPE__":"song"},{"SNG_ID":"2114399","DATE_FAVORITE":1498232503,"__TYPE__":"song"},{"SNG_ID":"7045661","DATE_FAVORITE":1498462501,"__TYPE__":"song"},{"SNG_ID":"108577026","DATE_FAVORITE":1499334544,"__TYPE__":"song"},{"SNG_ID":"1097838","DATE_FAVORITE":1499963395,"__TYPE__":"song"},{"SNG_ID":"2321655","DATE_FAVORITE":1499963687,"__TYPE__":"song"},{"SNG_ID":"70893455","DATE_FAVORITE":1500477466,"__TYPE__":"song"},{"SNG_ID":"15455601","DATE_FAVORITE":1500886993,"__TYPE__":"song"}],"count":100,"total":406,"filtered_count":0,"checksum":"165d6e8889ff941e912a0b6ecdd23063","playlist_id":"235132341"}}'
+    headers:
+      Access-Control-Allow-Headers:
+      - x-deezer-widget, X-Requested-With, Content-Type, Authorization, Origin, Accept,
+        Accept-Encoding
+      Cache-Control:
+      - no-store, no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 25 Jun 2026 20:42:06 GMT
+      Expires:
+      - Thu, 19 Nov 1981 08:52:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - Apache
+      Set-Cookie:
+      - <redacted>
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '6816'
+      p3p:
+      - policyref="/w3c/p3p.xml" CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains
+      x-content-type-options:
+      - nosniff
+      x-deezer-client-ip:
+      - 86.247.87.21
+      x-frame-options:
+      - SAMEORIGIN
+      x-host:
+      - blm-web-105
+      x-org:
+      - FR
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"nb": 100, "start": 100, "checksum": null}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '43'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
+        Safari/537.36
+    method: POST
+    uri: http://www.deezer.com/ajax/gw-light.php?api_version=1.0&api_token=N6x1P~VmizINeEWd0RSgbtJ11kqQ-b8Y&input=3&method=song.getFavoriteIds
+  response:
+    body:
+      string: '{"error":[],"results":{"data":[{"SNG_ID":"102522084","DATE_FAVORITE":1500903406,"__TYPE__":"song"},{"SNG_ID":"7818900","DATE_FAVORITE":1501243987,"__TYPE__":"song"},{"SNG_ID":"77879660","DATE_FAVORITE":1501245618,"__TYPE__":"song"},{"SNG_ID":"61569728","DATE_FAVORITE":1503816475,"__TYPE__":"song"},{"SNG_ID":"2440642","DATE_FAVORITE":1504472945,"__TYPE__":"song"},{"SNG_ID":"136338814","DATE_FAVORITE":1507557123,"__TYPE__":"song"},{"SNG_ID":"660423","DATE_FAVORITE":1507731985,"__TYPE__":"song"},{"SNG_ID":"5094211","DATE_FAVORITE":1509799224,"__TYPE__":"song"},{"SNG_ID":"124195952","DATE_FAVORITE":1509801564,"__TYPE__":"song"},{"SNG_ID":"6288148","DATE_FAVORITE":1509801961,"__TYPE__":"song"},{"SNG_ID":"35362811","DATE_FAVORITE":1510149438,"__TYPE__":"song"},{"SNG_ID":"131744046","DATE_FAVORITE":1510561207,"__TYPE__":"song"},{"SNG_ID":"67503794","DATE_FAVORITE":1510561667,"__TYPE__":"song"},{"SNG_ID":"122357172","DATE_FAVORITE":1510561882,"__TYPE__":"song"},{"SNG_ID":"105426372","DATE_FAVORITE":1510562324,"__TYPE__":"song"},{"SNG_ID":"84014713","DATE_FAVORITE":1510562974,"__TYPE__":"song"},{"SNG_ID":"383688011","DATE_FAVORITE":1510562984,"__TYPE__":"song"},{"SNG_ID":"17630694","DATE_FAVORITE":1511194719,"__TYPE__":"song"},{"SNG_ID":"8134608","DATE_FAVORITE":1511194749,"__TYPE__":"song"},{"SNG_ID":"91856432","DATE_FAVORITE":1511536408,"__TYPE__":"song"},{"SNG_ID":"4677402","DATE_FAVORITE":1515492418,"__TYPE__":"song"},{"SNG_ID":"346967941","DATE_FAVORITE":1516896088,"__TYPE__":"song"},{"SNG_ID":"698274","DATE_FAVORITE":1519891726,"__TYPE__":"song"},{"SNG_ID":"2813176","DATE_FAVORITE":1521210362,"__TYPE__":"song"},{"SNG_ID":"143594698","DATE_FAVORITE":1522413967,"__TYPE__":"song"},{"SNG_ID":"11945204","DATE_FAVORITE":1523371104,"__TYPE__":"song"},{"SNG_ID":"68515055","DATE_FAVORITE":1524211941,"__TYPE__":"song"},{"SNG_ID":"788465","DATE_FAVORITE":1524211951,"__TYPE__":"song"},{"SNG_ID":"2842119","DATE_FAVORITE":1525081843,"__TYPE__":"song"},{"SNG_ID":"2842115","DATE_FAVORITE":1525081861,"__TYPE__":"song"},{"SNG_ID":"3929476","DATE_FAVORITE":1525081872,"__TYPE__":"song"},{"SNG_ID":"3929477","DATE_FAVORITE":1525081874,"__TYPE__":"song"},{"SNG_ID":"1195496","DATE_FAVORITE":1526571347,"__TYPE__":"song"},{"SNG_ID":"143667644","DATE_FAVORITE":1526571361,"__TYPE__":"song"},{"SNG_ID":"129725708","DATE_FAVORITE":1527076498,"__TYPE__":"song"},{"SNG_ID":"90324163","DATE_FAVORITE":1527078419,"__TYPE__":"song"},{"SNG_ID":"82199332","DATE_FAVORITE":1527756848,"__TYPE__":"song"},{"SNG_ID":"562487","DATE_FAVORITE":1527757885,"__TYPE__":"song"},{"SNG_ID":"15404852","DATE_FAVORITE":1527760614,"__TYPE__":"song"},{"SNG_ID":"686620","DATE_FAVORITE":1527775303,"__TYPE__":"song"},{"SNG_ID":"12206946","DATE_FAVORITE":1527775984,"__TYPE__":"song"},{"SNG_ID":"140869461","DATE_FAVORITE":1528102105,"__TYPE__":"song"},{"SNG_ID":"5582674","DATE_FAVORITE":1528287071,"__TYPE__":"song"},{"SNG_ID":"3155093","DATE_FAVORITE":1528708943,"__TYPE__":"song"},{"SNG_ID":"377443421","DATE_FAVORITE":1530171355,"__TYPE__":"song"},{"SNG_ID":"498681092","DATE_FAVORITE":1532617972,"__TYPE__":"song"},{"SNG_ID":"138195083","DATE_FAVORITE":1533158152,"__TYPE__":"song"},{"SNG_ID":"378998051","DATE_FAVORITE":1533203584,"__TYPE__":"song"},{"SNG_ID":"132625568","DATE_FAVORITE":1534172774,"__TYPE__":"song"},{"SNG_ID":"4289176","DATE_FAVORITE":1536007674,"__TYPE__":"song"},{"SNG_ID":"5528553","DATE_FAVORITE":1536072026,"__TYPE__":"song"},{"SNG_ID":"91856426","DATE_FAVORITE":1536134196,"__TYPE__":"song"},{"SNG_ID":"355098201","DATE_FAVORITE":1536139494,"__TYPE__":"song"},{"SNG_ID":"126494795","DATE_FAVORITE":1536325370,"__TYPE__":"song"},{"SNG_ID":"2780499","DATE_FAVORITE":1537168883,"__TYPE__":"song"},{"SNG_ID":"100139302","DATE_FAVORITE":1537863957,"__TYPE__":"song"},{"SNG_ID":"70893648","DATE_FAVORITE":1537864015,"__TYPE__":"song"},{"SNG_ID":"70893453","DATE_FAVORITE":1537878971,"__TYPE__":"song"},{"SNG_ID":"70893452","DATE_FAVORITE":1537878974,"__TYPE__":"song"},{"SNG_ID":"3360620","DATE_FAVORITE":1537949494,"__TYPE__":"song"},{"SNG_ID":"812715","DATE_FAVORITE":1538305407,"__TYPE__":"song"},{"SNG_ID":"102808562","DATE_FAVORITE":1539702084,"__TYPE__":"song"},{"SNG_ID":"464193662","DATE_FAVORITE":1541688076,"__TYPE__":"song"},{"SNG_ID":"143050666","DATE_FAVORITE":1541768974,"__TYPE__":"song"},{"SNG_ID":"362591101","DATE_FAVORITE":1542121286,"__TYPE__":"song"},{"SNG_ID":"13260317","DATE_FAVORITE":1542622885,"__TYPE__":"song"},{"SNG_ID":"91018163","DATE_FAVORITE":1542644997,"__TYPE__":"song"},{"SNG_ID":"454305252","DATE_FAVORITE":1542719263,"__TYPE__":"song"},{"SNG_ID":"100357136","DATE_FAVORITE":1543583442,"__TYPE__":"song"},{"SNG_ID":"81739266","DATE_FAVORITE":1543584489,"__TYPE__":"song"},{"SNG_ID":"511052532","DATE_FAVORITE":1543916887,"__TYPE__":"song"},{"SNG_ID":"52972951","DATE_FAVORITE":1544808945,"__TYPE__":"song"},{"SNG_ID":"47294041","DATE_FAVORITE":1545124553,"__TYPE__":"song"},{"SNG_ID":"538972192","DATE_FAVORITE":1545140475,"__TYPE__":"song"},{"SNG_ID":"61292502","DATE_FAVORITE":1545221948,"__TYPE__":"song"},{"SNG_ID":"118508884","DATE_FAVORITE":1545223011,"__TYPE__":"song"},{"SNG_ID":"471853042","DATE_FAVORITE":1545235534,"__TYPE__":"song"},{"SNG_ID":"2379855","DATE_FAVORITE":1545235546,"__TYPE__":"song"},{"SNG_ID":"106401384","DATE_FAVORITE":1545319816,"__TYPE__":"song"},{"SNG_ID":"105351590","DATE_FAVORITE":1545379606,"__TYPE__":"song"},{"SNG_ID":"132200960","DATE_FAVORITE":1545380041,"__TYPE__":"song"},{"SNG_ID":"139299259","DATE_FAVORITE":1546594720,"__TYPE__":"song"},{"SNG_ID":"347361141","DATE_FAVORITE":1546965673,"__TYPE__":"song"},{"SNG_ID":"13100546","DATE_FAVORITE":1547045033,"__TYPE__":"song"},{"SNG_ID":"344939001","DATE_FAVORITE":1547199916,"__TYPE__":"song"},{"SNG_ID":"301689","DATE_FAVORITE":1547199955,"__TYPE__":"song"},{"SNG_ID":"124111756","DATE_FAVORITE":1547199990,"__TYPE__":"song"},{"SNG_ID":"53959111","DATE_FAVORITE":1547480520,"__TYPE__":"song"},{"SNG_ID":"345114641","DATE_FAVORITE":1549612440,"__TYPE__":"song"},{"SNG_ID":"3369080","DATE_FAVORITE":1551436041,"__TYPE__":"song"},{"SNG_ID":"14653290","DATE_FAVORITE":1551624765,"__TYPE__":"song"},{"SNG_ID":"536488672","DATE_FAVORITE":1552386591,"__TYPE__":"song"},{"SNG_ID":"502219522","DATE_FAVORITE":1552484845,"__TYPE__":"song"},{"SNG_ID":"4254708","DATE_FAVORITE":1552569695,"__TYPE__":"song"},{"SNG_ID":"425530682","DATE_FAVORITE":1552661007,"__TYPE__":"song"},{"SNG_ID":"850423","DATE_FAVORITE":1552989942,"__TYPE__":"song"},{"SNG_ID":"685692","DATE_FAVORITE":1552990417,"__TYPE__":"song"},{"SNG_ID":"81740874","DATE_FAVORITE":1553095678,"__TYPE__":"song"},{"SNG_ID":"613531312","DATE_FAVORITE":1553270673,"__TYPE__":"song"},{"SNG_ID":"139702861","DATE_FAVORITE":1553522634,"__TYPE__":"song"}],"count":100,"total":406,"filtered_count":0,"checksum":"165d6e8889ff941e912a0b6ecdd23063","playlist_id":"235132341"}}'
+    headers:
+      Access-Control-Allow-Headers:
+      - x-deezer-widget, X-Requested-With, Content-Type, Authorization, Origin, Accept,
+        Accept-Encoding
+      Cache-Control:
+      - no-store, no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 25 Jun 2026 20:42:06 GMT
+      Expires:
+      - Thu, 19 Nov 1981 08:52:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - Apache
+      Set-Cookie:
+      - <redacted>
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '6852'
+      p3p:
+      - policyref="/w3c/p3p.xml" CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains
+      x-content-type-options:
+      - nosniff
+      x-deezer-client-ip:
+      - 86.247.87.21
+      x-frame-options:
+      - SAMEORIGIN
+      x-host:
+      - blm-web-154
+      x-org:
+      - FR
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"nb": 100, "start": 200, "checksum": null}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '43'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
+        Safari/537.36
+    method: POST
+    uri: http://www.deezer.com/ajax/gw-light.php?api_version=1.0&api_token=N6x1P~VmizINeEWd0RSgbtJ11kqQ-b8Y&input=3&method=song.getFavoriteIds
+  response:
+    body:
+      string: '{"error":[],"results":{"data":[{"SNG_ID":"548192992","DATE_FAVORITE":1554392087,"__TYPE__":"song"},{"SNG_ID":"445871972","DATE_FAVORITE":1554392963,"__TYPE__":"song"},{"SNG_ID":"1287248","DATE_FAVORITE":1554469529,"__TYPE__":"song"},{"SNG_ID":"95310874","DATE_FAVORITE":1558079748,"__TYPE__":"song"},{"SNG_ID":"3124137","DATE_FAVORITE":1558083074,"__TYPE__":"song"},{"SNG_ID":"576877182","DATE_FAVORITE":1558617184,"__TYPE__":"song"},{"SNG_ID":"80274568","DATE_FAVORITE":1559055148,"__TYPE__":"song"},{"SNG_ID":"138195091","DATE_FAVORITE":1561543341,"__TYPE__":"song"},{"SNG_ID":"43757211","DATE_FAVORITE":1561553475,"__TYPE__":"song"},{"SNG_ID":"52997581","DATE_FAVORITE":1561553481,"__TYPE__":"song"},{"SNG_ID":"714397","DATE_FAVORITE":1561625953,"__TYPE__":"song"},{"SNG_ID":"717542","DATE_FAVORITE":1562751472,"__TYPE__":"song"},{"SNG_ID":"102806536","DATE_FAVORITE":1563894550,"__TYPE__":"song"},{"SNG_ID":"620692312","DATE_FAVORITE":1564404517,"__TYPE__":"song"},{"SNG_ID":"2251541","DATE_FAVORITE":1565118863,"__TYPE__":"song"},{"SNG_ID":"39033871","DATE_FAVORITE":1565118999,"__TYPE__":"song"},{"SNG_ID":"91019427","DATE_FAVORITE":1565119374,"__TYPE__":"song"},{"SNG_ID":"15754549","DATE_FAVORITE":1565119567,"__TYPE__":"song"},{"SNG_ID":"698260","DATE_FAVORITE":1565167213,"__TYPE__":"song"},{"SNG_ID":"137704949","DATE_FAVORITE":1567086202,"__TYPE__":"song"},{"SNG_ID":"378129111","DATE_FAVORITE":1568292051,"__TYPE__":"song"},{"SNG_ID":"492720182","DATE_FAVORITE":1572004577,"__TYPE__":"song"},{"SNG_ID":"132196994","DATE_FAVORITE":1574416925,"__TYPE__":"song"},{"SNG_ID":"108577034","DATE_FAVORITE":1574860551,"__TYPE__":"song"},{"SNG_ID":"131294596","DATE_FAVORITE":1574863287,"__TYPE__":"song"},{"SNG_ID":"812136972","DATE_FAVORITE":1575620936,"__TYPE__":"song"},{"SNG_ID":"378998061","DATE_FAVORITE":1579773187,"__TYPE__":"song"},{"SNG_ID":"6278857","DATE_FAVORITE":1580138555,"__TYPE__":"song"},{"SNG_ID":"378998041","DATE_FAVORITE":1580138568,"__TYPE__":"song"},{"SNG_ID":"2175924","DATE_FAVORITE":1580138596,"__TYPE__":"song"},{"SNG_ID":"381573251","DATE_FAVORITE":1580224527,"__TYPE__":"song"},{"SNG_ID":"134936006","DATE_FAVORITE":1581514999,"__TYPE__":"song"},{"SNG_ID":"536488662","DATE_FAVORITE":1581596353,"__TYPE__":"song"},{"SNG_ID":"479307582","DATE_FAVORITE":1581671765,"__TYPE__":"song"},{"SNG_ID":"90595673","DATE_FAVORITE":1581951374,"__TYPE__":"song"},{"SNG_ID":"76294919","DATE_FAVORITE":1582027938,"__TYPE__":"song"},{"SNG_ID":"29377601","DATE_FAVORITE":1582119100,"__TYPE__":"song"},{"SNG_ID":"63459811","DATE_FAVORITE":1582920349,"__TYPE__":"song"},{"SNG_ID":"81740862","DATE_FAVORITE":1583012304,"__TYPE__":"song"},{"SNG_ID":"108598774","DATE_FAVORITE":1583329041,"__TYPE__":"song"},{"SNG_ID":"134936702","DATE_FAVORITE":1584091077,"__TYPE__":"song"},{"SNG_ID":"901414542","DATE_FAVORITE":1586081282,"__TYPE__":"song"},{"SNG_ID":"620499372","DATE_FAVORITE":1623845420,"__TYPE__":"song"},{"SNG_ID":"137605265","DATE_FAVORITE":1625129416,"__TYPE__":"song"},{"SNG_ID":"3583788","DATE_FAVORITE":1629814091,"__TYPE__":"song"},{"SNG_ID":"120308206","DATE_FAVORITE":1631560632,"__TYPE__":"song"},{"SNG_ID":"1502409782","DATE_FAVORITE":1633444299,"__TYPE__":"song"},{"SNG_ID":"540168502","DATE_FAVORITE":1633593540,"__TYPE__":"song"},{"SNG_ID":"71131656","DATE_FAVORITE":1635606981,"__TYPE__":"song"},{"SNG_ID":"354750221","DATE_FAVORITE":1636139270,"__TYPE__":"song"},{"SNG_ID":"494857952","DATE_FAVORITE":1636139489,"__TYPE__":"song"},{"SNG_ID":"137605253","DATE_FAVORITE":1636816607,"__TYPE__":"song"},{"SNG_ID":"1345077882","DATE_FAVORITE":1637616653,"__TYPE__":"song"},{"SNG_ID":"486422552","DATE_FAVORITE":1638217831,"__TYPE__":"song"},{"SNG_ID":"1550794002","DATE_FAVORITE":1638513742,"__TYPE__":"song"},{"SNG_ID":"1462912672","DATE_FAVORITE":1638976604,"__TYPE__":"song"},{"SNG_ID":"1570864962","DATE_FAVORITE":1639126720,"__TYPE__":"song"},{"SNG_ID":"1462529672","DATE_FAVORITE":1639559875,"__TYPE__":"song"},{"SNG_ID":"69001869","DATE_FAVORITE":1639575865,"__TYPE__":"song"},{"SNG_ID":"1025491","DATE_FAVORITE":1641752958,"__TYPE__":"song"},{"SNG_ID":"100401584","DATE_FAVORITE":1643268160,"__TYPE__":"song"},{"SNG_ID":"455455972","DATE_FAVORITE":1644937248,"__TYPE__":"song"},{"SNG_ID":"12744083","DATE_FAVORITE":1645103547,"__TYPE__":"song"},{"SNG_ID":"632381332","DATE_FAVORITE":1646042606,"__TYPE__":"song"},{"SNG_ID":"72274760","DATE_FAVORITE":1658522163,"__TYPE__":"song"},{"SNG_ID":"1459126032","DATE_FAVORITE":1659601806,"__TYPE__":"song"},{"SNG_ID":"66125257","DATE_FAVORITE":1659602300,"__TYPE__":"song"},{"SNG_ID":"1583726002","DATE_FAVORITE":1660162333,"__TYPE__":"song"},{"SNG_ID":"3858775","DATE_FAVORITE":1660208459,"__TYPE__":"song"},{"SNG_ID":"3089031","DATE_FAVORITE":1660824510,"__TYPE__":"song"},{"SNG_ID":"1261246922","DATE_FAVORITE":1661416293,"__TYPE__":"song"},{"SNG_ID":"750731732","DATE_FAVORITE":1663921570,"__TYPE__":"song"},{"SNG_ID":"958784002","DATE_FAVORITE":1664485397,"__TYPE__":"song"},{"SNG_ID":"706091502","DATE_FAVORITE":1665132930,"__TYPE__":"song"},{"SNG_ID":"72691490","DATE_FAVORITE":1667916499,"__TYPE__":"song"},{"SNG_ID":"72816246","DATE_FAVORITE":1667919058,"__TYPE__":"song"},{"SNG_ID":"2010239137","DATE_FAVORITE":1670237100,"__TYPE__":"song"},{"SNG_ID":"1758827737","DATE_FAVORITE":1671989043,"__TYPE__":"song"},{"SNG_ID":"1758955717","DATE_FAVORITE":1671989573,"__TYPE__":"song"},{"SNG_ID":"1670910022","DATE_FAVORITE":1675102685,"__TYPE__":"song"},{"SNG_ID":"2062487797","DATE_FAVORITE":1675374276,"__TYPE__":"song"},{"SNG_ID":"145425388","DATE_FAVORITE":1676636077,"__TYPE__":"song"},{"SNG_ID":"60951581","DATE_FAVORITE":1676756988,"__TYPE__":"song"},{"SNG_ID":"394736112","DATE_FAVORITE":1677017877,"__TYPE__":"song"},{"SNG_ID":"505508992","DATE_FAVORITE":1677236191,"__TYPE__":"song"},{"SNG_ID":"2815139","DATE_FAVORITE":1677594716,"__TYPE__":"song"},{"SNG_ID":"492572002","DATE_FAVORITE":1678445446,"__TYPE__":"song"},{"SNG_ID":"955863492","DATE_FAVORITE":1679482903,"__TYPE__":"song"},{"SNG_ID":"136338514","DATE_FAVORITE":1679566737,"__TYPE__":"song"},{"SNG_ID":"131221594","DATE_FAVORITE":1680772978,"__TYPE__":"song"},{"SNG_ID":"662879","DATE_FAVORITE":1683695482,"__TYPE__":"song"},{"SNG_ID":"1117703542","DATE_FAVORITE":1686322796,"__TYPE__":"song"},{"SNG_ID":"1752620747","DATE_FAVORITE":1686323354,"__TYPE__":"song"},{"SNG_ID":"720337","DATE_FAVORITE":1688462558,"__TYPE__":"song"},{"SNG_ID":"2342584415","DATE_FAVORITE":1689862673,"__TYPE__":"song"},{"SNG_ID":"1976644547","DATE_FAVORITE":1693648067,"__TYPE__":"song"},{"SNG_ID":"1256722172","DATE_FAVORITE":1694179439,"__TYPE__":"song"},{"SNG_ID":"646290912","DATE_FAVORITE":1694291809,"__TYPE__":"song"},{"SNG_ID":"2073771747","DATE_FAVORITE":1694629545,"__TYPE__":"song"},{"SNG_ID":"891243332","DATE_FAVORITE":1695995144,"__TYPE__":"song"}],"count":100,"total":406,"filtered_count":0,"checksum":"165d6e8889ff941e912a0b6ecdd23063","playlist_id":"235132341"}}'
+    headers:
+      Access-Control-Allow-Headers:
+      - x-deezer-widget, X-Requested-With, Content-Type, Authorization, Origin, Accept,
+        Accept-Encoding
+      Cache-Control:
+      - no-store, no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 25 Jun 2026 20:42:06 GMT
+      Expires:
+      - Thu, 19 Nov 1981 08:52:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - Apache
+      Set-Cookie:
+      - <redacted>
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '6913'
+      p3p:
+      - policyref="/w3c/p3p.xml" CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains
+      x-content-type-options:
+      - nosniff
+      x-deezer-client-ip:
+      - 86.247.87.21
+      x-frame-options:
+      - SAMEORIGIN
+      x-host:
+      - blm-web-96
+      x-org:
+      - FR
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"nb": 100, "start": 300, "checksum": null}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '43'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
+        Safari/537.36
+    method: POST
+    uri: http://www.deezer.com/ajax/gw-light.php?api_version=1.0&api_token=N6x1P~VmizINeEWd0RSgbtJ11kqQ-b8Y&input=3&method=song.getFavoriteIds
+  response:
+    body:
+      string: '{"error":[],"results":{"data":[{"SNG_ID":"723861","DATE_FAVORITE":1698415714,"__TYPE__":"song"},{"SNG_ID":"61259769","DATE_FAVORITE":1700324691,"__TYPE__":"song"},{"SNG_ID":"347347151","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"486422542","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"66609426","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"64225516","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"562821412","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"904495232","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"862226092","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"559910652","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"3261170","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"71067423","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"2113334","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"108662298","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"3100307","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"1101944722","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"121409482","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"2271506","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"883649082","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"1081096742","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"44055811","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"10704346","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"876243872","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"1124277","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"107091070","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"131819120","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"21723221","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"422706902","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"613231502","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"83687406","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"68855139","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"2542092","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"43060451","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"137603179","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"61788855","DATE_FAVORITE":1701018115,"__TYPE__":"song"},{"SNG_ID":"3089501","DATE_FAVORITE":1701100737,"__TYPE__":"song"},{"SNG_ID":"43060441","DATE_FAVORITE":1701158266,"__TYPE__":"song"},{"SNG_ID":"92506734","DATE_FAVORITE":1701158686,"__TYPE__":"song"},{"SNG_ID":"1802253167","DATE_FAVORITE":1701363174,"__TYPE__":"song"},{"SNG_ID":"364851111","DATE_FAVORITE":1701706650,"__TYPE__":"song"},{"SNG_ID":"7753178","DATE_FAVORITE":1701853711,"__TYPE__":"song"},{"SNG_ID":"2564215762","DATE_FAVORITE":1705677562,"__TYPE__":"song"},{"SNG_ID":"499737882","DATE_FAVORITE":1706393416,"__TYPE__":"song"},{"SNG_ID":"3046136","DATE_FAVORITE":1708070280,"__TYPE__":"song"},{"SNG_ID":"69688560","DATE_FAVORITE":1708503072,"__TYPE__":"song"},{"SNG_ID":"2522230771","DATE_FAVORITE":1708525383,"__TYPE__":"song"},{"SNG_ID":"2522230751","DATE_FAVORITE":1708525646,"__TYPE__":"song"},{"SNG_ID":"621152662","DATE_FAVORITE":1709556603,"__TYPE__":"song"},{"SNG_ID":"2536136","DATE_FAVORITE":1716365095,"__TYPE__":"song"},{"SNG_ID":"140787083","DATE_FAVORITE":1716820780,"__TYPE__":"song"},{"SNG_ID":"6986464","DATE_FAVORITE":1717157113,"__TYPE__":"song"},{"SNG_ID":"63534071","DATE_FAVORITE":1717770227,"__TYPE__":"song"},{"SNG_ID":"880413472","DATE_FAVORITE":1718716225,"__TYPE__":"song"},{"SNG_ID":"2309509085","DATE_FAVORITE":1722863433,"__TYPE__":"song"},{"SNG_ID":"2045360607","DATE_FAVORITE":1723754833,"__TYPE__":"song"},{"SNG_ID":"1343890872","DATE_FAVORITE":1726753090,"__TYPE__":"song"},{"SNG_ID":"880413492","DATE_FAVORITE":1727874139,"__TYPE__":"song"},{"SNG_ID":"2924930711","DATE_FAVORITE":1730220474,"__TYPE__":"song"},{"SNG_ID":"65690440","DATE_FAVORITE":1731497299,"__TYPE__":"song"},{"SNG_ID":"71725042","DATE_FAVORITE":1731664315,"__TYPE__":"song"},{"SNG_ID":"1036586","DATE_FAVORITE":1733260837,"__TYPE__":"song"},{"SNG_ID":"409670262","DATE_FAVORITE":1733526665,"__TYPE__":"song"},{"SNG_ID":"1756031147","DATE_FAVORITE":1733836274,"__TYPE__":"song"},{"SNG_ID":"1882313187","DATE_FAVORITE":1735385758,"__TYPE__":"song"},{"SNG_ID":"448311992","DATE_FAVORITE":1735893290,"__TYPE__":"song"},{"SNG_ID":"424562692","DATE_FAVORITE":1737324097,"__TYPE__":"song"},{"SNG_ID":"2155688627","DATE_FAVORITE":1737366287,"__TYPE__":"song"},{"SNG_ID":"3234741011","DATE_FAVORITE":1740992085,"__TYPE__":"song"},{"SNG_ID":"3118427111","DATE_FAVORITE":1742206470,"__TYPE__":"song"},{"SNG_ID":"87769551","DATE_FAVORITE":1743155516,"__TYPE__":"song"},{"SNG_ID":"138539981","DATE_FAVORITE":1743516134,"__TYPE__":"song"},{"SNG_ID":"774082722","DATE_FAVORITE":1744145425,"__TYPE__":"song"},{"SNG_ID":"3241756","DATE_FAVORITE":1744186868,"__TYPE__":"song"},{"SNG_ID":"546578","DATE_FAVORITE":1747660627,"__TYPE__":"song"},{"SNG_ID":"2691183202","DATE_FAVORITE":1747913621,"__TYPE__":"song"},{"SNG_ID":"1586069052","DATE_FAVORITE":1748869343,"__TYPE__":"song"},{"SNG_ID":"64321149","DATE_FAVORITE":1749845292,"__TYPE__":"song"},{"SNG_ID":"69303460","DATE_FAVORITE":1751621890,"__TYPE__":"song"},{"SNG_ID":"10969975","DATE_FAVORITE":1752587363,"__TYPE__":"song"},{"SNG_ID":"701017612","DATE_FAVORITE":1754574264,"__TYPE__":"song"},{"SNG_ID":"601886","DATE_FAVORITE":1755725776,"__TYPE__":"song"},{"SNG_ID":"428735742","DATE_FAVORITE":1755726301,"__TYPE__":"song"},{"SNG_ID":"2321086545","DATE_FAVORITE":1756717546,"__TYPE__":"song"},{"SNG_ID":"3786405","DATE_FAVORITE":1757336290,"__TYPE__":"song"},{"SNG_ID":"121678784","DATE_FAVORITE":1757967630,"__TYPE__":"song"},{"SNG_ID":"3613215","DATE_FAVORITE":1758571175,"__TYPE__":"song"},{"SNG_ID":"417379442","DATE_FAVORITE":1760188338,"__TYPE__":"song"},{"SNG_ID":"3561825851","DATE_FAVORITE":1760691740,"__TYPE__":"song"},{"SNG_ID":"3586842","DATE_FAVORITE":1761992051,"__TYPE__":"song"},{"SNG_ID":"3412534581","DATE_FAVORITE":1764322962,"__TYPE__":"song"},{"SNG_ID":"3412534601","DATE_FAVORITE":1764322988,"__TYPE__":"song"},{"SNG_ID":"3412534551","DATE_FAVORITE":1764322997,"__TYPE__":"song"},{"SNG_ID":"3575548861","DATE_FAVORITE":1767300832,"__TYPE__":"song"},{"SNG_ID":"64672275","DATE_FAVORITE":1767300952,"__TYPE__":"song"},{"SNG_ID":"1834743447","DATE_FAVORITE":1767395274,"__TYPE__":"song"},{"SNG_ID":"568758632","DATE_FAVORITE":1767395410,"__TYPE__":"song"},{"SNG_ID":"1067383","DATE_FAVORITE":1767474797,"__TYPE__":"song"},{"SNG_ID":"1697736667","DATE_FAVORITE":1771511924,"__TYPE__":"song"},{"SNG_ID":"11390027","DATE_FAVORITE":1771512829,"__TYPE__":"song"},{"SNG_ID":"3693662182","DATE_FAVORITE":1771513426,"__TYPE__":"song"}],"count":100,"total":406,"filtered_count":0,"checksum":"165d6e8889ff941e912a0b6ecdd23063","playlist_id":"235132341"}}'
+    headers:
+      Access-Control-Allow-Headers:
+      - x-deezer-widget, X-Requested-With, Content-Type, Authorization, Origin, Accept,
+        Accept-Encoding
+      Cache-Control:
+      - no-store, no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 25 Jun 2026 20:42:06 GMT
+      Expires:
+      - Thu, 19 Nov 1981 08:52:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - Apache
+      Set-Cookie:
+      - <redacted>
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '6908'
+      p3p:
+      - policyref="/w3c/p3p.xml" CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains
+      x-content-type-options:
+      - nosniff
+      x-deezer-client-ip:
+      - 86.247.87.21
+      x-frame-options:
+      - SAMEORIGIN
+      x-host:
+      - blm-web-126
+      x-org:
+      - FR
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"nb": 100, "start": 400, "checksum": null}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '43'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
+        Safari/537.36
+    method: POST
+    uri: http://www.deezer.com/ajax/gw-light.php?api_version=1.0&api_token=N6x1P~VmizINeEWd0RSgbtJ11kqQ-b8Y&input=3&method=song.getFavoriteIds
+  response:
+    body:
+      string: '{"error":[],"results":{"data":[{"SNG_ID":"1176249332","DATE_FAVORITE":1771514638,"__TYPE__":"song"},{"SNG_ID":"2469905245","DATE_FAVORITE":1772112748,"__TYPE__":"song"},{"SNG_ID":"3331271","DATE_FAVORITE":1774471730,"__TYPE__":"song"},{"SNG_ID":"1755705717","DATE_FAVORITE":1774764070,"__TYPE__":"song"},{"SNG_ID":"2329154","DATE_FAVORITE":1775372900,"__TYPE__":"song"},{"SNG_ID":"4006030211","DATE_FAVORITE":1781442095,"__TYPE__":"song"}],"count":6,"total":406,"filtered_count":0,"checksum":"165d6e8889ff941e912a0b6ecdd23063","playlist_id":"235132341"}}'
+    headers:
+      Access-Control-Allow-Headers:
+      - x-deezer-widget, X-Requested-With, Content-Type, Authorization, Origin, Accept,
+        Accept-Encoding
+      Cache-Control:
+      - no-store, no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 25 Jun 2026 20:42:07 GMT
+      Expires:
+      - Thu, 19 Nov 1981 08:52:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - Apache
+      Set-Cookie:
+      - <redacted>
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '554'
+      p3p:
+      - policyref="/w3c/p3p.xml" CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains
+      x-content-type-options:
+      - nosniff
+      x-deezer-client-ip:
+      - 86.247.87.21
+      x-frame-options:
+      - SAMEORIGIN
+      x-host:
+      - blm-web-134
+      x-org:
+      - FR
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"nb": 100, "start": 406, "checksum": null}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '43'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
+        Safari/537.36
+    method: POST
+    uri: http://www.deezer.com/ajax/gw-light.php?api_version=1.0&api_token=N6x1P~VmizINeEWd0RSgbtJ11kqQ-b8Y&input=3&method=song.getFavoriteIds
+  response:
+    body:
+      string: '{"error":[],"results":{"data":[],"count":0,"total":406,"filtered_count":0,"checksum":"165d6e8889ff941e912a0b6ecdd23063","playlist_id":"235132341"}}'
+    headers:
+      Access-Control-Allow-Headers:
+      - x-deezer-widget, X-Requested-With, Content-Type, Authorization, Origin, Accept,
+        Accept-Encoding
+      Cache-Control:
+      - no-store, no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 25 Jun 2026 20:42:07 GMT
+      Expires:
+      - Thu, 19 Nov 1981 08:52:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - Apache
+      Set-Cookie:
+      - <redacted>
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '147'
+      p3p:
+      - policyref="/w3c/p3p.xml" CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains
+      x-content-type-options:
+      - nosniff
+      x-deezer-client-ip:
+      - 86.247.87.21
+      x-frame-options:
+      - SAMEORIGIN
+      x-host:
+      - blm-web-94
+      x-org:
+      - FR
+    status:
+      code: 200
+      message: OK
+version: 1
