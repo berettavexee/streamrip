@@ -461,22 +461,27 @@ def test_deezer_get_user_favorites_own_profile(mock_deezer_client):
     mock_deezer_client.client.gw.get_user_tracks.assert_not_called()
 
 
-def test_deezer_get_user_favorites_other_profile(mock_deezer_client):
-    """Fetching another user's favorites calls get_user_tracks with the numeric UID."""
-    mock_deezer_client.logged_in_user_id = 42
-    # get_user_tracks returns map_user_track() results, which have "id" not "SNG_ID"
-    mock_deezer_client.client.gw.get_user_tracks.return_value = [
-        {"id": "1"},
-        {"id": "2"},
-    ]
+def test_deezer_get_user_favorites_always_uses_own_account(mock_deezer_client):
+    """get_user_favorites always fetches via get_user_favorite_ids (authenticated user).
 
-    result = arun(mock_deezer_client.get_user_favorites("99"))
+    For family accounts, logged_in_user_id is the child profile id, which may differ
+    from the uid in the favorites URL (main account id).  The uid comparison is
+    therefore unreliable; get_user_favorite_ids carries no uid parameter and always
+    returns the authenticated account's favorites, so we use it unconditionally.
+    """
+    mock_deezer_client.logged_in_user_id = 42
+    mock_deezer_client.client.gw.get_user_favorite_ids.side_effect = [
+        {"data": [{"SNG_ID": "99"}, {"SNG_ID": "100"}]},
+        {"data": []},
+    ]
+    mock_deezer_client.client.gw.get_tracks.return_value = []
+
+    # Pass a uid that differs from logged_in_user_id (simulates family account case)
+    result = arun(mock_deezer_client.get_user_favorites("9999"))
 
     assert result["track_total"] == 2
-    assert result["tracks"] == [{"id": "1"}, {"id": "2"}]
-    mock_deezer_client.client.gw.get_user_tracks.assert_called_once_with(
-        99, DeezerClient.max_favorites
-    )
+    mock_deezer_client.client.gw.get_user_favorite_ids.assert_called()
+    mock_deezer_client.client.gw.get_user_tracks.assert_not_called()
     mock_deezer_client.client.gw.get_my_favorite_tracks.assert_not_called()
 
 
