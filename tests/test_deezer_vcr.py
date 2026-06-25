@@ -203,8 +203,15 @@ def test_vcr_get_track_contributors(deezer_vcr_client, mocker):
 
 
 @pytest.mark.vcr
-def test_vcr_get_track_for_playlist(deezer_vcr_client):
-    """get_track_for_playlist skips the full album fetch (fetch_album=False)."""
+def test_vcr_get_track_for_playlist(deezer_vcr_client, mocker):
+    """get_track_for_playlist skips the full album fetch (fetch_album=False).
+
+    _fetch_lyrics runs concurrently with song.getData via asyncio.gather and
+    VCR does not reliably record parallel threads.  It is mocked here so the
+    cassette only captures the single sequential REST call (api.get_track)
+    and the GW song.getData call that pre-existed the lyrics feature.
+    """
+    mocker.patch.object(deezer_vcr_client, "_fetch_lyrics", return_value=None)
     result = arun(deezer_vcr_client.get_track_for_playlist(TRACK_ID))
 
     assert "title" in result
