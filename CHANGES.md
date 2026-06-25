@@ -5,6 +5,7 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 ## Deezer
 
 - Support for `link.deezer.com/s/` short URLs ([#887](https://github.com/nathom/streamrip/pull/887))
+- Download an artist's top tracks via `https://www.deezer.com/fr/artist/ID/top_track` — downloaded as a playlist named `Artist — Top Tracks`
 - Download liked tracks from a user profile URL (`/profile/USER_ID/loved`); all loved tracks are fetched regardless of library size — the `song.getFavoriteIds` API silently caps each page at ~100 entries and the client now paginates until the server returns an empty page; family/child accounts are handled correctly (the UID comparison that previously blocked family profiles was removed)
 - Lyrics embedded in track files (FLAC `LYRICS`, MP3 `USLT`, M4A custom atom) via the GW lyrics API; disabled with `fetch_lyrics = false` in `[deezer]`
 - Use the GW API for playlist fetching to avoid breakage on the public API ([#973](https://github.com/nathom/streamrip/pull/973))
@@ -95,6 +96,7 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - Version comparison is numeric (`1.10 > 1.9`) rather than lexicographic
 - Download summary printed at end of session (tracks downloaded, failed, total size)
 - `-n`/`--dry-run` flag resolves and matches tracks without downloading anything — each would-be download is logged at INFO level and the end-of-session summary is labelled `[DRY RUN]`; useful for validating Last.fm matching and generating clean debug logs
+- Malformed, unsupported, or unresolvable URLs are now skipped with a warning instead of aborting the entire session — a bad URL in a batch no longer prevents the other URLs from being processed
 
 ## Tests
 
