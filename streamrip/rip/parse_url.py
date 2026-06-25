@@ -154,6 +154,28 @@ class QobuzInterpreterURL(URL):
         )
 
 
+class DeezerArtistTopTrackURL(URL):
+    _re = re.compile(
+        r"https?://(?:www\.)?deezer\.com/[a-z]{2}/artist/(\d+)/top_track"
+    )
+
+    @classmethod
+    def from_str(cls, url: str) -> URL | None:
+        match = cls._re.match(url)
+        if match is None:
+            return None
+        return cls(match, "deezer")
+
+    async def into_pending(
+        self,
+        client: Client,
+        config: Config,
+        db: Database,
+    ) -> Pending:
+        artist_id = self.match.group(1)
+        return PendingPlaylist(f"artist_top:{artist_id}", client, config, db)
+
+
 class DeezerFavoriteURL(URL):
     favorite_re = re.compile(
         r"https://(?:www\.)?deezer\.com/[a-z]{2}/profile/(\d+)/loved"
@@ -298,6 +320,7 @@ def parse_url(url: str) -> URL | None:
     """
     url = url.strip()
     parsed_urls: list[URL | None] = [
+        DeezerArtistTopTrackURL.from_str(url),
         GenericURL.from_str(url),
         QobuzInterpreterURL.from_str(url),
         SoundcloudURL.from_str(url),
