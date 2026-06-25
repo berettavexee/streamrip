@@ -486,28 +486,61 @@ class DeezerClient(Client):
     async def get_user_favorites(self, user_id: str) -> dict:
         """Fetch the loved tracks for a Deezer user profile.
 
+        For the logged-in user, ``song.getFavoriteIds`` is called with pagination
+        because the server silently caps responses at ~25 entries per call regardless
+        of the ``nb`` parameter.  Track GW data is then batch-prefetched into
+        ``_gw_tracks`` so downstream ``get_track`` calls hit the cache instead of
+        issuing individual ``song.getData`` requests.
+
+        For other users, ``deezer.pageProfile`` is used directly; pagination is not
+        implemented for that path.
+
         Args:
             user_id: The Deezer user ID (numeric string).
 
         Returns:
             Playlist-shaped dict with "title", "tracks", and "track_total".
         """
-        # deezer-py silently drops the limit arg in get_user_tracks() when it detects
-        # the own profile and re-routes to get_my_favorite_tracks(). Call the latter
-        # directly so the limit is always honoured.
         uid = int(user_id)
-        if uid == self.logged_in_user_id:
-            tracks = await self._gw(
-                self.client.gw.get_my_favorite_tracks, self.max_favorites
-            )
-        else:
+
+        if uid != self.logged_in_user_id:
             tracks = await self._gw(
                 self.client.gw.get_user_tracks, uid, self.max_favorites
             )
+            return {
+                "title": "Loved Tracks",
+                "tracks": [{"id": str(t["id"])} for t in tracks],
+                "track_total": len(tracks),
+            }
+
+        # song.getFavoriteIds caps results per page regardless of nb; paginate via start.
+        page_size = 100
+        all_entries: list[dict] = []
+        start = 0
+        while len(all_entries) < self.max_favorites:
+            batch = await self._gw(
+                self.client.gw.get_user_favorite_ids, limit=page_size, start=start
+            )
+            page: list[dict] = batch.get("data", [])
+            all_entries.extend(page)
+            if len(page) < page_size:
+                break
+            start += page_size
+
+        # Batch-prefetch GW track data and populate the cache so get_track() hits it.
+        sng_ids = [int(entry["SNG_ID"]) for entry in all_entries]
+        for i in range(0, len(sng_ids), page_size):
+            chunk = sng_ids[i : i + page_size]
+            gw_tracks = await self._gw(self.client.gw.get_tracks, chunk)
+            for gw_track in gw_tracks:
+                tid = str(gw_track.get("SNG_ID", ""))
+                if tid and tid not in self._gw_tracks._results:
+                    self._gw_tracks.set(tid, gw_track)
+
         return {
             "title": "Loved Tracks",
-            "tracks": [{"id": str(t["id"])} for t in tracks],
-            "track_total": len(tracks),
+            "tracks": [{"id": str(entry["SNG_ID"])} for entry in all_entries],
+            "track_total": len(all_entries),
         }
 
     async def get_artist(self, item_id: str) -> dict:
