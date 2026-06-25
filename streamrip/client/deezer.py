@@ -513,24 +513,26 @@ class DeezerClient(Client):
                 "track_total": len(tracks),
             }
 
-        # song.getFavoriteIds caps results per page regardless of nb; paginate via start.
-        page_size = 100
+        # song.getFavoriteIds ignores nb= and caps at its own server page size (~25).
+        # Advance start by the actual count returned, not by a requested page_size.
+        fetch_batch = 100
         all_entries: list[dict] = []
         start = 0
         while len(all_entries) < self.max_favorites:
             batch = await self._gw(
-                self.client.gw.get_user_favorite_ids, limit=page_size, start=start
+                self.client.gw.get_user_favorite_ids, limit=fetch_batch, start=start
             )
             page: list[dict] = batch.get("data", [])
-            all_entries.extend(page)
-            if len(page) < page_size:
+            if not page:
                 break
-            start += page_size
+            all_entries.extend(page)
+            start += len(page)  # advance by actual count, not by fetch_batch
 
         # Batch-prefetch GW track data and populate the cache so get_track() hits it.
+        gw_batch = 50
         sng_ids = [int(entry["SNG_ID"]) for entry in all_entries]
-        for i in range(0, len(sng_ids), page_size):
-            chunk = sng_ids[i : i + page_size]
+        for i in range(0, len(sng_ids), gw_batch):
+            chunk = sng_ids[i : i + gw_batch]
             gw_tracks = await self._gw(self.client.gw.get_tracks, chunk)
             for gw_track in gw_tracks:
                 tid = str(gw_track.get("SNG_ID", ""))
