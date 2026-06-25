@@ -418,10 +418,14 @@ def test_deezer_get_playlist(mock_deezer_client):
 def test_deezer_get_playlist_favorites_routing(mock_deezer_client):
     """get_playlist routes 'favorites:<user_id>' to get_user_favorites."""
     mock_deezer_client.logged_in_user_id = 42
-    mock_deezer_client.client.gw.get_my_favorite_tracks.return_value = [
-        {"id": "1"},
-        {"id": "2"},
-        {"id": "3"},
+    # song.getFavoriteIds returns {data: [...]} with SNG_ID entries; single page (< page_size)
+    mock_deezer_client.client.gw.get_user_favorite_ids.return_value = {
+        "data": [{"SNG_ID": "1"}, {"SNG_ID": "2"}, {"SNG_ID": "3"}]
+    }
+    mock_deezer_client.client.gw.get_tracks.return_value = [
+        {"SNG_ID": "1"},
+        {"SNG_ID": "2"},
+        {"SNG_ID": "3"},
     ]
 
     result = arun(mock_deezer_client.get_playlist("favorites:42"))
@@ -429,25 +433,31 @@ def test_deezer_get_playlist_favorites_routing(mock_deezer_client):
     assert result["title"] == "Loved Tracks"
     assert result["track_total"] == 3
     assert result["tracks"] == [{"id": "1"}, {"id": "2"}, {"id": "3"}]
-    mock_deezer_client.client.gw.get_my_favorite_tracks.assert_called_once()
+    mock_deezer_client.client.gw.get_user_favorite_ids.assert_called_once()
     mock_deezer_client.client.gw.get_playlist.assert_not_called()
 
 
 # ===== get_user_favorites =====
 
 def test_deezer_get_user_favorites_own_profile(mock_deezer_client):
-    """Fetching own favorites calls get_my_favorite_tracks, never get_user_tracks."""
+    """Own favorites are fetched via paginated get_user_favorite_ids, not get_my_favorite_tracks.
+
+    The server silently caps song.getFavoriteIds responses; pagination via ``start``
+    is required. This test verifies that get_user_favorite_ids is called (not the
+    non-paginated get_my_favorite_tracks) and that results come from the paginated data.
+    """
     mock_deezer_client.logged_in_user_id = 42
-    # get_my_favorite_tracks returns map_user_track() results, which have "id" not "SNG_ID"
-    mock_deezer_client.client.gw.get_my_favorite_tracks.return_value = [{"id": "1"}]
+    mock_deezer_client.client.gw.get_user_favorite_ids.return_value = {
+        "data": [{"SNG_ID": "10"}]
+    }
+    mock_deezer_client.client.gw.get_tracks.return_value = [{"SNG_ID": "10"}]
 
     result = arun(mock_deezer_client.get_user_favorites("42"))
 
     assert result["track_total"] == 1
-    assert result["tracks"] == [{"id": "1"}]
-    mock_deezer_client.client.gw.get_my_favorite_tracks.assert_called_once_with(
-        DeezerClient.max_favorites
-    )
+    assert result["tracks"] == [{"id": "10"}]
+    mock_deezer_client.client.gw.get_user_favorite_ids.assert_called_once()
+    mock_deezer_client.client.gw.get_my_favorite_tracks.assert_not_called()
     mock_deezer_client.client.gw.get_user_tracks.assert_not_called()
 
 
@@ -468,6 +478,33 @@ def test_deezer_get_user_favorites_other_profile(mock_deezer_client):
         99, DeezerClient.max_favorites
     )
     mock_deezer_client.client.gw.get_my_favorite_tracks.assert_not_called()
+
+
+def test_deezer_get_user_favorites_pagination(mock_deezer_client):
+    """Own favorites are fetched across multiple pages when the first page is full.
+
+    Verifies that a second call is made with start=page_size when the first response
+    returns a full page, and that results from both pages are combined.
+    """
+    mock_deezer_client.logged_in_user_id = 42
+    page_size = 100  # matches the constant in get_user_favorites
+    full_page = [{"SNG_ID": str(i)} for i in range(page_size)]
+    partial_page = [{"SNG_ID": str(i)} for i in range(page_size, page_size + 5)]
+
+    mock_deezer_client.client.gw.get_user_favorite_ids.side_effect = [
+        {"data": full_page},
+        {"data": partial_page},
+    ]
+    # get_tracks returns one entry per chunk; simplified to just echo SNG_ID
+    mock_deezer_client.client.gw.get_tracks.return_value = []
+
+    result = arun(mock_deezer_client.get_user_favorites("42"))
+
+    assert result["track_total"] == page_size + 5
+    assert mock_deezer_client.client.gw.get_user_favorite_ids.call_count == 2
+    calls = mock_deezer_client.client.gw.get_user_favorite_ids.call_args_list
+    assert calls[0].kwargs["start"] == 0
+    assert calls[1].kwargs["start"] == page_size
 
 
 # ===== get_metadata =====
