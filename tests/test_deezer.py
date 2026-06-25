@@ -8,7 +8,7 @@ import tomllib
 from deezer.errors import DataException, GWAPIError
 from util import arun
 
-from streamrip.client.deezer import DeezerClient
+from streamrip.client.deezer import DeezerClient, _TaskCache
 from streamrip.config import Config
 from streamrip.exceptions import NonStreamableError
 
@@ -54,6 +54,23 @@ def mock_deezer_client():
     client.session = Mock()
 
     return client
+
+
+# ===== _TaskCache =====
+
+def test_task_cache_set_if_absent_stores_new():
+    """set_if_absent stores a value when the key is not yet cached."""
+    cache: _TaskCache[str, str] = _TaskCache()
+    cache.set_if_absent("k", "v1")
+    assert cache._results["k"] == "v1"
+
+
+def test_task_cache_set_if_absent_does_not_overwrite():
+    """set_if_absent does not overwrite a value that is already cached."""
+    cache: _TaskCache[str, str] = _TaskCache()
+    cache.set("k", "original")
+    cache.set_if_absent("k", "replacement")
+    assert cache._results["k"] == "original"
 
 
 # ===== get_downloadable — guard =====
@@ -485,6 +502,53 @@ def test_deezer_get_user_favorites_always_uses_own_account(mock_deezer_client):
     mock_deezer_client.client.gw.get_my_favorite_tracks.assert_not_called()
 
 
+def test_deezer_get_user_favorites_prefetch_populates_cache(mock_deezer_client):
+    """get_user_favorites pre-populates _gw_tracks so subsequent get_downloadable hits cache.
+
+    After get_user_favorites, each track's GW data should be stored in _gw_tracks
+    so that get_downloadable can skip the individual song.getData call entirely.
+    """
+    mock_deezer_client.logged_in_user_id = 42
+    mock_deezer_client.client.gw.get_user_favorite_ids.side_effect = [
+        {"data": [{"SNG_ID": "10"}, {"SNG_ID": "20"}]},
+        {"data": []},
+    ]
+    gw_data = [
+        {"SNG_ID": "10", "TRACK_TOKEN": "tok10", "FILESIZE_FLAC": 1000},
+        {"SNG_ID": "20", "TRACK_TOKEN": "tok20", "FILESIZE_FLAC": 2000},
+    ]
+    mock_deezer_client.client.gw.get_tracks.return_value = gw_data
+
+    arun(mock_deezer_client.get_user_favorites("42"))
+
+    assert "10" in mock_deezer_client._gw_tracks._results
+    assert "20" in mock_deezer_client._gw_tracks._results
+    assert mock_deezer_client._gw_tracks._results["10"]["TRACK_TOKEN"] == "tok10"
+
+
+def test_deezer_get_user_favorites_prefetch_chunking(mock_deezer_client):
+    """GW prefetch splits track IDs into chunks of 50 and issues one get_tracks call per chunk.
+
+    With 75 favorites the IDs must be split into a chunk of 50 and a chunk of 25,
+    triggering exactly 2 get_tracks calls in parallel.
+    """
+    mock_deezer_client.logged_in_user_id = 42
+    entries = [{"SNG_ID": str(i)} for i in range(75)]
+    mock_deezer_client.client.gw.get_user_favorite_ids.side_effect = [
+        {"data": entries},
+        {"data": []},
+    ]
+    mock_deezer_client.client.gw.get_tracks.return_value = []
+
+    arun(mock_deezer_client.get_user_favorites("42"))
+
+    assert mock_deezer_client.client.gw.get_tracks.call_count == 2
+    first_ids = mock_deezer_client.client.gw.get_tracks.call_args_list[0].args[0]
+    second_ids = mock_deezer_client.client.gw.get_tracks.call_args_list[1].args[0]
+    assert len(first_ids) == 50
+    assert len(second_ids) == 25
+
+
 def test_deezer_get_user_favorites_pagination(mock_deezer_client):
     """Own favorites are fetched across multiple pages.
 
@@ -803,6 +867,48 @@ def test_get_downloadable_encrypted_url_none(mock_deezer_client):
     with patch.object(mock_deezer_client, "_get_encrypted_file_url", return_value=None):
         with pytest.raises(NonStreamableError, match="Could not retrieve"):
             arun(mock_deezer_client.get_downloadable("123", quality=2))
+
+
+# ===== _get_encrypted_file_url =====
+
+def test_get_encrypted_file_url_url_structure(mock_deezer_client):
+    """_get_encrypted_file_url generates a CDN URL whose proxy prefix matches the hash's first char."""
+    url = mock_deezer_client._get_encrypted_file_url(
+        meta_id="12345",
+        track_hash="abc123def456abc123def456abc12345",
+        media_version="1",
+    )
+    # Proxy subdomain is derived from track_hash[0] = 'a'.
+    assert url.startswith("https://e-cdns-proxy-a.dzcdn.net/mobile/1/")
+    # Path is AES-ECB output encoded as hex — always a non-trivial string.
+    path = url.split("/mobile/1/")[1]
+    assert len(path) > 32
+    assert all(c in "0123456789abcdef" for c in path)
+
+
+def test_get_encrypted_file_url_format_id_from_quality_map(mock_deezer_client):
+    """_get_encrypted_file_url uses _QUALITY_MAP[2][0] as the format ID, not a hardcoded literal.
+
+    _QUALITY_MAP[2] is the FLAC entry; its GW format ID is 1. The encrypted CDN
+    always serves FLAC, so changing the map entry must change the format byte in
+    the URL-hash input.
+    """
+    # Patch _QUALITY_MAP to replace the FLAC GW format ID (index 2) with a sentinel.
+    original_map = mock_deezer_client._QUALITY_MAP
+    patched_map = [original_map[0], original_map[1], (99, original_map[2][1])]
+    with patch.object(DeezerClient, "_QUALITY_MAP", patched_map):
+        url_patched = mock_deezer_client._get_encrypted_file_url(
+            meta_id="12345",
+            track_hash="abc123def456abc123def456abc12345",
+            media_version="1",
+        )
+    url_original = mock_deezer_client._get_encrypted_file_url(
+        meta_id="12345",
+        track_hash="abc123def456abc123def456abc12345",
+        media_version="1",
+    )
+    # Different format IDs must produce different encrypted paths.
+    assert url_patched != url_original
 
 
 # ===== Integration test =====
