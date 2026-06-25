@@ -74,6 +74,8 @@ use_deezloader = true
 # This warns you when the paid deezer account is not logged in and rip falls
 # back to deezloader, which is unreliable
 deezloader_warnings = true
+# Set to false to skip lyrics fetching
+fetch_lyrics = true
 
 [soundcloud]
 # Only 0 is available for now

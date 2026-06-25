@@ -190,6 +190,7 @@ def test_sample_config_data_fields(sample_config_data):
             lower_quality_if_not_available=True,
             use_deezloader=True,
             deezloader_warnings=True,
+            fetch_lyrics=True,
         ),
         soundcloud=SoundcloudConfig(
             client_id="clientid",
