@@ -19,7 +19,7 @@ from ..media import (
 from ..media.media import DownloadStats
 from ..metadata import SearchResults
 from ..progress import clear_progress
-from .parse_url import _pending_from_type, parse_url
+from .parse_url import URL, _pending_from_type, parse_url
 from .prompter import get_prompter
 
 logger = logging.getLogger("streamrip")
@@ -76,12 +76,18 @@ class Main:
         """
         parsed = parse_url(url)
         if parsed is None:
-            raise Exception(f"Unable to parse url {url}")
+            logger.warning("Unrecognised URL, skipping: %s", url)
+            console.print(f"[red]Unrecognised URL, skipping: [cyan]{url}[/cyan][/red]")
+            return
 
         client = await self.get_logged_in_client(parsed.source)
-        self.pending.append(
-            await parsed.into_pending(client, self.config, self.database),
-        )
+        try:
+            pending = await parsed.into_pending(client, self.config, self.database)
+        except Exception as e:
+            logger.warning("Skipping %s: %s", url, e)
+            console.print(f"[red]Error processing [cyan]{url}[/cyan]: {e}[/red]")
+            return
+        self.pending.append(pending)
         logger.debug("Added url=%s", url)
 
     async def add_by_id(self, source: str, media_type: str, id: str):
@@ -101,24 +107,34 @@ class Main:
 
     async def add_all(self, urls: list[str]):
         """Add multiple urls concurrently as pending items."""
-        parsed = []
-        for i, url in enumerate(urls):
+        url_pairs: list[tuple[str, URL]] = []
+        for url in urls:
             p = parse_url(url)
             if p is None:
-                console.print(f"[red]Found invalid url [cyan]{url}[/cyan], skipping.")
+                logger.warning("Unrecognised URL, skipping: %s", url)
+                console.print(f"[red]Unrecognised URL, skipping: [cyan]{url}[/cyan][/red]")
             else:
-                parsed.append(p)
+                url_pairs.append((url, p))
 
-        unique_sources = {p.source for p in parsed}
+        if not url_pairs:
+            return
+
+        unique_sources = {p.source for _, p in url_pairs}
         logged_in = await asyncio.gather(
             *[self.get_logged_in_client(s) for s in unique_sources]
         )
         clients = dict(zip(unique_sources, logged_in))
 
-        pendings = await asyncio.gather(
-            *[p.into_pending(clients[p.source], self.config, self.database) for p in parsed]
+        results = await asyncio.gather(
+            *[p.into_pending(clients[p.source], self.config, self.database) for _, p in url_pairs],
+            return_exceptions=True,
         )
-        self.pending.extend(pendings)
+        for (url, _), result in zip(url_pairs, results):
+            if isinstance(result, Exception):
+                logger.warning("Skipping %s: %s", url, result)
+                console.print(f"[red]Error processing [cyan]{url}[/cyan]: {result}[/red]")
+            else:
+                self.pending.append(result)
 
     async def get_logged_in_client(self, source: str):
         """Return a functioning client instance for `source`."""
@@ -148,10 +164,15 @@ class Main:
     async def resolve(self):
         """Resolve all currently pending items."""
         with console.status("Resolving URLs...", spinner="dots"):
-            coros = [p.resolve() for p in self.pending]
-            new_media: list[Media] = [
-                m for m in await asyncio.gather(*coros) if m is not None
-            ]
+            results = await asyncio.gather(
+                *[p.resolve() for p in self.pending], return_exceptions=True
+            )
+            new_media: list[Media] = []
+            for p, result in zip(self.pending, results):
+                if isinstance(result, Exception):
+                    logger.error("Failed to resolve %s: %s", p, result)
+                elif result is not None:
+                    new_media.append(result)
 
         self.media.extend(new_media)
         self.pending.clear()
