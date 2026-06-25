@@ -74,6 +74,11 @@ class _TaskCache(Generic[K, V]):
         """Store a value directly, bypassing the task machinery."""
         self._results[key] = value
 
+    def set_if_absent(self, key: K, value: V) -> None:
+        """Store value only if key is not already cached; never overwrites."""
+        if key not in self._results:
+            self._results[key] = value
+
 
 class DeezerClient(Client):
     """Deezer API client.
@@ -119,7 +124,6 @@ class DeezerClient(Client):
         self.global_config = config
         self.client = deezer.Deezer()
         self.logged_in = False
-        self._login_lock = asyncio.Lock()
         self.config = config.session.deezer
         self.logged_in_user_id: int | None = None
 
@@ -414,9 +418,8 @@ class DeezerClient(Client):
         try:
             gw_tracks = await self._gw(self.client.gw.get_album_tracks, item_id)
             for gw_track in gw_tracks:
-                tid = str(gw_track.get("SNG_ID", ""))
-                if tid and tid not in self._gw_tracks._results:
-                    self._gw_tracks.set(tid, gw_track)
+                if tid := str(gw_track.get("SNG_ID", "")):
+                    self._gw_tracks.set_if_absent(tid, gw_track)
         except Exception as e:
             logger.debug("GW album track prefetch failed for album %s: %s", item_id, e)
 
@@ -509,30 +512,31 @@ class DeezerClient(Client):
             Playlist-shaped dict with "title", "tracks", and "track_total".
         """
         # song.getFavoriteIds ignores nb= and caps at its own server page size (~25).
-        # Advance start by the actual count returned, not by a requested page_size.
-        fetch_batch = 100
+        # Advance start by the actual count returned to handle any server page size.
+        page_size = 100
         all_entries: list[dict] = []
         start = 0
         while len(all_entries) < self.max_favorites:
-            batch = await self._gw(
-                self.client.gw.get_user_favorite_ids, limit=fetch_batch, start=start
+            response = await self._gw(
+                self.client.gw.get_user_favorite_ids, limit=page_size, start=start
             )
-            page: list[dict] = batch.get("data", [])
-            if not page:
+            entries: list[dict] = response.get("data", [])
+            if not entries:
                 break
-            all_entries.extend(page)
-            start += len(page)  # advance by actual count, not by fetch_batch
+            all_entries.extend(entries)
+            start += len(entries)
 
-        # Batch-prefetch GW track data and populate the cache so get_track() hits it.
-        gw_batch = 50
+        # Batch-prefetch GW track data in parallel and populate the cache.
+        chunk_size = 50
         sng_ids = [int(entry["SNG_ID"]) for entry in all_entries]
-        for i in range(0, len(sng_ids), gw_batch):
-            chunk = sng_ids[i : i + gw_batch]
-            gw_tracks = await self._gw(self.client.gw.get_tracks, chunk)
+        chunks = [sng_ids[i : i + chunk_size] for i in range(0, len(sng_ids), chunk_size)]
+        results = await asyncio.gather(
+            *[self._gw(self.client.gw.get_tracks, chunk) for chunk in chunks]
+        )
+        for gw_tracks in results:
             for gw_track in gw_tracks:
-                tid = str(gw_track.get("SNG_ID", ""))
-                if tid and tid not in self._gw_tracks._results:
-                    self._gw_tracks.set(tid, gw_track)
+                if tid := str(gw_track.get("SNG_ID", "")):
+                    self._gw_tracks.set_if_absent(tid, gw_track)
 
         return {
             "title": "Loved Tracks",
@@ -683,7 +687,7 @@ class DeezerClient(Client):
             _, fmt = self._QUALITY_MAP[q]
             try:
                 logger.debug("Attempting quality %d (%s)", q, fmt)
-                url = await asyncio.to_thread(self.client.get_track_url, token, fmt)
+                url = await self._gw(self.client.get_track_url, token, fmt)
                 if url:
                     return url, q
             except deezer.WrongLicense:
@@ -730,13 +734,14 @@ class DeezerClient(Client):
             Signed CDN URL pointing to the AES-encrypted audio file.
         """
         logger.debug("Falling back to encrypted file URL for track %s", meta_id)
-        format_number = 1
+        # CDN fallback always encodes FLAC; use the GW format ID from _QUALITY_MAP.
+        gw_format_id = self._QUALITY_MAP[2][0]  # 1 = FLAC
 
         url_bytes = b"\xa4".join((
             track_hash.encode(),
-            str(format_number).encode(),
-            str(meta_id).encode(),
-            str(media_version).encode(),
+            str(gw_format_id).encode(),
+            meta_id.encode(),
+            media_version.encode(),
         ))
         url_hash = hashlib.md5(url_bytes).hexdigest()
         info_bytes = bytearray(url_hash.encode())
