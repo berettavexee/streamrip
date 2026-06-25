@@ -49,6 +49,7 @@ TRACK_ID = "77874822"       # Pink Floyd — Comfortably Numb
 ALBUM_ID = "302127"         # Pink Floyd — The Wall
 ARTIST_ID = "130204"        # Pink Floyd
 PLAYLIST_ID = "1116189381"  # Deezer Top France (public chart)
+FAVORITES_USER_ID = "1231003"  # authenticated account used for cassette recording
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -135,7 +136,7 @@ def deezer_vcr_client(request):
             name="arl",
             value=arl,
             path="/",
-            secure=True,
+            secure=False,  # GW calls go to http://, not https://
         )
         client.client.session.cookies.set_cookie(cookie)
 
@@ -322,3 +323,35 @@ def test_vcr_get_metadata_album(deezer_vcr_client):
 
     assert "title" in result
     assert "tracks" in result
+
+
+@pytest.mark.vcr
+def test_vcr_get_user_favorites(deezer_vcr_client, mocker):
+    """get_user_favorites fetches all loved tracks via paginated song.getFavoriteIds.
+
+    song.getFavoriteIds silently caps responses at ~25 entries per call; the
+    implementation paginates via start= until the server returns an empty page.
+    This cassette captures the real multi-page exchange so regressions in the
+    pagination loop are caught without a live Deezer session.
+
+    get_tracks (the batch prefetch) is mocked: concurrent asyncio.to_thread calls
+    share the same deezer-py GW client, which lazily inits its CSRF token with
+    getUserData.  Multiple threads can race on that init and trigger extra getUserData
+    calls whose ordering is non-deterministic — making the cassette unreproducible.
+    Mocking get_tracks removes that non-determinism; the prefetch is tested separately
+    in unit tests.
+
+    The user_id argument is accepted for routing compatibility but is not
+    forwarded to the GW call — the cassette is therefore stable regardless of
+    which account is used to re-record it.
+    """
+    mocker.patch.object(deezer_vcr_client.client.gw, "get_tracks", return_value=[])
+    result = arun(deezer_vcr_client.get_user_favorites(FAVORITES_USER_ID))
+
+    assert result["title"] == "Loved Tracks"
+    assert "tracks" in result
+    assert "track_total" in result
+    assert isinstance(result["tracks"], list)
+    assert result["track_total"] == len(result["tracks"])
+    assert result["track_total"] > 0
+    assert all("id" in t for t in result["tracks"])
