@@ -462,14 +462,17 @@ class DeezerClient(Client):
         """Fetch metadata for a playlist.
 
         Args:
-            item_id: The playlist ID, or "favorites:{user_id}" to fetch
-                     a user's loved tracks as a playlist.
+            item_id: The playlist ID, or "favorites:{user_id}" to fetch a user's
+                loved tracks as a playlist, or "artist_top:{artist_id}" to fetch an
+                artist's top tracks as a playlist.
 
         Returns:
             Dict with "title", "tracks" (list of {"id": ...}), and "track_total".
         """
         if item_id.startswith("favorites:"):
             return await self.get_user_favorites(item_id[len("favorites:"):])
+        if item_id.startswith("artist_top:"):
+            return await self.get_artist_top_tracks(item_id[len("artist_top:"):])
 
         try:
             pl_metadata, pl_tracks = await asyncio.gather(
@@ -545,6 +548,26 @@ class DeezerClient(Client):
             "title": "Loved Tracks",
             "tracks": [{"id": str(entry["SNG_ID"])} for entry in all_entries],
             "track_total": len(all_entries),
+        }
+
+    async def get_artist_top_tracks(self, artist_id: str) -> dict:
+        """Fetch the top tracks for a Deezer artist as a playlist-shaped dict.
+
+        Args:
+            artist_id: The Deezer artist ID.
+
+        Returns:
+            Playlist-shaped dict with "title", "tracks" (list of {"id": ...}),
+            and "track_total".
+        """
+        artist, gw_tracks = await asyncio.gather(
+            self._rest(self.client.api.get_artist, artist_id),
+            self._gw(self.client.gw.get_artist_top_tracks, artist_id),
+        )
+        return {
+            "title": f"{artist['name']} — Top Tracks",
+            "tracks": [{"id": str(t["SNG_ID"])} for t in gw_tracks],
+            "track_total": len(gw_tracks),
         }
 
     async def get_artist(self, item_id: str) -> dict:
