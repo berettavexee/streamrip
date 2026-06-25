@@ -76,6 +76,8 @@ class DeezerConfig:
     # This warns you when the paid deezer account is not logged in and rip falls
     # back to deezloader, which is unreliable
     deezloader_warnings: bool
+    # Set to false to skip lyrics fetching
+    fetch_lyrics: bool
 
 
 @dataclass(slots=True)

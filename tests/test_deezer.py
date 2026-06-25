@@ -56,6 +56,25 @@ def mock_deezer_client():
     return client
 
 
+# ===== _fetch_lyrics =====
+
+def test_fetch_lyrics_disabled_skips_gw_call(mock_deezer_client):
+    """_fetch_lyrics returns None immediately when fetch_lyrics=False, without calling GW."""
+    mock_deezer_client.config.fetch_lyrics = False
+    result = arun(mock_deezer_client._fetch_lyrics("123"))
+    assert result is None
+    mock_deezer_client.client.gw.get_track_lyrics.assert_not_called()
+
+
+def test_fetch_lyrics_enabled_calls_gw(mock_deezer_client):
+    """_fetch_lyrics calls song.getLyrics and returns LYRICS_TEXT when fetch_lyrics=True."""
+    mock_deezer_client.config.fetch_lyrics = True
+    mock_deezer_client.client.gw.get_track_lyrics.return_value = {"LYRICS_TEXT": "La la la"}
+    result = arun(mock_deezer_client._fetch_lyrics("123"))
+    assert result == "La la la"
+    mock_deezer_client.client.gw.get_track_lyrics.assert_called_once()
+
+
 # ===== _TaskCache =====
 
 def test_task_cache_set_if_absent_stores_new():

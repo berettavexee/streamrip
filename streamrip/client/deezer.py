@@ -272,6 +272,8 @@ class DeezerClient(Client):
         Returns:
             Plain-text lyrics string, or None if unavailable or the request fails.
         """
+        if not self.config.fetch_lyrics:
+            return None
         try:
             data = await self._gw(self.client.gw.get_track_lyrics, item_id)
             return data.get("LYRICS_TEXT") or None
