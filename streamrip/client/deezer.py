@@ -486,33 +486,28 @@ class DeezerClient(Client):
     async def get_user_favorites(self, user_id: str) -> dict:
         """Fetch the loved tracks for a Deezer user profile.
 
-        For the logged-in user, ``song.getFavoriteIds`` is called with pagination
-        because the server silently caps responses at ~25 entries per call regardless
-        of the ``nb`` parameter.  Track GW data is then batch-prefetched into
-        ``_gw_tracks`` so downstream ``get_track`` calls hit the cache instead of
-        issuing individual ``song.getData`` requests.
+        ``song.getFavoriteIds`` is called with pagination because the server silently
+        caps responses at ~25 entries per call regardless of the ``nb`` parameter.
+        Track GW data is then batch-prefetched into ``_gw_tracks`` so downstream
+        ``get_track`` calls hit the cache instead of issuing individual
+        ``song.getData`` requests.
 
-        For other users, ``deezer.pageProfile`` is used directly; pagination is not
-        implemented for that path.
+        ``song.getFavoriteIds`` carries no user_id parameter — it always returns the
+        authenticated user's favorites.  Comparing ``uid`` against
+        ``self.logged_in_user_id`` to detect "other user" is unreliable for family
+        accounts: ``change_account()`` shifts ``current_user`` to a child profile
+        whose id differs from the main account's USER_ID that authenticates the ARL.
+        The ``user_id`` argument is accepted for API compatibility but is not used to
+        route the GW call.
 
         Args:
-            user_id: The Deezer user ID (numeric string).
+            user_id: The Deezer user ID (numeric string). Accepted but not used to
+                route the underlying GW call; favorites are always fetched for the
+                authenticated account.
 
         Returns:
             Playlist-shaped dict with "title", "tracks", and "track_total".
         """
-        uid = int(user_id)
-
-        if uid != self.logged_in_user_id:
-            tracks = await self._gw(
-                self.client.gw.get_user_tracks, uid, self.max_favorites
-            )
-            return {
-                "title": "Loved Tracks",
-                "tracks": [{"id": str(t["id"])} for t in tracks],
-                "track_total": len(tracks),
-            }
-
         # song.getFavoriteIds ignores nb= and caps at its own server page size (~25).
         # Advance start by the actual count returned, not by a requested page_size.
         fetch_batch = 100
