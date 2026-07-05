@@ -18,6 +18,7 @@ from ..exceptions import (
     NonStreamableError,
 )
 from .client import Client
+from .deezer_pipe import DeezerPipeClient
 from .downloadable import DeezerDownloadable
 
 logger = logging.getLogger("streamrip")
@@ -130,6 +131,7 @@ class DeezerClient(Client):
 
         self._albums: _TaskCache[str, dict] = _TaskCache()
         self._gw_tracks: _TaskCache[str, dict] = _TaskCache()
+        self._pipe: DeezerPipeClient | None = None
 
         # REST API (api.deezer.com) throttles beyond ~10 req/sec.
         self._rest_limiter = aiolimiter.AsyncLimiter(10, 1)
@@ -236,6 +238,34 @@ class DeezerClient(Client):
         self.logged_in_user_id = self.client.current_user["id"]
         self.logged_in = True
         logger.debug("Deezer login successful (user ID: %s)", self.logged_in_user_id)
+
+        # Initialise the Pipe GraphQL client.  The first JWT is fetched lazily
+        # on the first pipe_query() call, so login() itself stays fast.
+        self._pipe = DeezerPipeClient(arl, self.session)
+
+    async def pipe_query(
+        self,
+        query: str,
+        variables: dict | None = None,
+    ) -> dict:
+        """Execute a GraphQL query against the Deezer Pipe API.
+
+        The underlying JWT is acquired and renewed transparently by the
+        :class:`~streamrip.client.deezer_pipe.DeezerPipeClient`.
+
+        Args:
+            query: GraphQL query or mutation string.
+            variables: Optional variables dict.
+
+        Returns:
+            Parsed JSON response from pipe.deezer.com.
+
+        Raises:
+            RuntimeError: If :meth:`login` has not been called yet.
+        """
+        if self._pipe is None:
+            raise RuntimeError("pipe_query called before login()")
+        return await self._pipe.query(query, variables)
 
     async def get_metadata(self, item_id: str, media_type: str) -> dict:
         """Fetch metadata for a given item, dispatching by media type.
