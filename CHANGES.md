@@ -84,6 +84,7 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - AAC: uses `libfdk_aac` when available, falls back to the native FFmpeg `aac` encoder ([#990](https://github.com/nathom/streamrip/pull/990))
 - `OPUS` exposed as a `-c`/`--codec` option in the CLI ([#989](https://github.com/nathom/streamrip/pull/989))
 - FFmpeg `stdin` redirected to `/dev/null` to prevent terminal echo/raw-mode corruption after a rip ([#996](https://github.com/nathom/streamrip/pull/996))
+- Removed the unused `get_quality_arg`/`_bitrate_map` codec methods (never called — conversion quality is driven by each codec's `default_ffmpeg_arg`)
 
 ## Last.fm
 
@@ -119,3 +120,9 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - Fix `LabelSummary.summarize()` / `preview()` infinite recursion: both returned `str(self)` which called `Summary.__str__` which called `summarize()` in a loop
 - Fix `AlbumSummary` bug where `item.get("artist", {}).get("name")` raised `AttributeError` when the `artist` field was a plain string rather than a dict
 - Dynamic coverage badge wired to CI via GitHub Actions + Gist + shields.io
+
+## Maintenance
+
+- Removed vestigial YouTube support: no YouTube client ever existed, so the `[youtube]` config section, `YoutubeConfig`, `YOUTUBE_URL_REGEX`, and the associated default paths were dropped. Existing `config.toml` files keep working (the now-unread `[youtube]` section is ignored); the config version is intentionally left unchanged so no forced migration is triggered.
+- Removed dead code surfaced by `vulture`: the orphaned `LASTFM_URL_REGEX` (Last.fm URL routing goes through another path) and the unused converter codec methods noted above.
+- Added a curated `vulture` whitelist (`.vulture_whitelist.py` + `[tool.vulture]` in `pyproject.toml`) so dead-code analysis runs clean and genuinely new dead code stands out. Tidal/Qobuz methods that are unused in this Deezer-focused fork are whitelisted rather than deleted, to preserve parity with upstream and avoid merge conflicts.
