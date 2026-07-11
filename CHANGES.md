@@ -104,6 +104,7 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - Fix logging bug in fallback search: the fallback source name was logged as the primary source name
 - "No result" log message now names both the primary and fallback source when both fail
 - Fix typo "occured" → "occurred" in error log
+- Refactored the three API-backed parsers (`user.getTopTracks`, `user.getLovedTracks`, `artist.getTopTracks`) onto a single `_fetch_lastfm_paginated` helper. They previously duplicated the same connector setup, `@attr.totalPages` pagination loop, and `max_tracks` guard; the shared loop now lives in one place, leaving each parser to handle only its URL parsing, title, and method-specific parameters. Behaviour is unchanged (the loved-tracks parser opts out of duration extraction via `extract_duration=False`).
 
 ## CLI / misc
 

@@ -526,6 +526,76 @@ class PendingLastfmPlaylist(Pending):
             )
         return data
 
+    async def _fetch_lastfm_paginated(
+        self,
+        *,
+        method: str,
+        root_key: str,
+        params: dict,
+        page_size: int,
+        extract_duration: bool = True,
+    ) -> list[tuple[str, str, int | None]]:
+        """Run a paginated Last.fm API query and collect track title/artist/duration.
+
+        Shared pagination loop for the user-top-tracks, loved-tracks, and
+        artist-top-tracks parsers: it opens a dedicated session, walks pages
+        until ``totalPages`` is reached, and stops early once the configured
+        ``max_tracks`` limit is hit.
+
+        Args:
+            method: Last.fm API method name (e.g. ``"user.getTopTracks"``).
+            root_key: Top-level key wrapping the results in the JSON response
+                (``"toptracks"`` or ``"lovedtracks"``).
+            params: Method-specific query parameters (e.g. ``user``/``artist``,
+                ``api_key``, ``period``). The ``method``, ``format``, ``limit``,
+                and ``page`` parameters are added automatically; ``api_key`` must
+                already be validated by the caller.
+            page_size: Number of entries to request per page.
+            extract_duration: When True, read each track's ``duration`` field
+                (seconds); when False, every duration is ``None`` (the loved
+                tracks endpoint does not expose durations).
+
+        Returns:
+            A list of ``(track_title, artist_name, duration_s)`` tuples, where
+            ``duration_s`` is ``None`` when unavailable.
+
+        Raises:
+            Exception: If the Last.fm API returns an error (via
+                :meth:`_fetch_lastfm_api`).
+        """
+        max_tracks = self.config.session.lastfm.max_tracks
+        verify_ssl = getattr(self.config.session.downloads, "verify_ssl", True)
+        connector = aiohttp.TCPConnector(**get_aiohttp_connector_kwargs(verify_ssl=verify_ssl))
+        tracks: list[tuple[str, str, int | None]] = []
+        page = 1
+
+        async with aiohttp.ClientSession(connector=connector) as session:
+            while True:
+                data = await self._fetch_lastfm_api(session, {
+                    "method": method,
+                    "format": "json",
+                    "limit": page_size,
+                    "page": page,
+                    **params,
+                })
+                root = data[root_key]
+                total_pages = int(root["@attr"]["totalPages"])
+                for track in root.get("track", []):
+                    dur: int | None = None
+                    if extract_duration:
+                        try:
+                            dur = int(track.get("duration") or 0) or None
+                        except (TypeError, ValueError):
+                            dur = None
+                    tracks.append((track["name"], track["artist"]["name"], dur))
+                    if max_tracks > 0 and len(tracks) >= max_tracks:
+                        break
+                if page >= total_pages or (max_tracks > 0 and len(tracks) >= max_tracks):
+                    break
+                page += 1
+
+        return tracks
+
     async def _parse_lastfm_user_top_tracks(
         self, url: str
     ) -> tuple[str, list[tuple[str, str, int | None]]]:
@@ -562,35 +632,12 @@ class PendingLastfmPlaylist(Pending):
             username, label, limit_str,
         )
 
-        verify_ssl = getattr(self.config.session.downloads, "verify_ssl", True)
-        connector = aiohttp.TCPConnector(**get_aiohttp_connector_kwargs(verify_ssl=verify_ssl))
-        tracks: list[tuple[str, str, int | None]] = []
-        page = 1
-
-        async with aiohttp.ClientSession(connector=connector) as session:
-            while True:
-                data = await self._fetch_lastfm_api(session, {
-                    "method": "user.getTopTracks",
-                    "user": username,
-                    "api_key": api_key,
-                    "format": "json",
-                    "limit": page_size,
-                    "page": page,
-                    "period": period,
-                })
-                top = data["toptracks"]
-                total_pages = int(top["@attr"]["totalPages"])
-                for track in top.get("track", []):
-                    try:
-                        dur: int | None = int(track.get("duration") or 0) or None
-                    except (TypeError, ValueError):
-                        dur = None
-                    tracks.append((track["name"], track["artist"]["name"], dur))
-                    if max_tracks > 0 and len(tracks) >= max_tracks:
-                        break
-                if page >= total_pages or (max_tracks > 0 and len(tracks) >= max_tracks):
-                    break
-                page += 1
+        tracks = await self._fetch_lastfm_paginated(
+            method="user.getTopTracks",
+            root_key="toptracks",
+            params={"user": username, "api_key": api_key, "period": period},
+            page_size=page_size,
+        )
 
         logger.debug(
             "Fetched %d tracks for user '%s' (%s) from Last.fm API",
@@ -633,30 +680,13 @@ class PendingLastfmPlaylist(Pending):
             username, limit_str,
         )
 
-        verify_ssl = getattr(self.config.session.downloads, "verify_ssl", True)
-        connector = aiohttp.TCPConnector(**get_aiohttp_connector_kwargs(verify_ssl=verify_ssl))
-        tracks: list[tuple[str, str, int | None]] = []
-        page = 1
-
-        async with aiohttp.ClientSession(connector=connector) as session:
-            while True:
-                data = await self._fetch_lastfm_api(session, {
-                    "method": "user.getLovedTracks",
-                    "user": username,
-                    "api_key": api_key,
-                    "format": "json",
-                    "limit": page_size,
-                    "page": page,
-                })
-                loved = data["lovedtracks"]
-                total_pages = int(loved["@attr"]["totalPages"])
-                for track in loved.get("track", []):
-                    tracks.append((track["name"], track["artist"]["name"], None))
-                    if max_tracks > 0 and len(tracks) >= max_tracks:
-                        break
-                if page >= total_pages or (max_tracks > 0 and len(tracks) >= max_tracks):
-                    break
-                page += 1
+        tracks = await self._fetch_lastfm_paginated(
+            method="user.getLovedTracks",
+            root_key="lovedtracks",
+            params={"user": username, "api_key": api_key},
+            page_size=page_size,
+            extract_duration=False,
+        )
 
         logger.debug(
             "Fetched %d loved tracks for user '%s' from Last.fm API",
@@ -705,34 +735,12 @@ class PendingLastfmPlaylist(Pending):
         max_tracks = self.config.session.lastfm.max_tracks
         page_size = min(max_tracks, 50) if max_tracks > 0 else 50
 
-        verify_ssl = getattr(self.config.session.downloads, "verify_ssl", True)
-        connector = aiohttp.TCPConnector(**get_aiohttp_connector_kwargs(verify_ssl=verify_ssl))
-        tracks: list[tuple[str, str, int | None]] = []
-        page = 1
-
-        async with aiohttp.ClientSession(connector=connector) as session:
-            while True:
-                data = await self._fetch_lastfm_api(session, {
-                    "method": "artist.getTopTracks",
-                    "artist": artist_name,
-                    "api_key": api_key,
-                    "format": "json",
-                    "limit": page_size,
-                    "page": page,
-                })
-                top = data["toptracks"]
-                total_pages = int(top["@attr"]["totalPages"])
-                for track in top.get("track", []):
-                    try:
-                        dur: int | None = int(track.get("duration") or 0) or None
-                    except (TypeError, ValueError):
-                        dur = None
-                    tracks.append((track["name"], track["artist"]["name"], dur))
-                    if max_tracks > 0 and len(tracks) >= max_tracks:
-                        break
-                if page >= total_pages or (max_tracks > 0 and len(tracks) >= max_tracks):
-                    break
-                page += 1
+        tracks = await self._fetch_lastfm_paginated(
+            method="artist.getTopTracks",
+            root_key="toptracks",
+            params={"artist": artist_name, "api_key": api_key},
+            page_size=page_size,
+        )
 
         logger.debug(
             "Fetched %d tracks for artist '%s' from Last.fm API",
