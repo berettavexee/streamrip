@@ -244,7 +244,7 @@ def remove_title(title: str) -> None:
     _p.remove_title(title)
 
 
-def set_overall(total: int, description: str = "Overall") -> None:
+def set_overall(total: int, description: str = "Overall ") -> None:
     """Initialize (or reset) the global overall-progress bar.
 
     Args:
