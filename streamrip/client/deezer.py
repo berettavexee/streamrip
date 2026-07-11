@@ -3,6 +3,7 @@ import binascii
 import hashlib
 import logging
 import re
+from collections.abc import ItemsView
 from typing import Any, Callable, ClassVar, Coroutine, Generic, TypeVar
 
 import aiolimiter
@@ -120,6 +121,36 @@ class _TaskCache(Generic[K, V]):
         if key not in self._results:
             self._results[key] = value
 
+    def get(self, key: K, default: V | None = None) -> V | None:
+        """Return the resolved value for key, or default if not yet cached.
+
+        Only resolved results are consulted; an in-flight (unresolved) task
+        counts as a miss.
+
+        Args:
+            key: Cache key.
+            default: Value to return when key has no resolved result.
+
+        Returns:
+            The cached value, or default on a miss.
+        """
+        return self._results.get(key, default)
+
+    def __contains__(self, key: object) -> bool:
+        """Return True if a resolved value is cached for key.
+
+        In-flight tasks that have not resolved yet are not considered present.
+        """
+        return key in self._results
+
+    def items(self) -> ItemsView[K, V]:
+        """Return a live view of the (key, value) pairs of all resolved entries."""
+        return self._results.items()
+
+    def has_pending(self, key: K) -> bool:
+        """Return True if an in-flight task exists for key but has not resolved yet."""
+        return key in self._tasks
+
 
 class DeezerClient(Client):
     """Deezer API client.
@@ -192,16 +223,6 @@ class DeezerClient(Client):
         self.client.session = _session
         self.client.api.session = _session
         self.client.gw.session = _session
-
-    # ── backward-compatible aliases (used by tests) ──────────────────────────
-
-    @property
-    def _album_cache(self) -> dict[str, dict]:
-        return self._albums._results
-
-    @property
-    def _album_tasks(self) -> dict[str, asyncio.Task]:
-        return self._albums._tasks
 
     # ── low-level API helpers ─────────────────────────────────────────────────
 
@@ -454,7 +475,7 @@ class DeezerClient(Client):
         # Fast path: GW data already in cache (prefetched from the album batch call)
         # and complete enough to build the full track dict without a REST round-trip.
         # "ISRC" key presence (even if empty string) indicates a full GW record.
-        cached_gw = self._gw_tracks._results.get(item_id)
+        cached_gw = self._gw_tracks.get(item_id)
         if cached_gw is not None and "ISRC" in cached_gw:
             lyrics = await self._fetch_lyrics(item_id)
             item = self._gw_to_track_dict(cached_gw, lyrics)
@@ -968,7 +989,7 @@ class DeezerClient(Client):
         """
         tokens_by_id = {
             item_id: gw["TRACK_TOKEN"]
-            for item_id, gw in self._gw_tracks._results.items()
+            for item_id, gw in self._gw_tracks.items()
             if "TRACK_TOKEN" in gw
         }
         if not tokens_by_id:
