@@ -219,8 +219,8 @@ class AlbumMetadata:
 
         # not embedded
         quality = 2
-        bit_depth = 16
-        sampling_rate = 44100
+        bit_depth = resp.get("bit_depth", 16)
+        sampling_rate = resp.get("sampling_rate", 44100)
         container = "FLAC"
 
         cover_urls = Covers.from_deezer(resp)

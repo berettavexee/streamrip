@@ -16,7 +16,7 @@ interactions:
       - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
         Safari/537.36
     method: POST
-    uri: http://www.deezer.com/ajax/gw-light.php?api_version=1.0&api_token=null&input=3&method=deezer.getUserData
+    uri: https://www.deezer.com/ajax/gw-light.php?api_version=1.0&api_token=null&input=3&method=deezer.getUserData
   response:
     body:
       string: '{"error":[],"results":{"USER":{"USER_ID":0,"USER_PICTURE":"","INSCRIPTION_DATE":"","TRY_AND_BUY":{"AVAILABLE":true,"ACTIVE":"0","DATE_START":"0000-00-00
@@ -88,7 +88,7 @@ interactions:
       - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130
         Safari/537.36
     method: POST
-    uri: http://www.deezer.com/ajax/gw-light.php?api_version=1.0&api_token=dN6HGMNv-D0g49HbvJ_8suHkArpa7JYE&input=3&method=deezer.pagePlaylist
+    uri: https://www.deezer.com/ajax/gw-light.php?api_version=1.0&api_token=dN6HGMNv-D0g49HbvJ_8suHkArpa7JYE&input=3&method=deezer.pagePlaylist
   response:
     body:
       string: '{"error":[],"results":{"DATA":{"PLAYLIST_ID":"1116189381","TITLE":"Top
