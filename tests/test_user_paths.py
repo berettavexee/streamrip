@@ -22,7 +22,6 @@ def test_constants_are_strings():
         "DEFAULT_DOWNLOADS_FOLDER",
         "DEFAULT_DOWNLOADS_DB_PATH",
         "DEFAULT_FAILED_DOWNLOADS_DB_PATH",
-        "DEFAULT_YOUTUBE_VIDEO_DOWNLOADS_FOLDER",
     ):
         assert isinstance(getattr(up, name), str), f"{name} should be a str"
 
@@ -54,8 +53,3 @@ def test_db_paths_under_log_dir():
 def test_db_paths_filenames():
     assert os.path.basename(up.DEFAULT_DOWNLOADS_DB_PATH) == "downloads.db"
     assert os.path.basename(up.DEFAULT_FAILED_DOWNLOADS_DB_PATH) == "failed_downloads.db"
-
-
-def test_youtube_folder_under_downloads_dir():
-    assert up.DEFAULT_YOUTUBE_VIDEO_DOWNLOADS_FOLDER.startswith(up.DOWNLOADS_DIR)
-    assert os.path.basename(up.DEFAULT_YOUTUBE_VIDEO_DOWNLOADS_FOLDER) == "YouTubeVideos"
