@@ -1,4 +1,4 @@
-![streamrip logo](https://github.com/berettavexee/streamrip/blob/JWT/demo/logo.svg?raw=true)
+![streamrip logo](https://github.com/berettavexee/streamrip/blob/dev/demo/logo.svg?raw=true)
 
 [![Downloads](https://pepy.tech/badge/streamrip)](https://pepy.tech/project/streamrip)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
@@ -16,7 +16,7 @@ See [CHANGES.md](CHANGES.md) for the full list of fixes and improvements on top 
 
 A scriptable stream downloader for Qobuz, Tidal, Deezer and SoundCloud.
 
-![downloading an album](https://github.com/berettavexee/streamrip/blob/JWT/demo/download_album.png?raw=true)
+![downloading an album](https://github.com/berettavexee/streamrip/blob/dev/demo/download_album.png?raw=true)
 
 ## Features
 
@@ -95,7 +95,7 @@ Search for playlists matching `rap` on Tidal
 rip search tidal playlist 'rap'
 ```
 
-![streamrip interactive search](https://github.com/berettavexee/streamrip/blob/JWT/demo/playlist_search.png?raw=true)
+![streamrip interactive search](https://github.com/berettavexee/streamrip/blob/dev/demo/playlist_search.png?raw=true)
 
 Search for *Rumours* on Tidal, and download it
 
@@ -127,7 +127,7 @@ If you're confused about anything, see the help pages. The main help pages can b
 rip url --help
 ```
 
-![example_help_page.png](https://github.com/berettavexee/streamrip/blob/JWT/demo/example_help_page.png?raw=true)
+![example_help_page.png](https://github.com/berettavexee/streamrip/blob/dev/demo/example_help_page.png?raw=true)
 
 ## Other information
 
