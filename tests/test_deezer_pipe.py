@@ -9,14 +9,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from streamrip.client.deezer_pipe import (
-    DeezerPipeClient,
     _FALLBACK_TTL,
     _PIPE_URL,
     _REFRESH_MARGIN,
     _RENEW_URL,
+    DeezerPipeClient,
     _jwt_exp_as_monotonic,
 )
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -336,15 +335,13 @@ class TestQuery:
 
 class TestDeezerClientPipeIntegration:
     def _make_deezer_client(self):
-        from unittest.mock import patch
 
-        import tomllib
         import os
 
         # Build a minimal Config pointing at a real or dummy toml
         cfg_path = os.path.expanduser("~/.config/streamrip/config.toml")
         try:
-            with open(cfg_path, "rb") as f:
+            with open(cfg_path, "rb"):
                 from streamrip.config import Config
                 cfg = Config(cfg_path)
         except OSError:
@@ -375,15 +372,14 @@ class TestDeezerClientPipeIntegration:
         with (
             patch.object(DeezerClient, "get_session", new=AsyncMock(return_value=mock_session)),
             patch.object(client.client, "login_via_arl", return_value=True),
-            patch("streamrip.client.deezer.DeezerPipeClient", return_value=mock_pipe) as MockPipe,
+            patch("streamrip.client.deezer.DeezerPipeClient", return_value=mock_pipe) as mock_pipe_cls,
         ):
             asyncio.run(client.login())
 
         assert client._pipe is mock_pipe
-        MockPipe.assert_called_once_with(client.config.arl, mock_session)
+        mock_pipe_cls.assert_called_once_with(client.config.arl, mock_session)
 
     def test_pipe_query_delegates_to_pipe_client(self):
-        from streamrip.client.deezer import DeezerClient
 
         client = self._make_deezer_client()
         mock_pipe = AsyncMock()
