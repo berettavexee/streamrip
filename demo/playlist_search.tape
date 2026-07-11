@@ -1,15 +1,12 @@
-# Régénère demo/playlist_search.png
+# Source de demo/playlist_search.png.
 #
-# EXIGE : la source (ici « tidal ») configurée dans config.toml, + réseau.
-# UI interactive : on tape la requête, on attend l'affichage des résultats,
-# puis vhs capture la dernière frame (la liste interactive à l'écran).
-# Usage :
-#   vhs demo/playlist_search.tape
-#
-# Pour ce fork orienté Deezer, tu peux remplacer « tidal » par « deezer ».
-# Garde la commande cohérente avec le texte du README (ligne « rip search … »).
+# EXIGE : la source (ici « tidal ») configurée dans config.toml + réseau.
+# vhs produit un .mp4 ; ffmpeg en extrait la dernière frame (la liste
+# interactive à l'écran). Voir ./demo/build_demos.sh.
+# Pour ce fork orienté Deezer, tu peux remplacer « tidal » par « deezer » —
+# garde la commande cohérente avec le texte du README.
 
-Output demo/playlist_search.png
+Output demo/playlist_search.mp4
 
 Set Shell bash
 Set FontSize 22
@@ -26,5 +23,5 @@ Show
 
 Type "rip search tidal playlist 'rap'"
 Enter
-# Laisse le temps aux résultats de s'afficher avant la capture.
+# Laisse les résultats s'afficher avant la fin de la vidéo.
 Sleep 4s

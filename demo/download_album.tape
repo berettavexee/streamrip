@@ -1,16 +1,13 @@
-# Régénère demo/download_album.png
+# Source de demo/download_album.png.
 #
 # EXIGE : un compte configuré (ARL Deezer dans config.toml) + réseau.
-# La capture PNG est prise PENDANT le téléchargement (barres de progression
-# Rich actives), via Screenshot — pas à la fin. vhs impose une sortie
-# principale : ici un .gif (sous-produit animé du téléchargement).
-# Usage :
-#   vhs demo/download_album.tape
-#   rm demo/download_album.gif      # sous-produit, à supprimer (ou à garder)
-#
-# Remplace l'URL par un album réel de ton choix.
+# vhs produit un .mp4 ; ffmpeg en extrait une frame PENDANT le
+# téléchargement (barres de progression Rich actives). Le script
+# ./demo/build_demos.sh extrait la dernière frame : comme la vidéo se
+# termine à ~Sleep 6s (< durée d'un album complet), les barres sont
+# encore actives. Remplace l'URL par un album réel de ton choix.
 
-Output demo/download_album.gif
+Output demo/download_album.mp4
 
 Set Shell bash
 Set FontSize 22
@@ -29,6 +26,3 @@ Type "rip url 'https://www.deezer.com/album/302127'"
 Enter
 # Laisse la résolution + les premières barres de progression apparaître.
 Sleep 6s
-Screenshot demo/download_album.png
-# Prolonge un peu pour que le .gif montre la progression.
-Sleep 5s

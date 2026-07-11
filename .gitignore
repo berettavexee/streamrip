@@ -25,5 +25,5 @@ pyrightconfig.json
 .venv/
 dev-reinstall.sh
 CLAUDE.md
-# Sous-produit vhs de demo/download_album.tape (voir le .tape)
-demo/download_album.gif
+# Sous-produits vhs (voir demo/build_demos.sh) — les .mp4 intermédiaires
+demo/*.mp4
