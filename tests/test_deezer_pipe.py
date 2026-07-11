@@ -335,17 +335,12 @@ class TestQuery:
 
 class TestDeezerClientPipeIntegration:
     def _make_deezer_client(self):
+        # Use the packaged default config so the fixture stays hermetic and does
+        # not depend on the user's ~/.config/streamrip/config.toml (which would
+        # break on every config-version bump).
+        from streamrip.config import Config
 
-        import os
-
-        # Build a minimal Config pointing at a real or dummy toml
-        cfg_path = os.path.expanduser("~/.config/streamrip/config.toml")
-        try:
-            with open(cfg_path, "rb"):
-                from streamrip.config import Config
-                cfg = Config(cfg_path)
-        except OSError:
-            pytest.skip("No config.toml found; skipping integration fixture")
+        cfg = Config.defaults()
 
         from streamrip.client.deezer import DeezerClient
         return DeezerClient(cfg)
@@ -363,6 +358,7 @@ class TestDeezerClientPipeIntegration:
         from streamrip.client.deezer import DeezerClient
 
         client = self._make_deezer_client()
+        client.config.arl = "testarl"
 
         mock_session = MagicMock()
         mock_pipe = MagicMock()

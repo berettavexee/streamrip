@@ -159,7 +159,7 @@ class DeezerDownloadable(Downloadable):
                 try:
                     info = await resp.json()
                     try:
-                        # Usually happens with deezloader downloads
+                        # The CDN returned a short JSON error body instead of audio.
                         raise NonStreamableError(f"{info['error']} - {info['message']}")
                     except KeyError:
                         raise NonStreamableError(info)
