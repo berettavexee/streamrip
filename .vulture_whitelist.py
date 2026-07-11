@@ -41,8 +41,6 @@ database_browse         # unused function (streamrip/rip/cli.py:395)
 # ── Champs de config désérialisés depuis TOML (Config(**toml[...])) ───────────
 download_booklets       # unused variable (streamrip/config.py:37)
 download_videos         # unused variable (streamrip/config.py:56)
-use_deezloader          # unused variable (streamrip/config.py:75)
-deezloader_warnings     # unused variable (streamrip/config.py:78)
 lossy_bitrate           # unused variable (streamrip/config.py:112)
 non_albums              # unused variable (streamrip/config.py:122)
 exclude                 # unused variable (streamrip/config.py:159)

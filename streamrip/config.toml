@@ -58,8 +58,7 @@ token_expiry = ""
 
 [deezer]
 # 0, 1, or 2
-# This only applies to paid Deezer subscriptions. Those using deezloader
-# are automatically limited to quality = 1
+# This only applies to paid Deezer subscriptions.
 quality = 2
 # If the target quality is not available, fallback to best quality available
 # 0 = MP3_128, 1 = MP3_320, 2 = FLAC
@@ -68,12 +67,6 @@ lower_quality_if_not_available = true
 # See https://github.com/nathom/streamrip/wiki/Finding-Your-Deezer-ARL-Cookie
 # for instructions on how to find this
 arl = ""
-# This allows for free 320kbps MP3 downloads from Deezer
-# If an arl is provided, deezloader is never used
-use_deezloader = true
-# This warns you when the paid deezer account is not logged in and rip falls
-# back to deezloader, which is unreliable
-deezloader_warnings = true
 # Set to false to skip lyrics fetching
 fetch_lyrics = true
 
@@ -199,6 +192,6 @@ max_search_results = 100
 
 [misc]
 # Metadata to identify this config file. Do not change.
-version = "2.2.0"
+version = "2.2.1"
 # Print a message if a new version of streamrip is available 
 check_for_updates = true
