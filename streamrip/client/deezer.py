@@ -24,6 +24,41 @@ from .downloadable import DeezerDownloadable
 logger = logging.getLogger("streamrip")
 logging.captureWarnings(True)
 
+# Suppress urllib3 per-request DEBUG lines (which expose GW session tokens in URLs).
+# streamrip's own logger already records what is being fetched at a useful level.
+logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+
+# CD-quality audio parameters for all standard Deezer FLAC streams.
+# The public REST API and GW API do not expose these values; they are fixed
+# constants for Deezer's quality tier 2 (FLAC, CD quality).
+_DEEZER_BIT_DEPTH: int = 16
+_DEEZER_SAMPLING_RATE_KHZ: float = 44.1   # kHz — unit used by TrackMetadata.from_deezer
+_DEEZER_SAMPLING_RATE_HZ: int = 44100     # Hz  — unit used by AlbumMetadata.from_deezer
+
+
+def _gw_int(val: Any, default: int) -> int:
+    """Convert a GW field value to int, returning default for None/empty/non-numeric."""
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return default
+
+
+class _HttpsUpgradeSession(requests.Session):
+    """requests.Session that rewrites http:// to https:// before prepare_request().
+
+    The rewrite must happen in request() — before prepare_request() selects
+    cookies — so that Secure cookies set by earlier HTTPS responses are
+    included in subsequent requests.  An adapter-level rewrite is too late:
+    cookies are already picked for the original http:// URL by the time send()
+    is called.
+    """
+
+    def request(self, method: str, url: str | bytes, **kwargs: Any) -> requests.Response:
+        if isinstance(url, str) and url.startswith("http://"):
+            url = "https://" + url[7:]
+        return super().request(method, url, **kwargs)
+
 K = TypeVar("K")
 V = TypeVar("V")
 
@@ -67,7 +102,7 @@ class _TaskCache(Generic[K, V]):
             self._results[key] = result
             self._tasks.pop(key, None)
             return result
-        except Exception:
+        except BaseException:
             self._tasks.pop(key, None)
             raise
 
@@ -132,18 +167,26 @@ class DeezerClient(Client):
         self._albums: _TaskCache[str, dict] = _TaskCache()
         self._gw_tracks: _TaskCache[str, dict] = _TaskCache()
         self._pipe: DeezerPipeClient | None = None
+        self._url_results: dict[tuple[str, str], str] = {}
+        self._url_batch_tasks: dict[str, asyncio.Task[None]] = {}
+        self._url_batch_lock: asyncio.Lock = asyncio.Lock()
 
         # REST API (api.deezer.com) throttles beyond ~10 req/sec.
         self._rest_limiter = aiolimiter.AsyncLimiter(10, 1)
 
         max_conn = config.session.downloads.max_connections
-        adapter = requests.adapters.HTTPAdapter(
+        _pool_kwargs = dict(
             pool_connections=max_conn,
             pool_maxsize=max(max_conn * 4, 32),
             max_retries=0,
         )
-        self.client.session.mount("https://", adapter)
-        self.client.session.mount("http://", adapter)
+        # Replace deezer-py's plain Session with one that upgrades http:// → https://.
+        # All three objects share the same session reference.
+        _session = _HttpsUpgradeSession()
+        _session.mount("https://", requests.adapters.HTTPAdapter(**_pool_kwargs))
+        self.client.session = _session
+        self.client.api.session = _session
+        self.client.gw.session = _session
 
     # ── backward-compatible aliases (used by tests) ──────────────────────────
 
@@ -310,11 +353,74 @@ class DeezerClient(Client):
         except Exception:
             return None
 
+    def _gw_to_track_dict(self, gw: dict, lyrics: str | None = None) -> dict:
+        """Build a REST-track-shaped dict from cached GW data.
+
+        Maps GW field names/formats to what TrackMetadata.from_deezer() expects,
+        including the SNG_CONTRIBUTORS dict → contributors list conversion.
+        """
+        sng_contribs: dict = gw.get("SNG_CONTRIBUTORS", {})
+
+        # SNG_CONTRIBUTORS: {"main_artist": ["Name"], "composer": [...], ...}
+        # REST contributors: [{"name": "Name", "type": "artist"}, ...]
+        _role_map = {"main_artist": "artist"}
+        contributors_list: list[dict] = []
+        for role, names in sng_contribs.items():
+            rest_type = _role_map.get(role, role)
+            for name in (names if isinstance(names, list) else [names]):
+                contributors_list.append({"name": name, "type": rest_type})
+
+        raw_bpm = gw.get("BPM")
+        try:
+            bpm_val = float(raw_bpm) if raw_bpm else None
+            bpm: float | None = bpm_val if (bpm_val is not None and 0 < bpm_val < float("inf")) else None
+        except (TypeError, ValueError):
+            bpm = None
+
+        alb_pic = gw.get("ALB_PICTURE", "")
+        alb_cover_base = f"https://e-cdns-images.dzcdn.net/images/cover/{alb_pic}"
+
+        return {
+            "id": _gw_int(gw.get("SNG_ID"), 0),
+            "title": gw.get("SNG_TITLE", ""),
+            "isrc": str(gw.get("ISRC") or ""),
+            "explicit_lyrics": bool(_gw_int(gw.get("EXPLICIT_LYRICS"), 0)),
+            "track_position": _gw_int(gw.get("TRACK_NUMBER"), 0),
+            "disk_number": _gw_int(gw.get("DISK_NUMBER"), 1),
+            "bpm": bpm,
+            "artist": {"name": gw.get("ART_NAME", "")},
+            "contributors": contributors_list,
+            # GW contributor sub-fields (injected identically to the slow path)
+            "composer": sng_contribs.get("composer"),
+            "author": sng_contribs.get("author"),
+            "gain": gw.get("GAIN"),
+            "lyrics": lyrics,
+            "bit_depth": _DEEZER_BIT_DEPTH,
+            "sampling_rate": _DEEZER_SAMPLING_RATE_KHZ,
+            # Minimal album stub so get_track_for_playlist callers can build
+            # AlbumMetadata without a REST round-trip (via from_incomplete_deezer_track_resp).
+            # The full album dict is injected by the fetch_album=True path, overwriting this.
+            "album": {
+                "id": int(gw.get("ALB_ID", 0)),
+                "title": gw.get("ALB_TITLE", ""),
+                "release_date": gw.get("PHYSICAL_RELEASE_DATE", "0000-01-01"),
+                "cover_xl": f"{alb_cover_base}/1000x1000-000000-80-0-0.jpg",
+                "cover_big": f"{alb_cover_base}/500x500-000000-80-0-0.jpg",
+                "cover_medium": f"{alb_cover_base}/250x250-000000-80-0-0.jpg",
+                "cover_small": f"{alb_cover_base}/56x56-000000-80-0-0.jpg",
+            },
+        }
+
     async def get_track(self, item_id: str, fetch_album: bool = True) -> dict:
         """Fetch metadata for a track, optionally including its full album info.
 
         GW data (SNG_CONTRIBUTORS, GAIN) is fetched concurrently with the album
         call and cached in ``_gw_tracks`` for reuse by ``get_downloadable``.
+
+        When the GW data is already cached from an album prefetch AND contains an
+        ISRC field, the individual REST ``GET /track/{id}`` call is skipped and the
+        response is synthesised from GW data only (fast path). This eliminates the
+        per-track REST round-trip for all tracks in an album download.
 
         When fetch_album is True (the default), the album sub-object in the
         returned dict is replaced with the full album metadata (genres, tracktotal,
@@ -333,6 +439,25 @@ class DeezerClient(Client):
         Raises:
             NonStreamableError: If the track cannot be fetched from the REST API.
         """
+        item_id = str(item_id)
+
+        # Fast path: GW data already in cache (prefetched from the album batch call)
+        # and complete enough to build the full track dict without a REST round-trip.
+        # "ISRC" key presence (even if empty string) indicates a full GW record.
+        cached_gw = self._gw_tracks._results.get(item_id)
+        if cached_gw is not None and "ISRC" in cached_gw:
+            lyrics = await self._fetch_lyrics(item_id)
+            item = self._gw_to_track_dict(cached_gw, lyrics)
+            if fetch_album:
+                album_id = str(cached_gw.get("ALB_ID", ""))
+                if album_id:
+                    try:
+                        item["album"] = await self.get_album(album_id)
+                    except Exception as e:
+                        logger.error("Error fetching album %s for track %s: %s", album_id, item_id, e)
+            return item
+
+        # Slow path: no cached GW data or GW data lacks ISRC → REST call required.
         try:
             item = await self._rest(self.client.api.get_track, item_id)
         except Exception as e:
@@ -458,6 +583,8 @@ class DeezerClient(Client):
 
         album_metadata["tracks"] = album_tracks["data"]
         album_metadata["track_total"] = len(album_tracks["data"])
+        album_metadata["bit_depth"] = _DEEZER_BIT_DEPTH
+        album_metadata["sampling_rate"] = _DEEZER_SAMPLING_RATE_HZ
         return album_metadata
 
     async def _resolve_redirect(self, media_type: str, item_id: str) -> str | None:
@@ -743,7 +870,12 @@ class DeezerClient(Client):
             _, fmt = self._QUALITY_MAP[q]
             try:
                 logger.debug("Attempting quality %d (%s)", q, fmt)
-                url = await self._gw(self.client.get_track_url, token, fmt)
+                url: str | None = self._url_results.get((item_id, fmt))
+                if url is None:
+                    await self._ensure_url_batch(fmt)
+                    url = self._url_results.get((item_id, fmt))
+                if url is None:
+                    url = await self._gw(self.client.get_track_url, token, fmt)
                 if url:
                     return url, q
             except deezer.WrongLicense:
@@ -813,3 +945,57 @@ class DeezerClient(Client):
         url = f"https://e-cdns-proxy-{track_hash[0]}.dzcdn.net/mobile/1/{path}"
         logger.debug("Encrypted file path %s", url)
         return url
+
+    _BATCH_URL_CHUNK_SIZE: ClassVar[int] = 1000
+
+    async def _batch_resolve_urls(self, fmt: str) -> None:
+        """Fetch CDN URLs for all GW-cached tracks, chunked to avoid API limits.
+
+        Collects every TRACK_TOKEN currently in ``_gw_tracks`` and calls
+        ``get_tracks_url`` in chunks of at most ``_BATCH_URL_CHUNK_SIZE`` tokens.
+        All failures are absorbed so the task always completes normally; individual
+        ``get_track_url`` calls handle quality fallback and WrongLicense correctly.
+        """
+        tokens_by_id = {
+            item_id: gw["TRACK_TOKEN"]
+            for item_id, gw in self._gw_tracks._results.items()
+            if "TRACK_TOKEN" in gw
+        }
+        if not tokens_by_id:
+            return
+        ids = list(tokens_by_id)
+        tokens = [tokens_by_id[i] for i in ids]
+        chunk = self._BATCH_URL_CHUNK_SIZE
+        for offset in range(0, len(ids), chunk):
+            chunk_ids = ids[offset : offset + chunk]
+            chunk_tokens = tokens[offset : offset + chunk]
+            try:
+                results = await self._gw(self.client.get_tracks_url, chunk_tokens, fmt)
+            except deezer.WrongLicense:
+                # Format not licensed for batch endpoint; per-track calls handle fallback.
+                logger.debug("Batch URL prefetch: %s not licensed for this account", fmt)
+                return
+            except Exception as e:
+                logger.debug("Batch URL prefetch failed for %s: %s", fmt, e)
+                return
+            if not isinstance(results, list):
+                return
+            for item_id, result in zip(chunk_ids, results):
+                # Only cache non-empty strings; empty string would suppress the
+                # individual get_track_url fallback without providing a usable URL.
+                if isinstance(result, str) and result:
+                    self._url_results[(item_id, fmt)] = result
+
+    async def _ensure_url_batch(self, fmt: str) -> None:
+        """Start or await the batch URL-resolution task for *fmt*.
+
+        The first caller for a given format creates the task; all concurrent
+        callers await the same task so ``get_tracks_url`` is called exactly once
+        per format per session.
+        """
+        async with self._url_batch_lock:
+            if fmt not in self._url_batch_tasks:
+                self._url_batch_tasks[fmt] = asyncio.create_task(
+                    self._batch_resolve_urls(fmt)
+                )
+        await self._url_batch_tasks[fmt]

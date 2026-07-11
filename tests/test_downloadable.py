@@ -92,10 +92,13 @@ class TestDeezerDownloadable:
         d = DeezerDownloadable(MagicMock(), info)
         assert d.quality == 0
 
-    def test_no_available_quality_raises(self):
+    def test_all_zero_quality_to_size_proceeds_with_none_size(self):
+        # Old-catalog tracks have FILESIZE_* = 0 in GW metadata but a valid CDN URL.
+        # __init__ must not raise; _size=None lets _download() read Content-Length.
         info = _deezer_info(quality=2, quality_to_size=[0, 0, 0])
-        with pytest.raises(NonStreamableError):
-            DeezerDownloadable(MagicMock(), info)
+        d = DeezerDownloadable(MagicMock(), info)
+        assert d._size is None
+        assert d.quality == 2
 
     def test_size_set_from_quality_to_size(self):
         info = _deezer_info(quality=2, quality_to_size=[3_000_000, 8_000_000, 20_000_000])

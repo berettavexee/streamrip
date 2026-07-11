@@ -127,12 +127,15 @@ class DeezerDownloadable(Downloadable):
             i for i, size in enumerate(info["quality_to_size"]) if size > 0
         ]
         if len(qualities_available) == 0:
-            raise NonStreamableError(
-                "Missing download info. Skipping.",
-            )
-        max_quality_available = max(qualities_available)
-        self.quality = min(info["quality"], max_quality_available)
-        self._size = info["quality_to_size"][self.quality]
+            # FILESIZE_* metadata absent for old catalog tracks (GW returns 0).
+            # The caller already validated the URL, so proceed; actual size will
+            # be read from Content-Length in _download().
+            self.quality = info["quality"]
+            self._size = None
+        else:
+            max_quality_available = max(qualities_available)
+            self.quality = min(info["quality"], max_quality_available)
+            self._size = info["quality_to_size"][self.quality]
         if self.quality <= 1:
             self.extension = "mp3"
         else:
@@ -142,8 +145,9 @@ class DeezerDownloadable(Downloadable):
     async def _download(self, path: str, callback):
         async with self.session.get(self.url, allow_redirects=True) as resp:
             resp.raise_for_status()
-            self._size = int(resp.headers.get("Content-Length", 0))
-            if self._size < 20000 and not self.url.endswith(".jpg"):
+            content_length = resp.headers.get("Content-Length")
+            self._size = int(content_length) if content_length is not None else None
+            if self._size is not None and self._size < 20000 and not self.url.endswith(".jpg"):
                 try:
                     info = await resp.json()
                     try:

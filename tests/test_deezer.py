@@ -4,11 +4,12 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import deezer
 import pytest
+import requests
 import tomllib
 from deezer.errors import DataException, GWAPIError
 from util import arun
 
-from streamrip.client.deezer import DeezerClient, _TaskCache
+from streamrip.client.deezer import DeezerClient, _HttpsUpgradeSession, _TaskCache
 from streamrip.config import Config
 from streamrip.exceptions import NonStreamableError
 
@@ -928,6 +929,322 @@ def test_get_encrypted_file_url_format_id_from_quality_map(mock_deezer_client):
     )
     # Different format IDs must produce different encrypted paths.
     assert url_patched != url_original
+
+
+# ===== _HttpsUpgradeSession =====
+
+def test_https_upgrade_session_rewrites_http():
+    """_HttpsUpgradeSession rewrites http:// to https:// before prepare_request."""
+    session = _HttpsUpgradeSession()
+    with patch.object(requests.Session, "request", return_value=Mock()) as mock_request:
+        session.request("GET", "http://www.deezer.com/ajax/gw-light.php?method=foo")
+
+    actual_url = mock_request.call_args[0][1]
+    assert actual_url.startswith("https://")
+    assert "http://" not in actual_url
+
+
+def test_https_upgrade_session_leaves_https_unchanged():
+    """_HttpsUpgradeSession does not alter URLs that are already HTTPS."""
+    session = _HttpsUpgradeSession()
+    with patch.object(requests.Session, "request", return_value=Mock()) as mock_request:
+        session.request("GET", "https://api.deezer.com/track/123")
+
+    actual_url = mock_request.call_args[0][1]
+    assert actual_url == "https://api.deezer.com/track/123"
+
+
+def test_https_upgrade_session_installed_on_gw():
+    """DeezerClient replaces the deezer-py GW session with _HttpsUpgradeSession."""
+    config = Config.defaults()
+    config.session.deezer.arl = "test_arl"
+    client = DeezerClient(config)
+    assert isinstance(client.client.gw.session, _HttpsUpgradeSession)
+    assert isinstance(client.client.api.session, _HttpsUpgradeSession)
+    assert isinstance(client.client.session, _HttpsUpgradeSession)
+
+
+# ===== _gw_to_track_dict =====
+
+def _make_gw_track(**overrides) -> dict:
+    base = {
+        "SNG_ID": "42",
+        "SNG_TITLE": "Test Track",
+        "ISRC": "GBAWA0900090",
+        "EXPLICIT_LYRICS": "0",
+        "TRACK_NUMBER": "3",
+        "DISK_NUMBER": "1",
+        "BPM": "120.0",
+        "GAIN": "-6.5",
+        "ART_NAME": "Test Artist",
+        "ALB_ID": "99",
+        "ALB_TITLE": "Test Album",
+        "ALB_PICTURE": "abc123hash",
+        "PHYSICAL_RELEASE_DATE": "2023-06-15",
+        "SNG_CONTRIBUTORS": {
+            "main_artist": ["Test Artist"],
+            "composer": ["J. Bach"],
+            "author": ["G. Handel"],
+        },
+    }
+    base.update(overrides)
+    return base
+
+
+def test_gw_to_track_dict_basic_fields(mock_deezer_client):
+    gw = _make_gw_track()
+    result = mock_deezer_client._gw_to_track_dict(gw)
+
+    assert result["id"] == 42
+    assert result["title"] == "Test Track"
+    assert result["isrc"] == "GBAWA0900090"
+    assert result["explicit_lyrics"] is False
+    assert result["track_position"] == 3
+    assert result["disk_number"] == 1
+    assert result["gain"] == "-6.5"
+
+
+def test_gw_to_track_dict_contributor_mapping(mock_deezer_client):
+    gw = _make_gw_track()
+    result = mock_deezer_client._gw_to_track_dict(gw)
+
+    artist_entries = [c for c in result["contributors"] if c["type"] == "artist"]
+    assert any(c["name"] == "Test Artist" for c in artist_entries)
+    assert result["composer"] == ["J. Bach"]
+    assert result["author"] == ["G. Handel"]
+
+
+def test_gw_to_track_dict_zero_isrc_becomes_empty_string(mock_deezer_client):
+    gw = _make_gw_track(ISRC=0)
+    result = mock_deezer_client._gw_to_track_dict(gw)
+    assert result["isrc"] == ""
+
+
+def test_gw_to_track_dict_zero_bpm_becomes_none(mock_deezer_client):
+    gw = _make_gw_track(BPM="0")
+    result = mock_deezer_client._gw_to_track_dict(gw)
+    assert result["bpm"] is None
+
+
+def test_gw_to_track_dict_lyrics_forwarded(mock_deezer_client):
+    gw = _make_gw_track()
+    result = mock_deezer_client._gw_to_track_dict(gw, lyrics="La la la")
+    assert result["lyrics"] == "La la la"
+
+
+# ===== get_track — GW fast path =====
+
+def test_get_track_fast_path_skips_rest_call(mock_deezer_client):
+    """When GW data is cached with ISRC, get_track uses it without calling REST GET /track."""
+    gw = _make_gw_track()
+    mock_deezer_client._gw_tracks.set("42", gw)
+
+    mock_deezer_client.client.api.get_album.return_value = {"id": "99", "title": "Album"}
+    mock_deezer_client.client.api.get_album_tracks.return_value = {"data": []}
+
+    result = arun(mock_deezer_client.get_track("42"))
+
+    assert result["title"] == "Test Track"
+    mock_deezer_client.client.api.get_track.assert_not_called()
+
+
+def test_get_track_fast_path_fetches_album(mock_deezer_client):
+    """Fast path resolves album via get_album (which may hit cache)."""
+    gw = _make_gw_track()
+    mock_deezer_client._gw_tracks.set("42", gw)
+    mock_deezer_client.client.api.get_album.return_value = {"id": "99", "title": "Test Album"}
+    mock_deezer_client.client.api.get_album_tracks.return_value = {"data": []}
+
+    result = arun(mock_deezer_client.get_track("42", fetch_album=True))
+
+    assert result["album"]["title"] == "Test Album"
+
+
+def test_get_track_fast_path_skips_album_when_fetch_album_false(mock_deezer_client):
+    """Fast path with fetch_album=False does not call get_album."""
+    gw = _make_gw_track()
+    mock_deezer_client._gw_tracks.set("42", gw)
+
+    result = arun(mock_deezer_client.get_track("42", fetch_album=False))
+
+    assert result["title"] == "Test Track"
+    mock_deezer_client.client.api.get_album.assert_not_called()
+
+
+def test_get_track_slow_path_when_no_gw_cache(mock_deezer_client):
+    """When GW cache is empty, get_track falls back to the REST GET /track call."""
+    mock_deezer_client.client.api.get_track.return_value = {
+        "id": "100",
+        "title": "Slow Track",
+        "album": {"id": 200},
+    }
+    mock_deezer_client.client.api.get_album.return_value = {"id": "200", "title": "Slow Album"}
+    mock_deezer_client.client.api.get_album_tracks.return_value = {"data": []}
+    mock_deezer_client.client.gw.get_track.return_value = {"SNG_CONTRIBUTORS": {}}
+
+    result = arun(mock_deezer_client.get_track("100"))
+
+    assert result["title"] == "Slow Track"
+    mock_deezer_client.client.api.get_track.assert_called_once()
+
+
+def test_get_track_slow_path_when_gw_cache_lacks_isrc(mock_deezer_client):
+    """GW cache entries without ISRC (e.g. minimal prefetch) use the REST slow path."""
+    gw_without_isrc = {"SNG_ID": "42", "SNG_TITLE": "Partial", "TRACK_TOKEN": "tok"}
+    mock_deezer_client._gw_tracks.set("42", gw_without_isrc)
+
+    mock_deezer_client.client.api.get_track.return_value = {
+        "id": "42",
+        "title": "Full Track",
+        "album": {"id": 200},
+    }
+    mock_deezer_client.client.api.get_album.return_value = {"id": "200", "title": "Album"}
+    mock_deezer_client.client.api.get_album_tracks.return_value = {"data": []}
+    mock_deezer_client.client.gw.get_track.return_value = {"SNG_CONTRIBUTORS": {}}
+
+    result = arun(mock_deezer_client.get_track("42"))
+
+    assert result["title"] == "Full Track"
+    mock_deezer_client.client.api.get_track.assert_called_once()
+
+
+# ===== batch URL resolution =====
+
+def test_batch_url_single_call_for_multiple_tracks(mock_deezer_client):
+    """get_tracks_url is called once for N tracks; individual get_track_url is never used."""
+    track_infos = {
+        "1": {"TRACK_TOKEN": "tok1", "FILESIZE_FLAC": 1000, "ISRC": "A"},
+        "2": {"TRACK_TOKEN": "tok2", "FILESIZE_FLAC": 1000, "ISRC": "B"},
+        "3": {"TRACK_TOKEN": "tok3", "FILESIZE_FLAC": 1000, "ISRC": "C"},
+    }
+    for tid, info in track_infos.items():
+        mock_deezer_client._gw_tracks.set_if_absent(tid, info)
+    mock_deezer_client.client.get_tracks_url.return_value = [
+        "https://cdn1.flac",
+        "https://cdn2.flac",
+        "https://cdn3.flac",
+    ]
+
+    for tid in ["1", "2", "3"]:
+        dl = arun(mock_deezer_client.get_downloadable(tid, quality=2))
+        assert dl.quality == 2
+
+    assert mock_deezer_client.client.get_tracks_url.call_count == 1
+    mock_deezer_client.client.get_track_url.assert_not_called()
+
+
+def test_batch_url_wrong_license_falls_back_to_lower_quality(mock_deezer_client):
+    """WrongLicense from batch is absorbed; individual get_track_url also raises it, triggering fallback."""
+    mock_deezer_client._gw_tracks.set_if_absent(
+        "1", {"TRACK_TOKEN": "tok", "FILESIZE_FLAC": 0, "FILESIZE_MP3_320": 5000}
+    )
+
+    def tracks_url_side_effect(tokens, fmt):
+        if fmt == "FLAC":
+            raise deezer.WrongLicense("FLAC")
+        return ["https://cdn.mp3"]
+
+    def track_url_side_effect(token, fmt):
+        if fmt == "FLAC":
+            raise deezer.WrongLicense("FLAC")
+        return "https://cdn.mp3"
+
+    mock_deezer_client.client.get_tracks_url.side_effect = tracks_url_side_effect
+    mock_deezer_client.client.get_track_url.side_effect = track_url_side_effect
+
+    dl = arun(mock_deezer_client.get_downloadable("1", quality=2))
+    assert dl.quality == 1
+    # Individual get_track_url must have been called for FLAC (batch WrongLicense is now absorbed)
+    mock_deezer_client.client.get_track_url.assert_called()
+
+
+def test_batch_url_geoblocked_track_falls_back_to_individual(mock_deezer_client):
+    """A geoblocked entry in the batch result triggers the individual get_track_url fallback."""
+    mock_deezer_client._gw_tracks.set_if_absent(
+        "1", {"TRACK_TOKEN": "tok", "FILESIZE_FLAC": 5000}
+    )
+    # Batch returns a WrongGeolocation object (not a string) for this track
+    mock_deezer_client.client.get_tracks_url.return_value = [
+        deezer.WrongGeolocation("FR")
+    ]
+    mock_deezer_client.client.get_track_url.side_effect = deezer.WrongGeolocation("FR")
+
+    with pytest.raises(NonStreamableError, match="geoblocked"):
+        arun(mock_deezer_client.get_downloadable("1", quality=2))
+
+    mock_deezer_client.client.get_track_url.assert_called()
+
+
+# ===== _gw_to_track_dict — audio params =====
+
+def test_gw_to_track_dict_audio_params(mock_deezer_client):
+    """_gw_to_track_dict includes bit_depth and sampling_rate derived from Deezer constants."""
+    from streamrip.client.deezer import _DEEZER_BIT_DEPTH, _DEEZER_SAMPLING_RATE_KHZ
+
+    result = mock_deezer_client._gw_to_track_dict(_make_gw_track())
+    assert result["bit_depth"] == _DEEZER_BIT_DEPTH
+    assert result["sampling_rate"] == _DEEZER_SAMPLING_RATE_KHZ
+
+
+def test_gw_to_track_dict_album_stub(mock_deezer_client):
+    """_gw_to_track_dict includes a minimal album stub so playlist tracks don't KeyError."""
+    result = mock_deezer_client._gw_to_track_dict(_make_gw_track())
+    album = result["album"]
+
+    assert album["id"] == 99
+    assert album["title"] == "Test Album"
+    assert album["release_date"] == "2023-06-15"
+    assert "abc123hash" in album["cover_xl"]
+    assert "abc123hash" in album["cover_small"]
+    # Must NOT contain a "tracks" key — triggers from_incomplete_deezer_track_resp path
+    assert "tracks" not in album
+
+
+def test_gw_to_track_dict_album_stub_overwritten_on_fetch_album(mock_deezer_client):
+    """When fetch_album=True the stub is replaced by the full album dict."""
+    gw = _make_gw_track(TRACK_TOKEN="tok", FILESIZE_FLAC="1000")
+    mock_deezer_client._gw_tracks.set("42", gw)
+
+    full_album = {
+        "id": 99,
+        "title": "Full Album",
+        "tracks": [{"id": "42", "disk_number": 1}],
+        "track_total": 1,
+        "genres": {"data": []},
+        "release_date": "2023-06-15",
+        "contributors": [{"name": "Test Artist", "type": "artist"}],
+        "bit_depth": 16,
+        "sampling_rate": 44100,
+    }
+    mock_deezer_client.client.api.get_album.return_value = full_album
+    mock_deezer_client.client.api.get_album_tracks.return_value = {
+        "data": [{"id": "42", "disk_number": 1}]
+    }
+    mock_deezer_client.client.gw.get_album_tracks.return_value = []
+
+    track = arun(mock_deezer_client.get_track("42", fetch_album=True))
+    # Full album metadata replaces the stub
+    assert track["album"]["title"] == "Full Album"
+    assert "tracks" in track["album"]
+
+
+# ===== _fetch_album — audio params =====
+
+def test_fetch_album_injects_audio_params(mock_deezer_client):
+    """_fetch_album adds bit_depth and sampling_rate so AlbumMetadata.from_deezer reads them."""
+    from streamrip.client.deezer import _DEEZER_BIT_DEPTH, _DEEZER_SAMPLING_RATE_HZ
+
+    mock_deezer_client.client.api.get_album.return_value = {
+        "id": "10",
+        "title": "Test Album",
+        "genres": {"data": []},
+    }
+    mock_deezer_client.client.api.get_album_tracks.return_value = {"data": []}
+    mock_deezer_client.client.gw.get_album_tracks.return_value = []
+
+    meta = arun(mock_deezer_client._fetch_album("10"))
+    assert meta["bit_depth"] == _DEEZER_BIT_DEPTH
+    assert meta["sampling_rate"] == _DEEZER_SAMPLING_RATE_HZ
 
 
 # ===== Integration test =====
