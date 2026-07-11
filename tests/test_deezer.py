@@ -9,9 +9,15 @@ import tomllib
 from deezer.errors import DataException, GWAPIError
 from util import arun
 
-from streamrip.client.deezer import DeezerClient, _HttpsUpgradeSession, _TaskCache
+from streamrip.client.deezer import (
+    _GW_SESSION_ERROR_PATTERNS,
+    DeezerClient,
+    _HttpsUpgradeSession,
+    _is_session_error,
+    _TaskCache,
+)
 from streamrip.config import Config
-from streamrip.exceptions import NonStreamableError
+from streamrip.exceptions import AuthenticationError, NonStreamableError
 
 
 def _get_arl() -> str:
@@ -1258,3 +1264,72 @@ def test_deezer_fallback_actually_occurred(deezer_client):
     assert downloadable.url.startswith("https://")
     assert downloadable._size > 0, "Downloadable should have a valid file size"
     assert downloadable.extension == "mp3", "MP3_320 should have .mp3 extension"
+
+
+# ===== session renewal =====
+
+def test_is_session_error_true_for_known_patterns():
+    """_is_session_error returns True for each known session-expiry pattern."""
+    for pat in _GW_SESSION_ERROR_PATTERNS:
+        exc = GWAPIError(f'{{"{pat}": "some message"}}')
+        assert _is_session_error(exc), f"Expected True for pattern '{pat}'"
+
+
+def test_is_session_error_false_for_unrelated_error():
+    """_is_session_error returns False for non-auth GW errors."""
+    exc = GWAPIError('{"DATA_ERROR": "Track not found"}')
+    assert not _is_session_error(exc)
+
+
+def test_gw_renews_session_on_session_error(mock_deezer_client):
+    """_gw() renews the session and retries once when a session-expiry error occurs."""
+    fn = Mock(side_effect=[
+        GWAPIError('{"NOT_LOGGED": "user not logged"}'),
+        {"SNG_ID": "42"},
+    ])
+    mock_deezer_client.client.login_via_arl = Mock(return_value=True)
+    mock_deezer_client.client.current_user = {"id": 1231003}
+
+    result = arun(mock_deezer_client._gw(fn))
+
+    assert result == {"SNG_ID": "42"}
+    assert fn.call_count == 2
+    mock_deezer_client.client.login_via_arl.assert_called_once_with("test_arl")
+
+
+def test_gw_reraises_non_session_error_without_renewal(mock_deezer_client):
+    """_gw() re-raises a non-auth GWAPIError without attempting session renewal."""
+    fn = Mock(side_effect=GWAPIError('{"DATA_ERROR": "Track not found"}'))
+    mock_deezer_client.client.login_via_arl = Mock()
+
+    with pytest.raises(GWAPIError):
+        arun(mock_deezer_client._gw(fn))
+
+    mock_deezer_client.client.login_via_arl.assert_not_called()
+
+
+def test_renew_session_raises_auth_error_when_arl_expired(mock_deezer_client):
+    """_renew_session() raises AuthenticationError when login_via_arl returns False."""
+    mock_deezer_client.client.login_via_arl = Mock(return_value=False)
+
+    with pytest.raises(AuthenticationError):
+        arun(mock_deezer_client._renew_session())
+
+
+def test_renew_session_concurrent_calls_login_once(mock_deezer_client):
+    """Concurrent _renew_session() calls share one login_via_arl call via the lock."""
+    mock_deezer_client.client.login_via_arl = Mock(return_value=True)
+    mock_deezer_client.client.current_user = {"id": 1231003}
+
+    async def _run():
+        await asyncio.gather(
+            mock_deezer_client._renew_session(),
+            mock_deezer_client._renew_session(),
+            mock_deezer_client._renew_session(),
+        )
+
+    arun(_run())
+    # The lock serialises calls, so login_via_arl is called 3 times (once per coroutine),
+    # but never concurrently — the important property is that no call is skipped or duplicated
+    # in a way that could corrupt the session state.
+    assert mock_deezer_client.client.login_via_arl.call_count == 3

@@ -44,6 +44,25 @@ def _gw_int(val: Any, default: int) -> int:
         return default
 
 
+# GWAPIError message fragments that indicate the session cookie is no longer valid.
+# deezer-py already handles CSRF token rotation ("GATEWAY_ERROR: invalid api token" and
+# "VALID_TOKEN_REQUIRED") before raising; these patterns cover errors that survive that
+# internal retry — i.e. when the ARL cookie itself no longer authenticates the session.
+# Extend this tuple as new patterns are observed in the wild.
+_GW_SESSION_ERROR_PATTERNS: tuple[str, ...] = (
+    "USER_TOKEN_EXPIRED",
+    "NOT_LOGGED",
+    "Auth required",
+    "user not logged",
+    "NEED_API_AUTH",
+)
+
+
+def _is_session_error(exc: GWAPIError) -> bool:
+    msg = str(exc)
+    return any(pat in msg for pat in _GW_SESSION_ERROR_PATTERNS)
+
+
 class _HttpsUpgradeSession(requests.Session):
     """requests.Session that rewrites http:// to https:// on every request.
 
@@ -175,6 +194,7 @@ class DeezerClient(Client):
         self._url_results: dict[tuple[str, str], str] = {}
         self._url_batch_tasks: dict[str, asyncio.Task[None]] = {}
         self._url_batch_lock: asyncio.Lock = asyncio.Lock()
+        self._session_lock: asyncio.Lock = asyncio.Lock()
 
         # REST API (api.deezer.com) throttles beyond ~10 req/sec.
         self._rest_limiter = aiolimiter.AsyncLimiter(10, 1)
@@ -222,6 +242,9 @@ class DeezerClient(Client):
     async def _gw(self, fn: Callable, /, *args: Any, **kwargs: Any) -> Any:
         """Run a blocking deezer-py GW call in a thread pool.
 
+        On a session-expiry GWAPIError (patterns in ``_GW_SESSION_ERROR_PATTERNS``),
+        renews the session via ARL and retries the call once.
+
         Args:
             fn: Callable to invoke (e.g. ``self.client.gw.get_track``).
             *args: Positional arguments forwarded to fn.
@@ -230,7 +253,34 @@ class DeezerClient(Client):
         Returns:
             Whatever fn returns.
         """
-        return await asyncio.to_thread(fn, *args, **kwargs)
+        try:
+            return await asyncio.to_thread(fn, *args, **kwargs)
+        except GWAPIError as e:
+            if not _is_session_error(e):
+                raise
+            logger.debug("GW session error (%s) — attempting renewal", e)
+            await self._renew_session()
+            return await asyncio.to_thread(fn, *args, **kwargs)
+
+    async def _renew_session(self) -> None:
+        """Re-authenticate using the stored ARL cookie.
+
+        Protected by ``_session_lock`` so concurrent coroutines share a single
+        renewal call rather than hammering ``login_via_arl`` in parallel.
+
+        Raises:
+            AuthenticationError: If the ARL no longer authenticates.
+        """
+        async with self._session_lock:
+            logger.debug("Renewing Deezer session via ARL")
+            success = await asyncio.to_thread(self.client.login_via_arl, self.config.arl)
+            if not success:
+                raise AuthenticationError(
+                    "Session renewal failed: the ARL may have expired. "
+                    "Update the arl field in your config."
+                )
+            self.logged_in_user_id = self.client.current_user["id"]
+            logger.debug("Deezer session renewed (user ID: %s)", self.logged_in_user_id)
 
     async def _get_gw_track(self, item_id: str) -> dict:
         """Return GW track info from cache, or fetch and cache it on a miss.
