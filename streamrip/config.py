@@ -90,16 +90,6 @@ class SoundcloudConfig:
 
 
 @dataclass(slots=True)
-class YoutubeConfig:
-    # The path to download the videos to
-    video_downloads_folder: str
-    # Only 0 is available for now
-    quality: int
-    # Download the video along with the audio
-    download_videos: bool
-
-
-@dataclass(slots=True)
 class DatabaseConfig:
     downloads_enabled: bool
     downloads_path: str
@@ -250,10 +240,6 @@ HOME = Path.home()
 DEFAULT_DOWNLOADS_FOLDER = os.path.join(HOME, "StreamripDownloads")
 DEFAULT_DOWNLOADS_DB_PATH = os.path.join(APP_DIR, "downloads.db")
 DEFAULT_FAILED_DOWNLOADS_DB_PATH = os.path.join(APP_DIR, "failed_downloads.db")
-DEFAULT_YOUTUBE_VIDEO_DOWNLOADS_FOLDER = os.path.join(
-    DEFAULT_DOWNLOADS_FOLDER,
-    "YouTubeVideos",
-)
 BLANK_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.toml")
 assert os.path.isfile(BLANK_CONFIG_PATH), "Template config not found"
 
@@ -267,7 +253,6 @@ class ConfigData:
     tidal: TidalConfig
     deezer: DeezerConfig
     soundcloud: SoundcloudConfig
-    youtube: YoutubeConfig
     lastfm: LastFmConfig
 
     filepaths: FilepathsConfig
@@ -297,7 +282,6 @@ class ConfigData:
         tidal = TidalConfig(**toml["tidal"])  # type: ignore
         deezer = DeezerConfig(**toml["deezer"])  # type: ignore
         soundcloud = SoundcloudConfig(**toml["soundcloud"])  # type: ignore
-        youtube = YoutubeConfig(**toml["youtube"])  # type: ignore
         lastfm = LastFmConfig(**toml["lastfm"])  # type: ignore
         artwork = ArtworkConfig(**toml["artwork"])  # type: ignore
         filepaths = FilepathsConfig(**toml["filepaths"])  # type: ignore
@@ -315,7 +299,6 @@ class ConfigData:
             tidal=tidal,
             deezer=deezer,
             soundcloud=soundcloud,
-            youtube=youtube,
             lastfm=lastfm,
             artwork=artwork,
             filepaths=filepaths,
@@ -345,7 +328,6 @@ class ConfigData:
         update_toml_section_from_config(self.toml["tidal"], self.tidal)
         update_toml_section_from_config(self.toml["deezer"], self.deezer)
         update_toml_section_from_config(self.toml["soundcloud"], self.soundcloud)
-        update_toml_section_from_config(self.toml["youtube"], self.youtube)
         update_toml_section_from_config(self.toml["lastfm"], self.lastfm)
         update_toml_section_from_config(self.toml["artwork"], self.artwork)
         update_toml_section_from_config(self.toml["filepaths"], self.filepaths)
@@ -441,7 +423,6 @@ def toml_set_user_defaults(toml: TOMLDocument):
     toml["downloads"]["folder"] = DEFAULT_DOWNLOADS_FOLDER  # type: ignore
     toml["database"]["downloads_path"] = DEFAULT_DOWNLOADS_DB_PATH  # type: ignore
     toml["database"]["failed_downloads_path"] = DEFAULT_FAILED_DOWNLOADS_DB_PATH  # type: ignore
-    toml["youtube"]["video_downloads_folder"] = DEFAULT_YOUTUBE_VIDEO_DOWNLOADS_FOLDER  # type: ignore
 
 
 def _get_dict_keys_r(d: dict) -> set[tuple]:

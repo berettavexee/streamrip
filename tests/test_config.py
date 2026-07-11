@@ -21,7 +21,6 @@ from streamrip.config import (
     QobuzDiscographyFilterConfig,
     SoundcloudConfig,
     TidalConfig,
-    YoutubeConfig,
     _get_dict_keys_r,
     _nested_set,
     update_config,
@@ -137,8 +136,6 @@ def test_config_file_update():
     assert toml["cli"]["progress_bars"] is True  # type: ignore
     assert toml["cli"]["max_search_results"] == 100  # type: ignore
     assert toml["misc"]["version"] == "2.2.0"  # type: ignore
-    assert "YouTubeVideos" in str(toml["youtube"]["video_downloads_folder"])
-    # type: ignore
     os.remove("tests/test_config_old2.toml")
 
 
@@ -197,11 +194,6 @@ def test_sample_config_data_fields(sample_config_data):
             app_version="appversion",
             quality=0,
         ),
-        youtube=YoutubeConfig(
-            video_downloads_folder="videodownloadsfolder",
-            quality=0,
-            download_videos=False,
-        ),
         lastfm=LastFmConfig(source="qobuz", fallback_source=""),
         filepaths=FilepathsConfig(
             add_singles_to_folder=False,
@@ -256,7 +248,6 @@ def test_sample_config_data_fields(sample_config_data):
     assert sample_config_data.tidal == test_config.tidal
     assert sample_config_data.deezer == test_config.deezer
     assert sample_config_data.soundcloud == test_config.soundcloud
-    assert sample_config_data.youtube == test_config.youtube
     assert sample_config_data.lastfm == test_config.lastfm
     assert sample_config_data.artwork == test_config.artwork
     assert sample_config_data.filepaths == test_config.filepaths

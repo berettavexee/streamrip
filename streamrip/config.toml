@@ -84,14 +84,6 @@ quality = 0
 client_id = ""
 app_version = ""
 
-[youtube]
-# Only 0 is available for now
-quality = 0
-# Download the video along with the audio
-download_videos = false
-# The path to download the videos to
-video_downloads_folder = ""
-
 [database]
 # Create a database that contains all the track IDs downloaded so far
 # Any time a track logged in the database is requested, it is skipped
