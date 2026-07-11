@@ -1139,6 +1139,43 @@ def test_batch_url_single_call_for_multiple_tracks(mock_deezer_client):
     mock_deezer_client.client.get_track_url.assert_not_called()
 
 
+def test_batch_url_transient_chunk_failure_still_resolves_later_chunks(mock_deezer_client):
+    """A transient failure on one chunk must not abandon the remaining chunks."""
+    for tid in ("1", "2", "3", "4"):
+        mock_deezer_client._gw_tracks.set_if_absent(tid, {"TRACK_TOKEN": f"tok{tid}"})
+
+    # First chunk raises a transient error; second chunk resolves normally.
+    mock_deezer_client.client.get_tracks_url.side_effect = [
+        RuntimeError("transient network blip"),
+        ["https://cdn3.flac", "https://cdn4.flac"],
+    ]
+
+    with patch.object(DeezerClient, "_BATCH_URL_CHUNK_SIZE", 2):
+        arun(mock_deezer_client._batch_resolve_urls("FLAC"))
+
+    # Chunk 1 (tracks 1,2) failed → not cached; chunk 2 (tracks 3,4) still resolved.
+    assert ("1", "FLAC") not in mock_deezer_client._url_results
+    assert ("2", "FLAC") not in mock_deezer_client._url_results
+    assert mock_deezer_client._url_results[("3", "FLAC")] == "https://cdn3.flac"
+    assert mock_deezer_client._url_results[("4", "FLAC")] == "https://cdn4.flac"
+    assert mock_deezer_client.client.get_tracks_url.call_count == 2
+
+
+def test_batch_url_wrong_license_stops_remaining_chunks(mock_deezer_client):
+    """WrongLicense aborts the whole batch — every chunk would fail the same way."""
+    for tid in ("1", "2", "3", "4"):
+        mock_deezer_client._gw_tracks.set_if_absent(tid, {"TRACK_TOKEN": f"tok{tid}"})
+
+    mock_deezer_client.client.get_tracks_url.side_effect = deezer.WrongLicense("FLAC")
+
+    with patch.object(DeezerClient, "_BATCH_URL_CHUNK_SIZE", 2):
+        arun(mock_deezer_client._batch_resolve_urls("FLAC"))
+
+    # Only the first chunk was attempted before bailing out.
+    assert mock_deezer_client.client.get_tracks_url.call_count == 1
+    assert mock_deezer_client._url_results == {}
+
+
 def test_batch_url_wrong_license_falls_back_to_lower_quality(mock_deezer_client):
     """WrongLicense from batch is absorbed; individual get_track_url also raises it, triggering fallback."""
     mock_deezer_client._gw_tracks.set_if_absent(

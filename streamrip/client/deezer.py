@@ -1053,14 +1053,18 @@ class DeezerClient(Client):
             try:
                 results = await self._gw(self.client.get_tracks_url, chunk_tokens, fmt)
             except deezer.WrongLicense:
-                # Format not licensed for batch endpoint; per-track calls handle fallback.
+                # Format not licensed for this account — every chunk would fail the
+                # same way, so stop; per-track get_track_url calls handle fallback.
                 logger.debug("Batch URL prefetch: %s not licensed for this account", fmt)
                 return
             except Exception as e:
-                logger.debug("Batch URL prefetch failed for %s: %s", fmt, e)
-                return
+                # Transient/per-chunk failure: skip this chunk but still try the rest.
+                # Tracks left unresolved here fall back to individual get_track_url.
+                logger.debug("Batch URL prefetch failed for %s chunk at %d: %s", fmt, offset, e)
+                continue
             if not isinstance(results, list):
-                return
+                logger.debug("Batch URL prefetch: unexpected result type for %s chunk at %d", fmt, offset)
+                continue
             for item_id, result in zip(chunk_ids, results):
                 # Only cache non-empty strings; empty string would suppress the
                 # individual get_track_url fallback without providing a usable URL.
