@@ -44,25 +44,6 @@ def _gw_int(val: Any, default: int) -> int:
         return default
 
 
-# GWAPIError message fragments that indicate the session cookie is no longer valid.
-# deezer-py already handles CSRF token rotation ("GATEWAY_ERROR: invalid api token" and
-# "VALID_TOKEN_REQUIRED") before raising; these patterns cover errors that survive that
-# internal retry — i.e. when the ARL cookie itself no longer authenticates the session.
-# Extend this tuple as new patterns are observed in the wild.
-_GW_SESSION_ERROR_PATTERNS: tuple[str, ...] = (
-    "USER_TOKEN_EXPIRED",
-    "NOT_LOGGED",
-    "Auth required",
-    "user not logged",
-    "NEED_API_AUTH",
-)
-
-
-def _is_session_error(exc: GWAPIError) -> bool:
-    msg = str(exc)
-    return any(pat in msg for pat in _GW_SESSION_ERROR_PATTERNS)
-
-
 class _HttpsUpgradeSession(requests.Session):
     """requests.Session that rewrites http:// to https:// on every request.
 
@@ -194,10 +175,6 @@ class DeezerClient(Client):
         self._url_results: dict[tuple[str, str], str] = {}
         self._url_batch_tasks: dict[str, asyncio.Task[None]] = {}
         self._url_batch_lock: asyncio.Lock = asyncio.Lock()
-        self._session_lock: asyncio.Lock = asyncio.Lock()
-        # Bumped on every session-renewal attempt; lets coroutines that queued on
-        # _session_lock detect a renewal already happened and skip a redundant login.
-        self._session_gen: int = 0
 
         # REST API (api.deezer.com) throttles beyond ~10 req/sec.
         self._rest_limiter = aiolimiter.AsyncLimiter(10, 1)
@@ -245,8 +222,10 @@ class DeezerClient(Client):
     async def _gw(self, fn: Callable, /, *args: Any, **kwargs: Any) -> Any:
         """Run a blocking deezer-py GW call in a thread pool.
 
-        On a session-expiry GWAPIError (patterns in ``_GW_SESSION_ERROR_PATTERNS``),
-        renews the session via ARL and retries the call once.
+        Note: Deezer does not raise on an expired session — the GW silently
+        returns anonymous data (USER_ID=0), and the ``arl`` cookie transparently
+        re-establishes the session server-side. A truly expired ARL fails at
+        ``login()`` instead. So no session-renewal retry is needed here.
 
         Args:
             fn: Callable to invoke (e.g. ``self.client.gw.get_track``).
@@ -256,57 +235,7 @@ class DeezerClient(Client):
         Returns:
             Whatever fn returns.
         """
-        # Capture the session generation *before* the call so that if it fails
-        # with a session error, _renew_session can tell whether the session was
-        # already renewed by another coroutine since this call started.
-        gen = self._session_gen
-        try:
-            return await asyncio.to_thread(fn, *args, **kwargs)
-        except GWAPIError as e:
-            if not _is_session_error(e):
-                raise
-            logger.debug("GW session error (%s) — attempting renewal", e)
-            await self._renew_session(gen)
-            return await asyncio.to_thread(fn, *args, **kwargs)
-
-    async def _renew_session(self, seen_gen: int) -> None:
-        """Re-authenticate using the stored ARL cookie.
-
-        A generation counter guarded by ``_session_lock`` collapses a burst of
-        concurrent renewal requests into a single ``login_via_arl`` call. Each
-        caller passes ``seen_gen`` — the session generation observed when its GW
-        call began. The first coroutine to acquire the lock finds the generation
-        unchanged, performs the login, and bumps it; every coroutine whose GW
-        call started in that same generation then observes the bump and returns
-        immediately to retry against the freshly-renewed session.
-
-        Args:
-            seen_gen: The value of ``_session_gen`` at the start of the caller's
-                GW call — the generation that was in effect when it failed.
-
-        Raises:
-            AuthenticationError: If the ARL no longer authenticates. Only the
-                coroutine that actually performed the failed login sees this;
-                the others return and let their single ``_gw`` retry surface the
-                still-failing call, so a bad ARL yields one login per wave rather
-                than one per track.
-        """
-        async with self._session_lock:
-            if self._session_gen != seen_gen:
-                # Another coroutine already (re)attempted renewal for this generation.
-                return
-            # Claim this generation before the network call so coroutines still
-            # queued on the lock skip a duplicate login regardless of the outcome.
-            self._session_gen += 1
-            logger.debug("Renewing Deezer session via ARL")
-            success = await asyncio.to_thread(self.client.login_via_arl, self.config.arl)
-            if not success:
-                raise AuthenticationError(
-                    "Session renewal failed: the ARL may have expired. "
-                    "Update the arl field in your config."
-                )
-            self.logged_in_user_id = self.client.current_user["id"]
-            logger.debug("Deezer session renewed (user ID: %s)", self.logged_in_user_id)
+        return await asyncio.to_thread(fn, *args, **kwargs)
 
     async def _get_gw_track(self, item_id: str) -> dict:
         """Return GW track info from cache, or fetch and cache it on a miss.

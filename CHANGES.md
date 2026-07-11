@@ -11,7 +11,6 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - Fix empty-string CDN URL from batch no longer cached — prevented the individual fallback from running while providing no usable URL
 - Fix failed batch `asyncio.Task` (from `WrongLicense`) no longer permanently cached — subsequent calls no longer deadlock on the same failed task
 - Batch URL resolution chunked at 1000 tokens per call to respect undocumented Deezer API limits
-- Automatic GW session renewal: when a GW call fails with a session-expiry error, the session is transparently renewed via `login_via_arl(arl)` and the call is retried once; concurrent renewals are serialised by a lock; raises `AuthenticationError` if the ARL itself has expired
 - `_HttpsUpgradeSession` now also rewrites `http://` to `https://` in `send()`, covering `PreparedRequest` objects built outside `request()`
 - Fix `ALB_ID=0` no longer triggers a spurious `get_album("0")` call for tracks without an associated album
 - Fix `SNG_ID` absent from a GW response no longer raises unhandled `KeyError` — falls back to `0` via `_gw_int()`
