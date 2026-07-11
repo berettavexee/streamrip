@@ -11,8 +11,8 @@ Output demo/download_album.mp4
 
 Set Shell bash
 Set FontSize 22
-Set Width 1618
-Set Height 1088
+Set Width 1200
+Set Height 600
 Set Padding 20
 
 Hide
@@ -22,7 +22,7 @@ Type "clear"
 Enter
 Show
 
-Type "rip url 'https://www.deezer.com/album/302127'"
+Type "rip -ndb url 'https://www.deezer.com/album/302127'"
 Enter
 # Laisse la résolution + les premières barres de progression apparaître.
-Sleep 6s
+Sleep 22s
