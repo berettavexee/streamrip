@@ -68,6 +68,14 @@ log_cli = true
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.ruff]
+# Le whitelist vulture contient des noms non définis à dessein (F821).
+extend-exclude = [".vulture_whitelist.py"]
+
+[tool.vulture]
+paths = ["streamrip", ".vulture_whitelist.py"]
+min_confidence = 60
+
 [tool.ruff.lint]
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
 select = ["E4", "E7", "E9", "F", "I", "ASYNC", "N", "RUF", "ERA001"]
