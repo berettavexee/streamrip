@@ -86,7 +86,7 @@ def test_task_cache_set_if_absent_stores_new():
     """set_if_absent stores a value when the key is not yet cached."""
     cache: _TaskCache[str, str] = _TaskCache()
     cache.set_if_absent("k", "v1")
-    assert cache._results["k"] == "v1"
+    assert cache.get("k") == "v1"
 
 
 def test_task_cache_set_if_absent_does_not_overwrite():
@@ -94,7 +94,7 @@ def test_task_cache_set_if_absent_does_not_overwrite():
     cache: _TaskCache[str, str] = _TaskCache()
     cache.set("k", "original")
     cache.set_if_absent("k", "replacement")
-    assert cache._results["k"] == "original"
+    assert cache.get("k") == "original"
 
 
 # ===== get_downloadable — guard =====
@@ -351,8 +351,8 @@ def test_deezer_get_album_redirect(mock_deezer_client):
 
     assert result["title"] == "Redirected Album"
     # Both the original and canonical IDs should be in the cache.
-    assert mock_deezer_client._album_cache.get("old_id") is not None
-    assert mock_deezer_client._album_cache.get("new_id") is not None
+    assert mock_deezer_client._albums.get("old_id") is not None
+    assert mock_deezer_client._albums.get("new_id") is not None
 
 
 # ===== get_track =====
@@ -545,9 +545,9 @@ def test_deezer_get_user_favorites_prefetch_populates_cache(mock_deezer_client):
 
     arun(mock_deezer_client.get_user_favorites("42"))
 
-    assert "10" in mock_deezer_client._gw_tracks._results
-    assert "20" in mock_deezer_client._gw_tracks._results
-    assert mock_deezer_client._gw_tracks._results["10"]["TRACK_TOKEN"] == "tok10"
+    assert "10" in mock_deezer_client._gw_tracks
+    assert "20" in mock_deezer_client._gw_tracks
+    assert mock_deezer_client._gw_tracks.get("10")["TRACK_TOKEN"] == "tok10"
 
 
 def test_deezer_get_user_favorites_prefetch_chunking(mock_deezer_client):
@@ -702,14 +702,14 @@ def test_get_track_gw_fetch_error_raises(mock_deezer_client):
 # ===== get_album — task exception =====
 
 def test_get_album_task_exception_clears_task(mock_deezer_client):
-    """A failed get_album task is removed from _album_tasks so it can be retried."""
+    """A failed get_album task is evicted so it can be retried."""
     mock_deezer_client.client.api.get_album.side_effect = DataException
 
     with patch.object(mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value=None)):
         with pytest.raises(DataException):
             arun(mock_deezer_client.get_album("bad_album"))
 
-    assert "bad_album" not in mock_deezer_client._album_tasks
+    assert not mock_deezer_client._albums.has_pending("bad_album")
 
 
 # ===== _resolve_redirect =====

@@ -104,7 +104,7 @@ class TestDeezerClientAlbumCache:
         from streamrip.client.deezer import DeezerClient
         config = Config.defaults()
         client = DeezerClient(config)
-        client._album_cache["999"] = {"id": "999", "title": "Cached Album"}
+        client._albums.set("999", {"id": "999", "title": "Cached Album"})
 
         result = await client.get_album("999")
         assert result["title"] == "Cached Album"
