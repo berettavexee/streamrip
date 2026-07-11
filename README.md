@@ -91,7 +91,7 @@ rip --quality 3 url https://tidal.com/browse/album/147569387
 Search for playlists matching `rap` on Tidal
 
 ```bash
-rip search tidal playlist 'rap'
+rip search tidal playlist 'bossa nova'
 ```
 
 ![streamrip interactive search](https://github.com/berettavexee/streamrip/blob/dev/demo/playlist_search.png?raw=true)
