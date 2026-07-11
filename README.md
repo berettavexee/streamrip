@@ -29,7 +29,6 @@ A scriptable stream downloader for Qobuz, Tidal, Deezer and SoundCloud.
 - Concurrency and rate limiting
 - Interactive search for all sources
 - Highly customizable through the config file
-- Integration with `youtube-dl`
 
 ## Installation
 
