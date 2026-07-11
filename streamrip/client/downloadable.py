@@ -142,6 +142,14 @@ class DeezerDownloadable(Downloadable):
             self.extension = "flac"
         self.id = str(info["id"])
 
+    async def size(self) -> int:
+        # Deezer streams the real byte count in the GET Content-Length header read
+        # by _download(); a HEAD on the CDN URL (carrying an hdnea token) is both
+        # unnecessary and not reliably supported, so never issue one here. When the
+        # GW metadata lacked FILESIZE_* (_size is None), report 0 — the progress bar
+        # simply runs without a known total for those old-catalog tracks.
+        return self._size or 0
+
     async def _download(self, path: str, callback):
         async with self.session.get(self.url, allow_redirects=True) as resp:
             resp.raise_for_status()
