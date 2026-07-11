@@ -1,6 +1,6 @@
 """Tests for client/downloadable.py — constructors, quality clipping, crypto helpers."""
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -9,6 +9,7 @@ from streamrip.client.downloadable import (
     DeezerDownloadable,
     SoundcloudDownloadable,
     TidalDownloadable,
+    discard_partial_file,
     generate_temp_path,
 )
 from streamrip.exceptions import NonStreamableError
@@ -108,6 +109,60 @@ class TestDeezerDownloadable:
     def test_id_stored_as_str(self):
         d = DeezerDownloadable(MagicMock(), _deezer_info())
         assert d.id == "12345"
+
+
+class TestDiscardPartialFile:
+    def test_removes_existing_file(self, tmp_path):
+        f = tmp_path / "partial.flac"
+        f.write_bytes(b"truncated")
+        discard_partial_file(str(f))
+        assert not f.exists()
+
+    def test_missing_file_is_not_an_error(self, tmp_path):
+        discard_partial_file(str(tmp_path / "never-created.flac"))
+
+
+class TestDeezerDownloadCleanup:
+    """A failed download must not leave a truncated file behind: postprocess()
+    would tag it and record it as downloaded, hiding the corruption forever."""
+
+    def _response(self, chunks_side_effect):
+        resp = MagicMock()
+        resp.raise_for_status = MagicMock()
+        resp.headers = {"Content-Length": "20000000"}
+        resp.content.iter_chunks = MagicMock(side_effect=chunks_side_effect)
+        resp.content.iter_chunked = MagicMock(side_effect=chunks_side_effect)
+        return resp
+
+    def _session(self, resp):
+        session = MagicMock()
+        cm = MagicMock()
+        cm.__aenter__ = AsyncMock(return_value=resp)
+        cm.__aexit__ = AsyncMock(return_value=False)
+        session.get = MagicMock(return_value=cm)
+        return session
+
+    async def _run(self, url, path):
+        def _boom(*_args, **_kwargs):
+            raise RuntimeError("connection reset mid-stream")
+
+        resp = self._response(_boom)
+        d = DeezerDownloadable(self._session(resp), _deezer_info(url=url))
+        # Simulate a partial file left by an interrupted write.
+        path.write_bytes(b"\x00" * 1024)
+        with pytest.raises(RuntimeError, match="connection reset"):
+            await d._download(str(path), lambda _n: None)
+
+    async def test_encrypted_stream_failure_removes_partial_file(self, tmp_path):
+        path = tmp_path / "track.flac"
+        # "/mobile/" in the path is what marks a Deezer URL as encrypted.
+        await self._run("https://e-cdns-proxy-a.dzcdn.net/mobile/1/abc", path)
+        assert not path.exists()
+
+    async def test_plain_stream_failure_removes_partial_file(self, tmp_path):
+        path = tmp_path / "track.flac"
+        await self._run("https://cdns-proxy.dzcdn.net/stream/abc", path)
+        assert not path.exists()
 
 
 class TestDeezerBlowfishKey:

@@ -37,6 +37,22 @@ def generate_temp_path(url: str):
     )
 
 
+def discard_partial_file(path: str) -> None:
+    """Delete a partially written download so no truncated file is left behind.
+
+    A half-written file that survives a failed download can be picked up by the
+    tagging and integrity stages and end up recorded as a successful download.
+    Every download path must therefore clean up after itself on error.
+
+    Args:
+        path: Path to the file being written when the download failed.
+    """
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
 async def fast_async_download(path, url, headers, callback):
     """Download a file without blocking the event loop.
 
@@ -62,10 +78,7 @@ async def fast_async_download(path, url, headers, callback):
     try:
         await asyncio.to_thread(_sync_download)
     except Exception:
-        try:
-            os.remove(path)
-        except FileNotFoundError:
-            pass
+        discard_partial_file(path)
         raise
 
 
@@ -175,10 +188,7 @@ class DeezerDownloadable(Downloadable):
                             await audio.write(chunk)
                             callback(len(chunk))
                 except Exception:
-                    try:
-                        os.remove(path)
-                    except FileNotFoundError:
-                        pass
+                    discard_partial_file(path)
                     raise
             else:
                 blowfish_key = self._generate_blowfish_key(self.id)
@@ -189,24 +199,28 @@ class DeezerDownloadable(Downloadable):
                     blowfish_key,
                 )
 
-                buf = bytearray()
-                async for data, _ in resp.content.iter_chunks():
-                    buf += data
-                    callback(len(data))
+                try:
+                    buf = bytearray()
+                    async for data, _ in resp.content.iter_chunks():
+                        buf += data
+                        callback(len(data))
 
-                encrypt_chunk_size = 3 * 2048
-                async with aiofiles.open(path, "wb") as audio:
-                    buflen = len(buf)
-                    for i in range(0, buflen, encrypt_chunk_size):
-                        data = buf[i : min(i + encrypt_chunk_size, buflen)]  # type: ignore[assignment]
-                        if len(data) >= 2048:
-                            decrypted_chunk = (
-                                self._decrypt_chunk(blowfish_key, data[:2048])
-                                + data[2048:]
-                            )
-                        else:
-                            decrypted_chunk = data
-                        await audio.write(decrypted_chunk)
+                    encrypt_chunk_size = 3 * 2048
+                    async with aiofiles.open(path, "wb") as audio:
+                        buflen = len(buf)
+                        for i in range(0, buflen, encrypt_chunk_size):
+                            data = buf[i : min(i + encrypt_chunk_size, buflen)]  # type: ignore[assignment]
+                            if len(data) >= 2048:
+                                decrypted_chunk = (
+                                    self._decrypt_chunk(blowfish_key, data[:2048])
+                                    + data[2048:]
+                                )
+                            else:
+                                decrypted_chunk = data
+                            await audio.write(decrypted_chunk)
+                except Exception:
+                    discard_partial_file(path)
+                    raise
 
     @staticmethod
     def _decrypt_chunk(key, data):

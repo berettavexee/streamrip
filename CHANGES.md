@@ -67,7 +67,8 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 
 ## Integrity
 
-- Post-download integrity check: after tagging and conversion, each track's effective bitrate (`file_size * 8 / duration`) is compared against a conservative minimum for the requested quality tier (50 kbps for MP3 128, 100 kbps for MP3 320 and FLAC, 200 kbps for Hi-Res FLAC). Files that fall below the threshold — empty files, unreadable formats, or obviously truncated downloads — trigger a WARNING log with file size, duration, and effective bitrate. The download is still recorded in the database (no hard failure); the check is non-blocking (`asyncio.to_thread`). Tracks shorter than 5 seconds are skipped to avoid false positives from header overhead.
+- Post-download integrity check: after tagging and conversion, each track's effective bitrate (`file_size * 8 / duration`) is compared against a conservative minimum for the requested quality tier (50 kbps for MP3 128, 100 kbps for MP3 320 and FLAC, 200 kbps for Hi-Res FLAC). Files that fall below the threshold — empty files, unreadable formats, or obviously truncated downloads — trigger an ERROR log with file size, duration, and effective bitrate. The check is non-blocking (`asyncio.to_thread`). Tracks shorter than 5 seconds are skipped to avoid false positives from header overhead.
+- Fix a track failing the integrity check is now recorded as *failed* instead of *downloaded*. Recording it as downloaded meant the database skipped it on every subsequent run, so a truncated file stayed corrupt in the library forever with no way to recover it short of clearing the database. The file itself is left on disk for inspection and is overwritten by the next run.
 
 ## Downloads
 
@@ -75,6 +76,9 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - Playlist batch download boundary eliminated: each resolved track now starts downloading immediately via `asyncio.create_task` instead of waiting for all tracks in the current batch to finish. Previously the last few tracks in a batch left up to 5 download slots idle; the fix reduces the inter-batch gap from ~4 s to ~1 s (the time for the first new download to complete)
 - `fast_async_download` runs the `requests` HTTP call inside `asyncio.to_thread` so it no longer blocks the event loop during concurrent downloads ([#982](https://github.com/nathom/streamrip/pull/982))
 - `fast_async_download` now calls `raise_for_status()` so HTTP errors (4xx/5xx) surface as exceptions instead of silently writing the error body to disk; the partial file is removed on failure
+- Fix `Track.download()` raises `NonStreamableError` once both attempts have failed, instead of returning normally. It previously fell through to `postprocess()`, which tagged a missing or truncated file: the user saw a confusing mutagen error rather than the actual network failure, and a partial file that happened to tag successfully was recorded in the database as a completed download
+- Fix the encrypted (Blowfish) Deezer download path removes its partial file on failure, like the plain path already did. It was the one route that could leave a truncated `.flac` behind for `postprocess()` to pick up
+- Fix `UserFavorites.download()` isolates per-item failures: one track raising no longer cancels the other 9 items in its `asyncio.gather` batch
 - Fix `truncate_str` to explicitly use UTF-8 encoding and skip the encode/decode round-trip when the filename is already within the 255-byte limit
 - Mutagen file I/O (tag read + write) runs in a thread pool via `asyncio.to_thread`, releasing the download slot before tagging completes — the next track's download starts immediately while the previous one is being tagged
 

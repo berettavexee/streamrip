@@ -92,12 +92,16 @@ class Track(Media):
 
         Acquires the global download semaphore, then attempts the download up
         to twice (one initial attempt + one retry).  On a second consecutive
-        failure the track is recorded as failed in the database and the method
-        returns without raising.
+        failure the track is recorded as failed in the database and the error
+        is raised, so that :meth:`postprocess` never runs on a missing or
+        truncated file.
 
         Args:
             stats: Unused (kept for interface symmetry with
                 :meth:`Media.download`).
+
+        Raises:
+            NonStreamableError: When both attempts fail.
         """
         async with global_download_semaphore(self.config.session.downloads):
             for attempt in range(2):
@@ -123,6 +127,9 @@ class Track(Media):
                             self.db.set_failed(
                                 self.downloadable.source, "track", self.meta.info.id
                             )
+                            raise NonStreamableError(
+                                f"Failed to download '{self.meta.title}' after 2 attempts: {e}"
+                            ) from e
 
     async def postprocess(self):
         """Tag, convert, and record the downloaded track.
@@ -135,7 +142,14 @@ class Track(Media):
         3. Run the integrity check (effective bitrate vs. quality tier).
         4. Record the track as downloaded in the database.
 
+        A file that fails the integrity check is recorded as *failed*, not as
+        downloaded: marking it as downloaded would make the database skip it on
+        every subsequent run, leaving a truncated file in the library forever.
+        The file itself is kept on disk so it can be inspected; the next run
+        overwrites it.
+
         Raises:
+            NonStreamableError: When the downloaded file fails the integrity check.
             Exception: Propagated from :func:`tag_file` or :meth:`_convert`
                 on tagging or conversion failure.
         """
@@ -150,11 +164,17 @@ class Track(Media):
             check_integrity, self.download_path, self.meta.info.quality
         )
         if not ok:
-            logger.warning(
+            logger.error(
                 "Integrity check failed for '%s' by '%s': %s",
                 self.meta.title,
                 self.meta.artist,
                 reason,
+            )
+            self.db.set_failed(
+                self.downloadable.source, "track", self.meta.info.id
+            )
+            raise NonStreamableError(
+                f"Integrity check failed for '{self.meta.title}': {reason}"
             )
 
         self.db.set_downloaded(self.meta.info.id)
