@@ -4,6 +4,22 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 
 ## Deezer
 
+- Pipe GraphQL API client (`DeezerPipeClient`): authenticates against `auth.deezer.com` via RS256 JWT (6-minute TTL, refreshed automatically with `refresh_token`); used for internal Deezer GraphQL queries not exposed by the public REST or GW APIs
+- Batch CDN URL resolution: all `TRACK_TOKEN`s collected during a session are resolved in a single `get_tracks_url` call (chunked at 1000 tokens), replacing per-track individual calls and cutting URL-resolution time by ~80% on large playlists
+- Old-catalog tracks with `FILESIZE_*=0` (GW returns zeros for all quality tiers) no longer raise `NonStreamableError` — the CDN URL is valid; actual file size is read from the `Content-Length` response header
+- Fix `WrongLicense` from batch `get_tracks_url` now absorbed instead of re-raised, so the individual `get_track_url` fallback is correctly reached and the quality-downgrade path works as intended
+- Fix empty-string CDN URL from batch no longer cached — prevented the individual fallback from running while providing no usable URL
+- Fix failed batch `asyncio.Task` (from `WrongLicense`) no longer permanently cached — subsequent calls no longer deadlock on the same failed task
+- Batch URL resolution chunked at 1000 tokens per call to respect undocumented Deezer API limits
+- Automatic GW session renewal: when a GW call fails with a session-expiry error, the session is transparently renewed via `login_via_arl(arl)` and the call is retried once; concurrent renewals are serialised by a lock; raises `AuthenticationError` if the ARL itself has expired
+- `_HttpsUpgradeSession` now also rewrites `http://` to `https://` in `send()`, covering `PreparedRequest` objects built outside `request()`
+- Fix `ALB_ID=0` no longer triggers a spurious `get_album("0")` call for tracks without an associated album
+- Fix `SNG_ID` absent from a GW response no longer raises unhandled `KeyError` — falls back to `0` via `_gw_int()`
+- Fix bare `int()` on `EXPLICIT_LYRICS`, `TRACK_NUMBER`, `DISK_NUMBER` replaced by `_gw_int()` — no longer raises `ValueError` when the field is absent or an empty string
+- Fix BPM value of `float('inf')` (valid in Python float arithmetic) now rejected — previously caused `OverflowError` downstream when converting to `int`
+- Fix `asyncio.CancelledError` in `_TaskCache.get_or_create` now properly evicts the failed task before re-raising (`except BaseException` instead of `except Exception`)
+- `bit_depth` and `sampling_rate` read from the API response instead of hardcoded constants, preparing for tracks that may report non-CD quality values
+
 - Support for `link.deezer.com/s/` short URLs ([#887](https://github.com/nathom/streamrip/pull/887))
 - Download an artist's top tracks via `https://www.deezer.com/fr/artist/ID/top_track` — downloaded as a playlist named `Artist — Top Tracks`
 - Download liked tracks from a user profile URL (`/profile/USER_ID/loved`); all loved tracks are fetched regardless of library size — the `song.getFavoriteIds` API silently caps each page at ~100 entries and the client now paginates until the server returns an empty page; family/child accounts are handled correctly (the UID comparison that previously blocked family profiles was removed)
