@@ -1313,23 +1313,75 @@ def test_renew_session_raises_auth_error_when_arl_expired(mock_deezer_client):
     mock_deezer_client.client.login_via_arl = Mock(return_value=False)
 
     with pytest.raises(AuthenticationError):
-        arun(mock_deezer_client._renew_session())
+        arun(mock_deezer_client._renew_session(mock_deezer_client._session_gen))
 
 
-def test_renew_session_concurrent_calls_login_once(mock_deezer_client):
-    """Concurrent _renew_session() calls share one login_via_arl call via the lock."""
+def test_renew_session_concurrent_same_generation_logs_in_once(mock_deezer_client):
+    """Concurrent renewals for the same generation collapse to a single login_via_arl."""
     mock_deezer_client.client.login_via_arl = Mock(return_value=True)
     mock_deezer_client.client.current_user = {"id": 1231003}
+    gen = mock_deezer_client._session_gen
 
     async def _run():
         await asyncio.gather(
-            mock_deezer_client._renew_session(),
-            mock_deezer_client._renew_session(),
-            mock_deezer_client._renew_session(),
+            mock_deezer_client._renew_session(gen),
+            mock_deezer_client._renew_session(gen),
+            mock_deezer_client._renew_session(gen),
         )
 
     arun(_run())
-    # The lock serialises calls, so login_via_arl is called 3 times (once per coroutine),
-    # but never concurrently — the important property is that no call is skipped or duplicated
-    # in a way that could corrupt the session state.
-    assert mock_deezer_client.client.login_via_arl.call_count == 3
+    # All three saw the same pre-renewal generation; the generation guard lets only
+    # the first perform the login, the other two return after observing the bump.
+    assert mock_deezer_client.client.login_via_arl.call_count == 1
+    assert mock_deezer_client._session_gen == gen + 1
+
+
+def test_gw_concurrent_session_errors_renew_once(mock_deezer_client):
+    """N concurrent _gw calls hitting a session error trigger a single renewal."""
+    mock_deezer_client.client.login_via_arl = Mock(return_value=True)
+    mock_deezer_client.client.current_user = {"id": 1231003}
+
+    call_state = {"failed": False}
+
+    def fn():
+        # Every call fails with a session error until the session is renewed once.
+        if not call_state["failed"]:
+            # First wave: all calls fail before renewal completes.
+            raise GWAPIError('{"NOT_LOGGED": "user not logged"}')
+        return {"ok": True}
+
+    # login_via_arl flips the state so post-renewal retries succeed.
+    def _login(_arl):
+        call_state["failed"] = True
+        return True
+
+    mock_deezer_client.client.login_via_arl = Mock(side_effect=_login)
+
+    async def _run():
+        return await asyncio.gather(
+            mock_deezer_client._gw(fn),
+            mock_deezer_client._gw(fn),
+            mock_deezer_client._gw(fn),
+        )
+
+    results = arun(_run())
+    assert all(r == {"ok": True} for r in results)
+    assert mock_deezer_client.client.login_via_arl.call_count == 1
+
+
+def test_deezer_downloadable_size_never_issues_head():
+    """DeezerDownloadable.size() returns _size (or 0) without a HEAD request."""
+    from streamrip.client.downloadable import DeezerDownloadable
+
+    session = Mock()
+    session.head = Mock(side_effect=AssertionError("size() must not issue a HEAD"))
+    info = {
+        "quality": 2,
+        "id": "12345",
+        "quality_to_size": [0, 0, 0],  # old-catalog: _size becomes None
+        "url": "https://cdnt-stream.dzcdn.net/media/1/track.flac",
+    }
+    dl = DeezerDownloadable(session, info)
+    assert dl._size is None
+    assert arun(dl.size()) == 0
+    session.head.assert_not_called()
