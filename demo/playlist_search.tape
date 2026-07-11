@@ -10,8 +10,8 @@ Output demo/playlist_search.mp4
 
 Set Shell bash
 Set FontSize 22
-Set Width 1726
-Set Height 1238
+Set Width 1200
+Set Height 700
 Set Padding 20
 
 Hide
@@ -21,7 +21,7 @@ Type "clear"
 Enter
 Show
 
-Type "rip search tidal playlist 'rap'"
+Type "rip search deezer playlist 'bossanova'"
 Enter
 # Laisse les résultats s'afficher avant la fin de la vidéo.
 Sleep 4s
