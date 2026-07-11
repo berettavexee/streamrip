@@ -45,19 +45,24 @@ def _gw_int(val: Any, default: int) -> int:
 
 
 class _HttpsUpgradeSession(requests.Session):
-    """requests.Session that rewrites http:// to https:// before prepare_request().
+    """requests.Session that rewrites http:// to https:// on every request.
 
-    The rewrite must happen in request() — before prepare_request() selects
-    cookies — so that Secure cookies set by earlier HTTPS responses are
-    included in subsequent requests.  An adapter-level rewrite is too late:
-    cookies are already picked for the original http:// URL by the time send()
-    is called.
+    The rewrite happens in both request() and send():
+    - request(): before prepare_request() selects cookies, so that Secure
+      cookies from earlier HTTPS responses are included in subsequent requests.
+    - send(): defensive fallback for PreparedRequests built and passed directly
+      without going through request().
     """
 
     def request(self, method: str, url: str | bytes, **kwargs: Any) -> requests.Response:
         if isinstance(url, str) and url.startswith("http://"):
             url = "https://" + url[7:]
         return super().request(method, url, **kwargs)
+
+    def send(self, request: requests.PreparedRequest, **kwargs: Any) -> requests.Response:
+        if isinstance(request.url, str) and request.url.startswith("http://"):
+            request.url = "https://" + request.url[7:]
+        return super().send(request, **kwargs)
 
 K = TypeVar("K")
 V = TypeVar("V")
@@ -449,10 +454,10 @@ class DeezerClient(Client):
             lyrics = await self._fetch_lyrics(item_id)
             item = self._gw_to_track_dict(cached_gw, lyrics)
             if fetch_album:
-                album_id = str(cached_gw.get("ALB_ID", ""))
+                album_id = _gw_int(cached_gw.get("ALB_ID"), 0)
                 if album_id:
                     try:
-                        item["album"] = await self.get_album(album_id)
+                        item["album"] = await self.get_album(str(album_id))
                     except Exception as e:
                         logger.error("Error fetching album %s for track %s: %s", album_id, item_id, e)
             return item
