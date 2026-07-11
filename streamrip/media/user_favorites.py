@@ -94,9 +94,12 @@ class UserFavorites(Media):
             stats: Optional accumulator for download metrics.
         """
         async def _rip(item: Pending):
-            media = await item.resolve()
-            if media is not None:
-                await media.rip(stats)
+            try:
+                media = await item.resolve()
+                if media is not None:
+                    await media.rip(stats)
+            except Exception as e:
+                logger.error("Error downloading favorited %s: %s", self.media_type, e)
 
         batches = self.batch([_rip(item) for item in self.pending_items], CHUNK_SIZE)
         for batch in batches:

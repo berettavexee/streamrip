@@ -175,6 +175,7 @@ async def test_download_marks_failed_after_two_failures(caplog):
     with (
         patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
         patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
+        pytest.raises(NonStreamableError, match="after 2 attempts"),
     ):
         await t.download()
     assert t.downloadable.download.await_count == 2
@@ -182,9 +183,32 @@ async def test_download_marks_failed_after_two_failures(caplog):
     t.db.set_failed.assert_called_once()
 
 
+async def test_rip_does_not_postprocess_when_download_fails():
+    """A failed download must not reach tagging — postprocess() would otherwise
+    tag a missing or truncated file and record it as downloaded."""
+    t = _track()
+    t.downloadable.download = AsyncMock(side_effect=RuntimeError("bad"))
+    with (
+        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
+        patch("streamrip.media.track.tag_file", new=AsyncMock()) as mock_tag,
+        patch("streamrip.media.track.advance_overall"),
+        patch("streamrip.media.track.os.makedirs"),
+        pytest.raises(NonStreamableError),
+    ):
+        await t.rip()
+    mock_tag.assert_not_awaited()
+    t.db.set_downloaded.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # Track.postprocess
 # ---------------------------------------------------------------------------
+
+
+def _integrity_ok():
+    """Patch check_integrity to pass: postprocess() unit tests use a fake path."""
+    return patch("streamrip.media.track.check_integrity", return_value=(True, ""))
 
 
 async def test_postprocess_tags_file():
@@ -193,6 +217,7 @@ async def test_postprocess_tags_file():
     with (
         patch("streamrip.media.track.tag_file", new=AsyncMock()) as mock_tag,
         patch("streamrip.media.track.remove_title"),
+        _integrity_ok(),
     ):
         await t.postprocess()
     mock_tag.assert_awaited_once_with(t.download_path, t.meta, t.cover_path)
@@ -204,6 +229,7 @@ async def test_postprocess_removes_title_when_single():
     with (
         patch("streamrip.media.track.tag_file", new=AsyncMock()),
         patch("streamrip.media.track.remove_title") as mock_rm,
+        _integrity_ok(),
     ):
         await t.postprocess()
     mock_rm.assert_called_once_with(t.meta.title)
@@ -215,6 +241,7 @@ async def test_postprocess_no_remove_title_when_not_single():
     with (
         patch("streamrip.media.track.tag_file", new=AsyncMock()),
         patch("streamrip.media.track.remove_title") as mock_rm,
+        _integrity_ok(),
     ):
         await t.postprocess()
     mock_rm.assert_not_called()
@@ -226,12 +253,13 @@ async def test_postprocess_marks_downloaded():
     with (
         patch("streamrip.media.track.tag_file", new=AsyncMock()),
         patch("streamrip.media.track.remove_title"),
+        _integrity_ok(),
     ):
         await t.postprocess()
     t.db.set_downloaded.assert_called_once_with(t.meta.info.id)
 
 
-async def test_postprocess_logs_warning_when_integrity_fails(caplog):
+async def test_postprocess_logs_error_when_integrity_fails(caplog):
     t = _track()
     t.download_path = "/dl/album/01 - Song.flac"
     import logging
@@ -242,7 +270,8 @@ async def test_postprocess_logs_warning_when_integrity_fails(caplog):
             "streamrip.media.track.check_integrity",
             return_value=(False, "effective bitrate 10 kbps is below minimum"),
         ),
-        caplog.at_level(logging.WARNING, logger="streamrip"),
+        caplog.at_level(logging.ERROR, logger="streamrip"),
+        pytest.raises(NonStreamableError, match="Integrity check failed"),
     ):
         await t.postprocess()
     assert any("Integrity check failed" in r.message for r in caplog.records)
@@ -262,17 +291,22 @@ async def test_postprocess_no_warning_when_integrity_ok():
     t.db.set_downloaded.assert_called_once()
 
 
-async def test_postprocess_marks_downloaded_even_when_integrity_fails():
-    """Integrity failure is a warning only — track is still recorded as downloaded."""
+async def test_postprocess_marks_failed_when_integrity_fails():
+    """A truncated file must never be recorded as downloaded: the database would
+    skip it on every subsequent run, leaving it corrupt in the library forever."""
     t = _track()
     t.download_path = "/dl/album/01 - Song.flac"
     with (
         patch("streamrip.media.track.tag_file", new=AsyncMock()),
         patch("streamrip.media.track.remove_title"),
         patch("streamrip.media.track.check_integrity", return_value=(False, "truncated")),
+        pytest.raises(NonStreamableError),
     ):
         await t.postprocess()
-    t.db.set_downloaded.assert_called_once_with(t.meta.info.id)
+    t.db.set_downloaded.assert_not_called()
+    t.db.set_failed.assert_called_once_with(
+        t.downloadable.source, "track", t.meta.info.id
+    )
 
 
 async def test_postprocess_runs_conversion_when_enabled():
@@ -282,6 +316,7 @@ async def test_postprocess_runs_conversion_when_enabled():
         patch("streamrip.media.track.tag_file", new=AsyncMock()),
         patch("streamrip.media.track.remove_title"),
         patch.object(t, "_convert", new=AsyncMock()) as mock_cv,
+        _integrity_ok(),
     ):
         await t.postprocess()
     mock_cv.assert_awaited_once()
@@ -294,6 +329,7 @@ async def test_postprocess_skips_conversion_when_disabled():
         patch("streamrip.media.track.tag_file", new=AsyncMock()),
         patch("streamrip.media.track.remove_title"),
         patch.object(t, "_convert", new=AsyncMock()) as mock_cv,
+        _integrity_ok(),
     ):
         await t.postprocess()
     mock_cv.assert_not_awaited()
