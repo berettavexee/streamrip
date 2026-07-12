@@ -199,25 +199,36 @@ class DeezerDownloadable(Downloadable):
                     blowfish_key,
                 )
 
+                # Deezer encryption is block-independent: the file is cut into
+                # 6144-byte (3 x 2048) segments, and only the first 2048-byte
+                # block of each segment is Blowfish-encrypted. Each segment can
+                # therefore be decrypted on its own, so we stream: keep a small
+                # carry of the bytes that don't yet complete a 6144-byte segment,
+                # decrypt and write full segments as they arrive, and handle the
+                # final short segment with the same >= 2048 rule as a batch pass.
+                encrypt_chunk_size = 3 * 2048
+                carry = bytearray()
                 try:
-                    buf = bytearray()
-                    async for data, _ in resp.content.iter_chunks():
-                        buf += data
-                        callback(len(data))
-
-                    encrypt_chunk_size = 3 * 2048
                     async with aiofiles.open(path, "wb") as audio:
-                        buflen = len(buf)
-                        for i in range(0, buflen, encrypt_chunk_size):
-                            data = buf[i : min(i + encrypt_chunk_size, buflen)]  # type: ignore[assignment]
-                            if len(data) >= 2048:
-                                decrypted_chunk = (
-                                    self._decrypt_chunk(blowfish_key, data[:2048])
-                                    + data[2048:]
+                        async for data, _ in resp.content.iter_chunks():
+                            carry += data
+                            callback(len(data))
+                            full = len(carry) - (len(carry) % encrypt_chunk_size)
+                            if full:
+                                await audio.write(
+                                    self._decrypt_stream_segments(
+                                        blowfish_key, memoryview(carry)[:full]
+                                    )
+                                )
+                                del carry[:full]
+                        if carry:
+                            if len(carry) >= 2048:
+                                await audio.write(
+                                    self._decrypt_chunk(blowfish_key, bytes(carry[:2048]))
+                                    + bytes(carry[2048:])
                                 )
                             else:
-                                decrypted_chunk = data
-                            await audio.write(decrypted_chunk)
+                                await audio.write(bytes(carry))
                 except Exception:
                     discard_partial_file(path)
                     raise
@@ -234,6 +245,29 @@ class DeezerDownloadable(Downloadable):
             Blowfish.MODE_CBC,
             b"\x00\x01\x02\x03\x04\x05\x06\x07",
         ).decrypt(data)
+
+    @classmethod
+    def _decrypt_stream_segments(cls, key: bytes, data) -> bytes:
+        """Decrypt a run of whole 6144-byte Deezer segments.
+
+        Only the first 2048-byte block of each 6144-byte (3 x 2048) segment is
+        Blowfish-encrypted; the remaining 4096 bytes are plaintext. ``data`` must
+        be an exact multiple of 6144 bytes (the streaming caller guarantees this
+        by carrying over any trailing partial segment).
+
+        Args:
+            key: The per-track Blowfish key from :meth:`_generate_blowfish_key`.
+            data: A bytes-like object whose length is a multiple of 6144.
+
+        Returns:
+            The decrypted bytes, same length as ``data``.
+        """
+        segment = 3 * 2048
+        out = bytearray()
+        for i in range(0, len(data), segment):
+            block = data[i : i + segment]
+            out += cls._decrypt_chunk(key, bytes(block[:2048])) + bytes(block[2048:])
+        return bytes(out)
 
     @staticmethod
     def _generate_blowfish_key(track_id: str) -> bytes:
