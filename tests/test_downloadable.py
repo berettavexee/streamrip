@@ -56,9 +56,16 @@ class TestBasicDownloadable:
 
 # ── DeezerDownloadable ───────────────────────────────────────────────────────
 
-def _deezer_info(quality=2, quality_to_size=None, url="https://cdn.deezer.com/track.flac"):
+def _deezer_info(quality=2, quality_to_size=None, url=None):
     if quality_to_size is None:
         quality_to_size = [3_000_000, 8_000_000, 20_000_000]  # mp3-128, mp3-320, flac
+    if url is None:
+        # A realistic CDN URL whose extension matches the resolved quality.
+        ext = "flac" if quality >= 2 else "mp3"
+        url = (
+            f"https://cdnt-stream.dzcdn.net/media/1/9/a/b/c/12345/"
+            f"{'0' * 32}.{ext}?hdnea=exp=1~acl=/media/*"
+        )
     return {
         "quality": quality,
         "id": "12345",
@@ -81,17 +88,36 @@ class TestDeezerDownloadable:
         d = DeezerDownloadable(MagicMock(), _deezer_info(quality=0))
         assert d.extension == "mp3"
 
-    def test_quality_clipped_to_max_available(self):
-        # Requested quality=2 (FLAC) but FLAC size is 0 → max available is 1
+    def test_filesize_flac_zero_keeps_flac_extension(self):
+        # FILESIZE_FLAC=0 is a missing-metadata artefact, NOT "FLAC unavailable".
+        # The resolved quality is FLAC and the URL serves .flac, so the file must
+        # stay .flac — the old FILESIZE clipping wrongly relabelled it .mp3,
+        # producing a FLAC stream inside an MP3 container.
         info = _deezer_info(quality=2, quality_to_size=[3_000_000, 8_000_000, 0])
         d = DeezerDownloadable(MagicMock(), info)
-        assert d.quality == 1
-        assert d.extension == "mp3"
+        assert d.quality == 2
+        assert d.extension == "flac"
+        assert d._size is None  # unknown → read from Content-Length
 
-    def test_quality_clipped_when_only_mp3_128(self):
+    def test_extension_follows_url_over_filesize(self):
+        # Even with only MP3_128 sized, a resolved FLAC quality on a .flac URL
+        # stays FLAC.
         info = _deezer_info(quality=2, quality_to_size=[5_000_000, 0, 0])
         d = DeezerDownloadable(MagicMock(), info)
-        assert d.quality == 0
+        assert d.quality == 2
+        assert d.extension == "flac"
+
+    def test_mp3_url_gives_mp3_extension(self):
+        # When the URL actually serves MP3, the extension follows it.
+        info = _deezer_info(quality=1)  # helper builds a .mp3 URL for quality 1
+        d = DeezerDownloadable(MagicMock(), info)
+        assert d.extension == "mp3"
+
+    def test_legacy_mobile_url_without_extension_uses_quality(self):
+        # The legacy /mobile/ CDN URL carries no extension; fall back to quality.
+        info = _deezer_info(quality=2, url="https://e-cdns-proxy-a.dzcdn.net/mobile/1/abc")
+        d = DeezerDownloadable(MagicMock(), info)
+        assert d.extension == "flac"
 
     def test_all_zero_quality_to_size_proceeds_with_none_size(self):
         # Old-catalog tracks have FILESIZE_* = 0 in GW metadata but a valid CDN URL.

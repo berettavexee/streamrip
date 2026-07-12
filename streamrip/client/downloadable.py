@@ -136,23 +136,34 @@ class DeezerDownloadable(Downloadable):
         self.session = session
         self.url = info["url"]
         self.source: str = "deezer"
-        qualities_available = [
-            i for i, size in enumerate(info["quality_to_size"]) if size > 0
-        ]
-        if len(qualities_available) == 0:
-            # FILESIZE_* metadata absent for old catalog tracks (GW returns 0).
-            # The caller already validated the URL, so proceed; actual size will
-            # be read from Content-Length in _download().
-            self.quality = info["quality"]
-            self._size = None
+
+        # The quality resolved by DeezerClient._resolve_quality is the source of
+        # truth for what the URL serves. FILESIZE_* must NOT override it: those
+        # values are frequently zero for a format that is nonetheless available,
+        # and clipping on them used to relabel a FLAC stream as .mp3 (whenever
+        # FILESIZE_FLAC was 0), writing a FLAC bitstream into an MP3/ID3 container
+        # — an unplayable file whose embedded artwork the player can't find.
+        self.quality = info["quality"]
+
+        # Choose the extension from the actual container. The CDN URL carries it
+        # (…/<md5>.flac?hdnea=…); fall back to the resolved quality only for URLs
+        # that don't (the legacy /mobile/ CDN, which always serves FLAC).
+        url_name = self.url.split("?", 1)[0].rsplit("/", 1)[-1]
+        url_ext = url_name.rsplit(".", 1)[-1].lower() if "." in url_name else ""
+        if url_ext in ("flac", "mp3"):
+            self.extension = url_ext
         else:
-            max_quality_available = max(qualities_available)
-            self.quality = min(info["quality"], max_quality_available)
-            self._size = info["quality_to_size"][self.quality]
-        if self.quality <= 1:
-            self.extension = "mp3"
-        else:
-            self.extension = "flac"
+            self.extension = "flac" if self.quality >= 2 else "mp3"
+
+        # _size feeds the progress bar only. Use the resolved quality's FILESIZE
+        # when present, otherwise None → the real count is read from
+        # Content-Length in _download().
+        sizes = info.get("quality_to_size") or []
+        self._size = (
+            sizes[self.quality]
+            if 0 <= self.quality < len(sizes) and sizes[self.quality] > 0
+            else None
+        )
         self.id = str(info["id"])
 
     async def size(self) -> int:
