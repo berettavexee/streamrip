@@ -30,7 +30,15 @@ def _client(source="deezer"):
     c.source = source
     c.session = MagicMock()
     c.get_track_for_playlist = AsyncMock(return_value={"id": "1", "title": "T"})
-    c.get_downloadable = AsyncMock(return_value=MagicMock())
+
+    # By default the served downloadable id matches the requested id (no geoblock
+    # fallback), so resolve() doesn't take the metadata-refetch path.
+    async def _mk_downloadable(item_id, _quality):
+        d = MagicMock()
+        d.id = str(item_id)
+        return d
+
+    c.get_downloadable = AsyncMock(side_effect=_mk_downloadable)
     c.get_metadata = AsyncMock(return_value={})
     c.search = AsyncMock(return_value=[])
     return c
@@ -241,6 +249,51 @@ async def test_ppt_resolve_returns_track():
         result = await ppt.resolve()
 
     assert result is mock_track.return_value
+
+
+async def test_ppt_resolve_uses_fallback_metadata_on_geoblock():
+    """When the served track id differs from the requested one (geoblock
+    fallback), album/meta/cover are rebuilt from the served track — the requested
+    track's cover is a placeholder for the geoblocked release."""
+    client = _client()
+
+    # get_downloadable returns a downloadable whose id is the fallback track.
+    async def _served_fallback(_item_id, _quality):
+        d = MagicMock()
+        d.id = "999"  # differs from requested "42"
+        return d
+    client.get_downloadable = AsyncMock(side_effect=_served_fallback)
+
+    orig_album, orig_meta = MagicMock(name="orig_album"), MagicMock(name="orig_meta")
+    fb_album, fb_meta = MagicMock(name="fb_album"), MagicMock(name="fb_meta")
+    album_by_resp = {"orig": orig_album, "fb": fb_album}
+
+    # First get_track_for_playlist call = original ("42"), second = fallback ("999")
+    client.get_track_for_playlist = AsyncMock(side_effect=[{"tag": "orig"}, {"tag": "fb"}])
+
+    ppt = PendingPlaylistTrack(
+        id="42", client=client, config=_config(),
+        folder="/dl", playlist_name="PL", position=1, db=_db(),
+    )
+
+    with (
+        patch("streamrip.media.playlist.AlbumMetadata.from_track_resp",
+              side_effect=lambda resp, _src: album_by_resp[resp["tag"]]),
+        patch("streamrip.media.playlist.TrackMetadata.from_resp",
+              side_effect=lambda album, _src, resp: fb_meta if album is fb_album else orig_meta),
+        patch("streamrip.media.playlist.download_embed_cover",
+              new=AsyncMock(side_effect=["/orig_cover.jpg", "/fb_cover.jpg"])) as mock_cover,
+        patch("streamrip.media.playlist.Track") as mock_track,
+    ):
+        await ppt.resolve()
+
+    # The Track was built with the fallback metadata and fallback cover.
+    args, _ = mock_track.call_args
+    assert args[0] is fb_meta                 # meta
+    assert args[4] == "/fb_cover.jpg"         # embedded_cover_path
+    # Fallback metadata was fetched for the served id.
+    client.get_track_for_playlist.assert_any_await("999")
+    assert mock_cover.await_count == 2        # original + fallback cover
 
 
 async def test_ppt_resolve_renumbers_track():
