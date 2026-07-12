@@ -27,3 +27,10 @@ dev-reinstall.sh
 CLAUDE.md
 # Sous-produits vhs (voir demo/build_demos.sh) — les .mp4 intermédiaires
 demo/*.mp4
+# Script local de tests en conditions réelles + ses URLs et ses sorties
+run_realworld_tests.sh
+test_urls.env
+realworld_runs/
+# Artefacts de couverture (générés par pytest --cov)
+.coverage
+coverage.json
