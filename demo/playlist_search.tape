@@ -21,7 +21,7 @@ Type "clear"
 Enter
 Show
 
-Type "rip search deezer playlist 'bossanova'"
+Type "rip search deezer playlist 'bossa nova'"
 Enter
 # Laisse les résultats s'afficher avant la fin de la vidéo.
 Sleep 4s
