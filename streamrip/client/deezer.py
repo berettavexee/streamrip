@@ -840,15 +840,21 @@ class DeezerClient(Client):
 
         quality = max(0, min(quality, 2))
         track_info = await self._get_gw_track(item_id)
-        url, final_quality = await self._resolve_quality(track_info, quality, item_id)
+        url, final_quality, served_id = await self._resolve_quality(
+            track_info, quality, item_id
+        )
 
         if not url:
             raise NonStreamableError(
                 "Could not retrieve a download URL for track %s" % item_id
             )
 
+        # served_id is the ID of the track actually behind ``url`` — it differs
+        # from item_id when a geoblock fell back to an alternate track. The
+        # Blowfish decryption key is derived from this ID, so it must match the
+        # served content, not the originally requested track.
         dl_info = {
-            "id": item_id,
+            "id": served_id,
             "url": url,
             "quality": final_quality,
             "quality_to_size": [
@@ -858,7 +864,8 @@ class DeezerClient(Client):
         }
         _, format_str = self._QUALITY_MAP[final_quality]
         logger.debug(
-            "Deezer track %s resolved at quality %d (%s)", item_id, final_quality, format_str
+            "Deezer track %s resolved at quality %d (%s) [served id %s]",
+            item_id, final_quality, format_str, served_id,
         )
         return DeezerDownloadable(self.session, dl_info)
 
@@ -868,7 +875,7 @@ class DeezerClient(Client):
         quality: int,
         item_id: str,
         is_retry: bool = False,
-    ) -> tuple[str | None, int]:
+    ) -> tuple[str | None, int, str]:
         """Try qualities from requested down to 0; fall back to AES CDN on exhaustion.
 
         Handles WrongLicense (tries next lower quality) and WrongGeolocation
@@ -881,8 +888,11 @@ class DeezerClient(Client):
             is_retry: True when already handling a geoblocking fallback to prevent loops.
 
         Returns:
-            ``(url, effective_quality)`` — url is None only if the CDN fallback URL
-            itself is empty or missing (triggers NonStreamableError in the caller).
+            ``(url, effective_quality, served_id)`` — ``served_id`` is the ID of the
+            track the URL actually points to (``item_id``, or the FALLBACK id after a
+            geoblock retry); the caller derives the Blowfish key from it. ``url`` is
+            None only if the CDN fallback URL itself is empty or missing (triggers
+            NonStreamableError in the caller).
 
         Raises:
             NonStreamableError: On WrongGeolocation with no fallback, on missing
@@ -908,7 +918,7 @@ class DeezerClient(Client):
                 if url is None:
                     url = await self._gw(self.client.get_track_url, token, fmt)
                 if url:
-                    return url, q
+                    return url, q, item_id
             except deezer.WrongLicense:
                 if not self.config.lower_quality_if_not_available:
                     raise NonStreamableError(
@@ -934,7 +944,7 @@ class DeezerClient(Client):
                 f"Deezer track {item_id}: token API failed and CDN fallback requires "
                 "MD5_ORIGIN/MEDIA_VERSION which are missing"
             )
-        return self._get_encrypted_file_url(item_id, md5, media_version), 2
+        return self._get_encrypted_file_url(item_id, md5, media_version), 2, item_id
 
     def _get_encrypted_file_url(
         self,
@@ -979,6 +989,29 @@ class DeezerClient(Client):
 
     _BATCH_URL_CHUNK_SIZE: ClassVar[int] = 1000
 
+    # CDN URLs embed the ID of the track whose bytes they serve, e.g.
+    # https://cdnt-stream.dzcdn.net/media/1/9/a/b/c/<TRACK_ID>/<md5>.flac?hdnea=...
+    _URL_TRACK_ID_RE: ClassVar[re.Pattern] = re.compile(
+        r"/media/\d+/\d+(?:/[0-9a-f])+/(\d+)/[0-9a-f]{16,}\."
+    )
+
+    @classmethod
+    def _url_track_id(cls, url: str) -> str | None:
+        """Return the track ID embedded in a Deezer CDN URL, or None if absent.
+
+        The URL is the only trustworthy statement of *which* track's bytes are
+        behind it, which matters because the Blowfish key is derived from that ID.
+
+        Args:
+            url: A Deezer CDN download URL.
+
+        Returns:
+            The track ID as a string, or None when the URL doesn't match the
+            known CDN layout (caller must then fall back to per-track resolution).
+        """
+        match = cls._URL_TRACK_ID_RE.search(url)
+        return match.group(1) if match else None
+
     async def _batch_resolve_urls(self, fmt: str) -> None:
         """Fetch CDN URLs for all GW-cached tracks, chunked to avoid API limits.
 
@@ -986,6 +1019,15 @@ class DeezerClient(Client):
         ``get_tracks_url`` in chunks of at most ``_BATCH_URL_CHUNK_SIZE`` tokens.
         All failures are absorbed so the task always completes normally; individual
         ``get_track_url`` calls handle quality fallback and WrongLicense correctly.
+
+        Results are matched to tracks by the ID **embedded in each returned URL**,
+        never by position. deezer-py's ``get_tracks_url`` appends *two* entries for
+        an errored track (the error object *and* a trailing ``None``, because its
+        two ``if`` branches are not mutually exclusive), so the result list is
+        longer than the token list as soon as any track is geoblocked or
+        unavailable. Zipping by position would then shift every subsequent URL onto
+        the wrong track — handing it a Blowfish key that doesn't match the served
+        bytes and silently producing a corrupt file of the right size.
         """
         tokens_by_id = {
             item_id: gw["TRACK_TOKEN"]
@@ -1015,11 +1057,29 @@ class DeezerClient(Client):
             if not isinstance(results, list):
                 logger.debug("Batch URL prefetch: unexpected result type for %s chunk at %d", fmt, offset)
                 continue
-            for item_id, result in zip(chunk_ids, results):
-                # Only cache non-empty strings; empty string would suppress the
-                # individual get_track_url fallback without providing a usable URL.
-                if isinstance(result, str) and result:
-                    self._url_results[(item_id, fmt)] = result
+            if len(results) != len(chunk_tokens):
+                logger.debug(
+                    "Batch URL prefetch for %s: %d results for %d tokens "
+                    "(errored tracks yield two entries) — matching by URL, not position",
+                    fmt, len(results), len(chunk_tokens),
+                )
+            wanted = set(chunk_ids)
+            for result in results:
+                # Only non-empty strings are usable; error objects and the None
+                # padding emitted for errored tracks are skipped. An empty string
+                # must never be cached either: it would suppress the individual
+                # get_track_url fallback without providing a usable URL.
+                if not isinstance(result, str) or not result:
+                    continue
+                served_id = self._url_track_id(result)
+                if served_id is None:
+                    # Unknown CDN layout: we cannot prove which track this URL
+                    # serves, so refuse to guess. Per-track resolution takes over.
+                    logger.debug("Batch URL prefetch: no track ID in URL, discarding")
+                    continue
+                if served_id not in wanted:
+                    continue
+                self._url_results[(served_id, fmt)] = result
 
     async def _ensure_url_batch(self, fmt: str) -> None:
         """Start or await the batch URL-resolution task for *fmt*.

@@ -239,6 +239,11 @@ def test_deezer_geoblocked_with_fallback(mock_deezer_client):
     downloadable = arun(mock_deezer_client.get_downloadable("123", quality=2))
     assert downloadable.quality == 2
     assert mock_deezer_client.client.gw.get_track.call_count == 2
+    # The URL serves the FALLBACK track's content, encrypted with the fallback
+    # track's key. The downloadable id (from which the Blowfish key is derived)
+    # must therefore be the fallback id, not the originally requested "123";
+    # otherwise the file decrypts to garbage.
+    assert downloadable.id == "456"
 
 
 def test_deezer_geoblocked_no_fallback(mock_deezer_client):
@@ -1114,6 +1119,14 @@ def test_get_track_slow_path_when_gw_cache_lacks_isrc(mock_deezer_client):
 
 # ===== batch URL resolution =====
 
+def _cdn_url(track_id: str, ext: str = "flac") -> str:
+    """A realistic Deezer CDN URL: the served track's ID is embedded in the path."""
+    return (
+        f"https://cdnt-stream.dzcdn.net/media/1/9/a/b/c/{track_id}/"
+        f"{'0' * 32}.{ext}?hdnea=exp=1~acl=/media/*"
+    )
+
+
 def test_batch_url_single_call_for_multiple_tracks(mock_deezer_client):
     """get_tracks_url is called once for N tracks; individual get_track_url is never used."""
     track_infos = {
@@ -1124,9 +1137,7 @@ def test_batch_url_single_call_for_multiple_tracks(mock_deezer_client):
     for tid, info in track_infos.items():
         mock_deezer_client._gw_tracks.set_if_absent(tid, info)
     mock_deezer_client.client.get_tracks_url.return_value = [
-        "https://cdn1.flac",
-        "https://cdn2.flac",
-        "https://cdn3.flac",
+        _cdn_url("1"), _cdn_url("2"), _cdn_url("3"),
     ]
 
     for tid in ["1", "2", "3"]:
@@ -1137,6 +1148,48 @@ def test_batch_url_single_call_for_multiple_tracks(mock_deezer_client):
     mock_deezer_client.client.get_track_url.assert_not_called()
 
 
+def test_batch_url_misaligned_results_never_mismatch_tracks(mock_deezer_client):
+    """A track in error makes deezer-py emit TWO entries (the error object AND a
+    trailing None), so the result list is longer than the token list. Matching by
+    position would shift every later URL onto the wrong track, handing it a
+    Blowfish key for someone else's bytes and silently writing a corrupt file.
+    URLs must therefore be matched by the track ID embedded in them."""
+    for tid in ("1", "2", "3"):
+        mock_deezer_client._gw_tracks.set_if_absent(
+            tid, {"TRACK_TOKEN": f"tok{tid}", "FILESIZE_FLAC": 5000}
+        )
+
+    # Track "1" is geoblocked → deezer-py appends the error *and* a None, then the
+    # URLs of tracks 2 and 3 follow. len(results)=4 for 3 tokens.
+    mock_deezer_client.client.get_tracks_url.return_value = [
+        deezer.WrongGeolocation("FR"),
+        None,
+        _cdn_url("2"),
+        _cdn_url("3"),
+    ]
+
+    arun(mock_deezer_client._batch_resolve_urls("FLAC"))
+
+    # Each URL landed on the track it actually serves — not shifted by one.
+    assert mock_deezer_client._url_results[("2", "FLAC")] == _cdn_url("2")
+    assert mock_deezer_client._url_results[("3", "FLAC")] == _cdn_url("3")
+    # The geoblocked track got no URL at all (individual resolution handles it).
+    assert ("1", "FLAC") not in mock_deezer_client._url_results
+
+
+def test_batch_url_unrecognised_url_layout_is_discarded(mock_deezer_client):
+    """If a URL carries no extractable track ID we cannot prove which track it
+    serves, so it must not be cached — per-track resolution takes over."""
+    mock_deezer_client._gw_tracks.set_if_absent(
+        "1", {"TRACK_TOKEN": "tok1", "FILESIZE_FLAC": 5000}
+    )
+    mock_deezer_client.client.get_tracks_url.return_value = ["https://cdn/unknown-layout.flac"]
+
+    arun(mock_deezer_client._batch_resolve_urls("FLAC"))
+
+    assert mock_deezer_client._url_results == {}
+
+
 def test_batch_url_transient_chunk_failure_still_resolves_later_chunks(mock_deezer_client):
     """A transient failure on one chunk must not abandon the remaining chunks."""
     for tid in ("1", "2", "3", "4"):
@@ -1145,7 +1198,7 @@ def test_batch_url_transient_chunk_failure_still_resolves_later_chunks(mock_deez
     # First chunk raises a transient error; second chunk resolves normally.
     mock_deezer_client.client.get_tracks_url.side_effect = [
         RuntimeError("transient network blip"),
-        ["https://cdn3.flac", "https://cdn4.flac"],
+        [_cdn_url("3"), _cdn_url("4")],
     ]
 
     with patch.object(DeezerClient, "_BATCH_URL_CHUNK_SIZE", 2):
@@ -1154,8 +1207,8 @@ def test_batch_url_transient_chunk_failure_still_resolves_later_chunks(mock_deez
     # Chunk 1 (tracks 1,2) failed → not cached; chunk 2 (tracks 3,4) still resolved.
     assert ("1", "FLAC") not in mock_deezer_client._url_results
     assert ("2", "FLAC") not in mock_deezer_client._url_results
-    assert mock_deezer_client._url_results[("3", "FLAC")] == "https://cdn3.flac"
-    assert mock_deezer_client._url_results[("4", "FLAC")] == "https://cdn4.flac"
+    assert mock_deezer_client._url_results[("3", "FLAC")] == _cdn_url("3")
+    assert mock_deezer_client._url_results[("4", "FLAC")] == _cdn_url("4")
     assert mock_deezer_client.client.get_tracks_url.call_count == 2
 
 
