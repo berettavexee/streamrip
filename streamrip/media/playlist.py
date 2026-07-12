@@ -68,12 +68,6 @@ class PendingPlaylistTrack(Pending):
             self.db.set_failed(self.client.source, "track", self.id)
             return None
 
-        c = self.config.session.metadata
-        if c.renumber_playlist_tracks:
-            meta.tracknumber = self.position
-        if c.set_playlist_to_album:
-            album.album = self.playlist_name
-
         quality = self.config.session.get_source(self.client.source).quality
         try:
             embedded_cover_path, downloadable = await asyncio.gather(
@@ -88,6 +82,23 @@ class PendingPlaylistTrack(Pending):
             self.db.set_failed(self.client.source, "track", self.id)
             return None
 
+        # A geoblocked track is served from an alternate ("fallback") track whose
+        # id differs from the requested one. The requested track's metadata — most
+        # visibly its cover — is then unreliable (Deezer serves a placeholder or a
+        # missing image for the geoblocked release), so rebuild album/meta/cover
+        # from the track that was actually served.
+        served_id = getattr(downloadable, "id", None)
+        if served_id is not None and str(served_id) != str(self.id):
+            fb = await self._resolve_fallback_metadata(str(served_id))
+            if fb is not None:
+                album, meta, embedded_cover_path = fb
+
+        c = self.config.session.metadata
+        if c.renumber_playlist_tracks:
+            meta.tracknumber = self.position
+        if c.set_playlist_to_album:
+            album.album = self.playlist_name
+
         return Track(
             meta,
             downloadable,
@@ -96,6 +107,47 @@ class PendingPlaylistTrack(Pending):
             embedded_cover_path,
             self.db,
         )
+
+    async def _resolve_fallback_metadata(
+        self, served_id: str
+    ) -> tuple[AlbumMetadata, TrackMetadata, str | None] | None:
+        """Rebuild album, track metadata, and cover from the actually-served track.
+
+        Used when a geoblock made ``get_downloadable`` fall back to an alternate
+        track: the served track carries the real cover and album info, whereas the
+        originally requested (geoblocked) track exposes only a placeholder cover.
+
+        Args:
+            served_id: The Deezer ID of the track the download URL points to.
+
+        Returns:
+            An ``(album, meta, embedded_cover_path)`` tuple, or None if the
+            fallback metadata could not be fetched (caller keeps the originals).
+        """
+        try:
+            fb_resp = await self.client.get_track_for_playlist(served_id)
+            fb_album = AlbumMetadata.from_track_resp(fb_resp, self.client.source)
+            if fb_album is None:
+                return None
+            fb_meta = TrackMetadata.from_resp(fb_album, self.client.source, fb_resp)
+            if fb_meta is None:
+                return None
+            cover = await download_embed_cover(
+                self.client.session, self.folder, fb_album.covers,
+                self.config.session.artwork, for_playlist=True,
+            )
+            logger.debug(
+                "Track %s geoblocked; using fallback %s for metadata and cover",
+                self.id, served_id,
+            )
+            return fb_album, fb_meta, cover
+        except Exception as e:
+            logger.warning(
+                "Could not fetch fallback metadata for geoblocked track %s "
+                "(served %s): %s — keeping original metadata",
+                self.id, served_id, e,
+            )
+            return None
 
 
 @dataclass(slots=True)
