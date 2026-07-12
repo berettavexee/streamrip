@@ -198,6 +198,102 @@ class TestDeezerDecryptChunk:
         assert decrypted == data
 
 
+def _deezer_encrypt_reference(plaintext: bytes, key: bytes) -> bytes:
+    """Encrypt *plaintext* the way Deezer's CDN does (inverse of _download).
+
+    Each 6144-byte (3 x 2048) segment has only its first 2048-byte block
+    Blowfish-encrypted; the rest is plaintext. A trailing segment shorter than
+    2048 bytes is left entirely in the clear.
+    """
+    from Cryptodome.Cipher import Blowfish
+
+    segment = 3 * 2048
+    out = bytearray()
+    for i in range(0, len(plaintext), segment):
+        block = plaintext[i : i + segment]
+        if len(block) >= 2048:
+            enc = Blowfish.new(
+                key, Blowfish.MODE_CBC, b"\x00\x01\x02\x03\x04\x05\x06\x07"
+            ).encrypt(block[:2048])
+            out += enc + block[2048:]
+        else:
+            out += block
+    return bytes(out)
+
+
+class TestDeezerStreamingDecrypt:
+    """The encrypted download path decrypts on the fly (bounded memory) and must
+    stay bit-for-bit correct no matter how the network fragments the stream."""
+
+    # Deliberately non-6144-aligned fragment sizes, cycled over the ciphertext,
+    # so segment boundaries fall mid-chunk and exercise the carry logic.
+    _WEIRD_SIZES = (1, 2047, 6143, 5, 6145, 4096, 3, 8192)
+
+    def _fragment(self, data: bytes) -> list[bytes]:
+        chunks, i, si = [], 0, 0
+        while i < len(data):
+            n = self._WEIRD_SIZES[si % len(self._WEIRD_SIZES)]
+            chunks.append(data[i : i + n])
+            i += n
+            si += 1
+        return chunks
+
+    def _session_serving(self, chunks: list[bytes], size: int):
+        def _factory(*_a, **_k):
+            async def _agen():
+                for c in chunks:
+                    yield c, True
+            return _agen()
+
+        resp = MagicMock()
+        resp.raise_for_status = MagicMock()
+        resp.headers = {"Content-Length": str(size)}
+        resp.content.iter_chunks = MagicMock(side_effect=_factory)
+
+        session = MagicMock()
+        cm = MagicMock()
+        cm.__aenter__ = AsyncMock(return_value=resp)
+        cm.__aexit__ = AsyncMock(return_value=False)
+        session.get = MagicMock(return_value=cm)
+        return session
+
+    @pytest.mark.parametrize(
+        "size",
+        [
+            4 * 6144,         # exact multiple, no trailing segment
+            3 * 6144 + 3000,  # trailing segment >= 2048 (first block encrypted)
+            4 * 6144 + 1000,  # trailing segment < 2048 (entirely plaintext)
+            4 * 6144 + 100,   # tiny trailing segment
+            5 * 6144 + 2048,  # trailing segment exactly 2048
+        ],
+    )
+    async def test_streamed_decrypt_matches_plaintext(self, tmp_path, size):
+        import os
+
+        plaintext = os.urandom(size)
+        key = DeezerDownloadable._generate_blowfish_key("12345")
+        ciphertext = _deezer_encrypt_reference(plaintext, key)
+
+        # "/mobile/" marks the URL as encrypted; Content-Length >= 20000 avoids
+        # the short-body JSON-error branch.
+        url = "https://e-cdns-proxy-a.dzcdn.net/mobile/1/abc"
+        session = self._session_serving(self._fragment(ciphertext), len(ciphertext))
+        d = DeezerDownloadable(session, _deezer_info(url=url))
+
+        received = 0
+
+        def _cb(n):
+            nonlocal received
+            received += n
+
+        path = tmp_path / "track.flac"
+        await d._download(str(path), _cb)
+
+        assert path.read_bytes() == plaintext
+        # Progress callback still counts the raw (encrypted) bytes off the wire.
+        assert received == len(ciphertext)
+
+
 # ── TidalDownloadable ────────────────────────────────────────────────────────
 
 class TestTidalDownloadable:
