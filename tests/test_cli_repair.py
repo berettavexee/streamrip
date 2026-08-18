@@ -1,5 +1,6 @@
 """Tests for the `rip repair` command in streamrip/rip/cli.py."""
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -7,6 +8,27 @@ from click.testing import CliRunner
 
 from streamrip import db
 from streamrip.rip.cli import repair
+
+
+@pytest.fixture(autouse=True)
+def _no_logging_during_invoke():
+    """Silence logging while these tests run, or CliRunner loses its output.
+
+    `log_cli` is enabled project-wide, so pytest's live-log handler suspends
+    and resumes global capture around every record it emits. That reassigns
+    sys.stdout, dropping the last reference to the TextIOWrapper CliRunner
+    installed over its BytesIO; the wrapper is then garbage-collected, closing
+    the buffer before invoke() reads it back, and the call dies with
+    "I/O operation on closed file".
+
+    Every test here trips it: asyncio.run(), inside the `coro` decorator every
+    async command is wrapped in, logs "Using selector: ..." at DEBUG on each
+    invocation. click 8.2 reworked CliRunner and no longer breaks this way, but
+    poetry.lock pins 8.1, which is what CI installs.
+    """
+    logging.disable(logging.CRITICAL)
+    yield
+    logging.disable(logging.NOTSET)
 
 FAILED_ROWS = [
     ("deezer", "track", "1"),
