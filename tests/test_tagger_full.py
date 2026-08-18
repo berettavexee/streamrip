@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from mutagen.id3 import ID3, TIT2
+from util import arun
 
 from streamrip.metadata import (
     AlbumInfo,
@@ -13,7 +14,11 @@ from streamrip.metadata import (
     TrackMetadata,
     tag_file,
 )
-from streamrip.metadata.tagger import FLAC_MAX_BLOCKSIZE, Container
+from streamrip.metadata.tagger import (
+    FLAC_MAX_BLOCKSIZE,
+    TAGGABLE_EXTENSIONS,
+    Container,
+)
 
 TEST_COVER = "tests/1x1_pixel.jpg"
 
@@ -273,3 +278,93 @@ async def test_tag_file_invalid_extension_raises(full_meta, tmp_path):
     p = tmp_path / "track.ogg"
     with pytest.raises(Exception, match="Invalid extension"):
         await tag_file(str(p), full_meta, None)
+
+
+# ---------------------------------------------------------------------------
+# Container.AIFF
+# ---------------------------------------------------------------------------
+
+
+def _mock_aiff() -> MagicMock:
+    """An AIFF with no ID3 chunk, whose add_tags() creates one like mutagen's."""
+    audio = MagicMock()
+    audio.tags = None
+
+    def add_tags():
+        audio.tags = MagicMock()
+
+    audio.add_tags.side_effect = add_tags
+    return audio
+
+
+def test_get_mutagen_class_aiff_adds_tags_when_missing():
+    """A freshly converted AIFF has no ID3 chunk; one is created."""
+    audio = _mock_aiff()
+    with patch("streamrip.metadata.tagger.AIFF", return_value=audio):
+        result = Container.AIFF.get_mutagen_class("dummy.aiff")
+    audio.add_tags.assert_called_once_with()
+    assert result is audio.tags
+
+
+def test_get_mutagen_class_aiff_keeps_existing_tags():
+    """add_tags() raises when a chunk already exists, so it must not be called."""
+    audio = MagicMock()
+    audio.tags = MagicMock()
+    with patch("streamrip.metadata.tagger.AIFF", return_value=audio):
+        result = Container.AIFF.get_mutagen_class("dummy.aiff")
+    audio.add_tags.assert_not_called()
+    assert result is audio.tags
+
+
+def test_get_tag_pairs_aiff_matches_mp3(full_meta):
+    """AIFF carries ID3 frames, so it reuses the MP3 tag pairs verbatim."""
+    assert Container.AIFF.get_tag_pairs(full_meta) == Container.MP3.get_tag_pairs(
+        full_meta
+    )
+
+
+async def test_embed_cover_aiff_uses_apic():
+    audio = MagicMock()
+    await Container.AIFF.embed_cover(audio, TEST_COVER)
+    audio.add.assert_called_once()
+    cover = audio.add.call_args[0][0]
+    assert cover.mime == "image/jpeg"
+    assert cover.type == 3
+
+
+def test_save_audio_aiff_passes_path_without_v2_version():
+    """_IFFID3 carries no filename of its own and takes no v2_version arg."""
+    audio = MagicMock()
+    Container.AIFF.save_audio(audio, "dummy.aiff")
+    audio.save.assert_called_once_with("dummy.aiff")
+
+
+@pytest.mark.parametrize("ext", ["aiff", "aif", "AIFF", "Aif"])
+async def test_tag_file_dispatches_aiff_extensions(full_meta, tmp_path, ext):
+    p = tmp_path / f"track.{ext}"
+    audio = _mock_aiff()
+    with patch("streamrip.metadata.tagger.AIFF", return_value=audio):
+        await tag_file(str(p), full_meta, None)
+    audio.tags.save.assert_called_once_with(str(p))
+
+
+def test_taggable_extensions_matches_tag_file_dispatch(full_meta, tmp_path):
+    """TAGGABLE_EXTENSIONS is what Track._convert gates on; keep it truthful.
+
+    Every listed extension must be accepted by tag_file, and anything outside
+    the list must be rejected -- otherwise _convert either skips a container it
+    could have tagged, or calls tag_file on one that raises.
+    """
+    for ext in TAGGABLE_EXTENSIONS:
+        p = tmp_path / f"track.{ext}"
+        try:
+            arun(tag_file(str(p), full_meta, None))
+        except Exception as e:
+            # The empty file makes mutagen unhappy for most containers; only
+            # the extension check itself is under test here.
+            assert "Invalid extension" not in str(e), ext
+
+    for ext in ("ogg", "opus", "wav"):
+        p = tmp_path / f"track.{ext}"
+        with pytest.raises(Exception, match="Invalid extension"):
+            arun(tag_file(str(p), full_meta, None))

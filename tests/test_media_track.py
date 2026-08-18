@@ -352,11 +352,87 @@ async def test_convert_calls_engine_and_updates_path():
     engine.convert = AsyncMock()
     engine.final_fn = "/dl/album/01 - Song.mp3"
 
-    with patch("streamrip.media.track.converter.get", return_value=MagicMock(return_value=engine)):
+    with (
+        patch("streamrip.media.track.converter.get", return_value=MagicMock(return_value=engine)),
+        patch("streamrip.media.track.tag_file", new=AsyncMock()) as mock_tag,
+    ):
         await t._convert()
 
     engine.convert.assert_awaited_once()
     assert t.download_path == "/dl/album/01 - Song.mp3"
+    # ffmpeg drops fields across a container change (ISRC and lyrics, at
+    # least), so the converted file is tagged again.
+    mock_tag.assert_awaited_once_with("/dl/album/01 - Song.mp3", t.meta, t.cover_path)
+
+
+@pytest.mark.parametrize("ext", ["flac", "m4a", "mp3", "aiff", "aif"])
+async def test_convert_retags_taggable_containers(ext):
+    cfg = _config(conversion_enabled=True)
+    cfg.session.conversion.codec = ext.upper()
+    cfg.session.conversion.sampling_rate = 44100
+    cfg.session.conversion.bit_depth = 16
+    t = _track(cfg=cfg)
+    t.download_path = "/dl/album/01 - Song.flac"
+
+    engine = MagicMock()
+    engine.convert = AsyncMock()
+    engine.final_fn = f"/dl/album/01 - Song.{ext}"
+
+    with (
+        patch("streamrip.media.track.converter.get", return_value=MagicMock(return_value=engine)),
+        patch("streamrip.media.track.tag_file", new=AsyncMock()) as mock_tag,
+    ):
+        await t._convert()
+
+    mock_tag.assert_awaited_once()
+
+
+@pytest.mark.parametrize("ext", ["opus", "ogg"])
+async def test_convert_skips_retag_for_untaggable_containers(ext):
+    """tag_file() raises on these containers, so _convert must not call it.
+
+    They keep whatever metadata ffmpeg copied during the conversion.
+    """
+    cfg = _config(conversion_enabled=True)
+    cfg.session.conversion.codec = ext.upper()
+    cfg.session.conversion.sampling_rate = 44100
+    cfg.session.conversion.bit_depth = 16
+    t = _track(cfg=cfg)
+    t.download_path = "/dl/album/01 - Song.flac"
+
+    engine = MagicMock()
+    engine.convert = AsyncMock()
+    engine.final_fn = f"/dl/album/01 - Song.{ext}"
+
+    with (
+        patch("streamrip.media.track.converter.get", return_value=MagicMock(return_value=engine)),
+        patch("streamrip.media.track.tag_file", new=AsyncMock()) as mock_tag,
+    ):
+        await t._convert()
+
+    mock_tag.assert_not_awaited()
+
+
+async def test_convert_retag_matches_extension_case_insensitively():
+    """An uppercase extension must still be recognised as taggable."""
+    cfg = _config(conversion_enabled=True)
+    cfg.session.conversion.codec = "AIFF"
+    cfg.session.conversion.sampling_rate = 44100
+    cfg.session.conversion.bit_depth = 24
+    t = _track(cfg=cfg)
+    t.download_path = "/dl/album/01 - Song.flac"
+
+    engine = MagicMock()
+    engine.convert = AsyncMock()
+    engine.final_fn = "/dl/album/01 - Song.AIFF"
+
+    with (
+        patch("streamrip.media.track.converter.get", return_value=MagicMock(return_value=engine)),
+        patch("streamrip.media.track.tag_file", new=AsyncMock()) as mock_tag,
+    ):
+        await t._convert()
+
+    mock_tag.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------

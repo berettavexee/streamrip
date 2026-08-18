@@ -15,10 +15,11 @@ from .search_results import (
     Summary,
     TrackSummary,
 )
-from .tagger import tag_file
+from .tagger import TAGGABLE_EXTENSIONS, tag_file
 from .track import TrackInfo, TrackMetadata
 
 __all__ = [
+    "TAGGABLE_EXTENSIONS",
     "AlbumInfo",
     "AlbumMetadata",
     "AlbumSummary",

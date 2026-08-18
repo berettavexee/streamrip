@@ -255,6 +255,19 @@ class FLAC(Converter):
     lossless = True
 
 
+class AIFF(Converter):
+    """Class for AIFF converter (lossless PCM).
+
+    ffmpeg's AIFF muxer accepts an attached picture stream but silently drops
+    it, so the cover is embedded post-conversion by :func:`tag_file` instead.
+    """
+
+    codec_name = "aiff"
+    codec_lib = "pcm_s24be"
+    container = "aiff"
+    lossless = True
+
+
 class LAME(Converter):
     """Class for libmp3lame converter.
 
@@ -339,5 +352,7 @@ def get(codec: str) -> type[Converter]:
         "VORBIS": Vorbis,
         "AAC": AAC,
         "M4A": AAC,
+        "AIFF": AIFF,
+        "AIF": AIFF,
     }
     return converter_classes[codec.upper()]

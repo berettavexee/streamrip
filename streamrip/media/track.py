@@ -9,7 +9,12 @@ from ..config import Config
 from ..db import Database
 from ..exceptions import NonStreamableError
 from ..filepath_utils import clean_filename
-from ..metadata import AlbumMetadata, TrackMetadata, tag_file
+from ..metadata import (
+    TAGGABLE_EXTENSIONS,
+    AlbumMetadata,
+    TrackMetadata,
+    tag_file,
+)
 from ..progress import add_title, advance_overall, get_progress_callback, remove_title
 from ..utils.integrity import check_integrity
 from .artwork import download_embed_cover
@@ -180,6 +185,22 @@ class Track(Media):
         self.db.set_downloaded(self.meta.info.id)
 
     async def _convert(self):
+        """Convert the downloaded file to the configured codec and re-tag it.
+
+        :attr:`download_path` is updated to the converted file, whose
+        extension differs from the source's.
+
+        The file is tagged again afterwards because ffmpeg does not reliably
+        carry every field across a container change, and writes no tags at all
+        for some containers (AIFF among them). Only the containers
+        :func:`tag_file` knows how to write are re-tagged; the others (opus,
+        ogg, ...) keep whatever ffmpeg copied over, since calling
+        :func:`tag_file` on them would raise.
+
+        Raises:
+            Exception: Propagated from the converter when ffmpeg fails, or
+                from :func:`tag_file` when re-tagging fails.
+        """
         c = self.config.session.conversion
         engine_class = converter.get(c.codec)
         engine = engine_class(
@@ -190,6 +211,10 @@ class Track(Media):
         )
         await engine.convert()
         self.download_path = engine.final_fn  # because the extension changed
+
+        ext = os.path.splitext(self.download_path)[1].lstrip(".").lower()
+        if ext in TAGGABLE_EXTENSIONS:
+            await tag_file(self.download_path, self.meta, self.cover_path)
 
     def _set_download_path(self):
         c = self.config.session.filepaths

@@ -5,6 +5,7 @@ from enum import Enum
 
 import aiofiles
 from mutagen import id3
+from mutagen.aiff import AIFF
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import (
     APIC,  # type: ignore
@@ -111,12 +112,21 @@ class Container(Enum):
     FLAC = 1
     AAC = 2
     MP3 = 3
+    AIFF = 4
 
     def get_mutagen_class(self, path: str):
         if self == Container.FLAC:
             return FLAC(path)
         elif self == Container.AAC:
             return MP4(path)
+        elif self == Container.AIFF:
+            # AIFF stores ID3 frames in a chunk; mutagen exposes them through
+            # the container's `.tags`, which is what the ID3 code paths below
+            # expect. A file with no chunk yet gets an empty one.
+            audio = AIFF(path)
+            if audio.tags is None:
+                audio.add_tags()
+            return audio.tags
         elif self == Container.MP3:
             try:
                 return ID3(path)
@@ -128,7 +138,7 @@ class Container(Enum):
     def get_tag_pairs(self, meta) -> list[tuple]:
         if self == Container.FLAC:
             return self._tag_flac(meta)
-        elif self == Container.MP3:
+        elif self in (Container.MP3, Container.AIFF):
             return self._tag_mp3(meta)
         elif self == Container.AAC:
             return self._tag_mp4(meta)
@@ -251,8 +261,13 @@ class Container(Enum):
             cover.mime = "image/jpeg"
             async with aiofiles.open(cover_path, "rb") as img:
                 cover.data = await img.read()
+            # Unlike ID3.add() and the MP4 "covr" assignment below, which both
+            # replace, add_picture() appends. Tagging a file that already has
+            # art — a FLAC re-encoded by Track._convert, whose art ffmpeg
+            # already carried over — would otherwise embed a second copy.
+            audio.clear_pictures()
             audio.add_picture(cover)
-        elif self == Container.MP3:
+        elif self in (Container.MP3, Container.AIFF):
             cover = APIC()
             cover.type = 3
             cover.mime = "image/jpeg"
@@ -271,6 +286,18 @@ class Container(Enum):
             audio.save()
         elif self == Container.MP3:
             audio.save(path, "v2_version=3")
+        elif self == Container.AIFF:
+            # `audio` is the _IFFID3 built by add_tags(), which carries no
+            # filename of its own — the path has to be passed explicitly.
+            # Its save() signature also differs from ID3.save(), so the
+            # v2_version used for MP3 is not forwarded here.
+            audio.save(path)
+
+
+# Extensions tag_file() knows how to write. Kept next to the dispatch below so
+# that callers deciding whether a file is taggable at all (Track._convert)
+# cannot drift out of sync with what this function actually accepts.
+TAGGABLE_EXTENSIONS = frozenset({"flac", "m4a", "mp3", "aiff", "aif"})
 
 
 async def tag_file(path: str, meta: TrackMetadata, cover_path: str | None):
@@ -281,6 +308,8 @@ async def tag_file(path: str, meta: TrackMetadata, cover_path: str | None):
         container = Container.AAC
     elif ext == "mp3":
         container = Container.MP3
+    elif ext in ("aiff", "aif"):
+        container = Container.AIFF
     else:
         raise Exception(f"Invalid extension {ext}")
 
