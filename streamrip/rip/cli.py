@@ -435,6 +435,82 @@ def database_browse(ctx, table):
 
 
 @rip.command()
+@click.option("-y", "--yes", help="Don't ask for confirmation.", is_flag=True)
+@click.option(
+    "--flat",
+    help="Put repaired tracks straight in the download folder instead of "
+    "their album folder.",
+    is_flag=True,
+)
+@click.pass_context
+@coro
+async def repair(ctx, yes, flat):
+    """Retry downloads that previously failed.
+
+    Reads the failed downloads database, retries every item in it, and clears
+    the ones that succeed. Items that fail again stay logged, so the command
+    can simply be run again later.
+
+    Failed tracks are retried one by one, but land in their album's folder so
+    they rejoin the album they went missing from. Pass --flat to drop them in
+    the download folder instead.
+    """
+    if ctx.obj["config"] is None:
+        return
+
+    with ctx.obj["config"] as cfg:
+        cfg: Config
+        # A repaired track is almost always one track missing from an album
+        # that was otherwise downloaded, so it belongs in that album's folder
+        # rather than loose in the download root. Only the in-memory session
+        # copy is touched; config.toml is left alone.
+        if not flat:
+            cfg.session.filepaths.add_singles_to_folder = True
+
+        failed_db = db.Failed(cfg.session.database.failed_downloads_path)
+        downloads_db = db.Downloads(cfg.session.database.downloads_path)
+        failed_items = failed_db.all()
+
+        if not failed_items:
+            console.print("[green]No failed downloads to repair!")
+            return
+
+        console.print(f"Found [yellow]{len(failed_items)}[/yellow] failed download(s).")
+        if not yes and not Confirm.ask("Retry them now?"):
+            console.print("[green]Repair aborted")
+            return
+
+        # An item should never be in both tables, but older versions could mark
+        # one downloaded even after it failed. Clear that stale state, or
+        # resolve() would skip the retry as already-downloaded.
+        for _source, _media_type, item_id in failed_items:
+            downloads_db.remove(id=item_id)
+
+        async with Main(cfg) as main:
+            await main.add_all_by_id(failed_items)
+            await main.resolve()
+            await main.rip()
+
+        # Nothing in the pipeline clears the failed table, so success cannot be
+        # detected by diffing it. Rely instead on the invariant Track upholds:
+        # set_downloaded() is only reached through postprocess(), which a failed
+        # download never reaches. An item in the downloads table now is one that
+        # just succeeded.
+        repaired = [
+            item_id for _, _, item_id in failed_items if downloads_db.contains(id=item_id)
+        ]
+        for item_id in repaired:
+            failed_db.remove(id=item_id)
+
+        console.print(f"[green]Repaired {len(repaired)}/{len(failed_items)} item(s).")
+        if len(repaired) < len(failed_items):
+            console.print(
+                f"[yellow]{len(failed_items) - len(repaired)} item(s) failed again "
+                "and are still logged. Run [bold]rip repair[/bold] to try again."
+            )
+
+
+@rip.command()
 @click.option(
     "-f",
     "--first",

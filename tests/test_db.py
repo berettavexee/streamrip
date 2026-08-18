@@ -99,6 +99,28 @@ class TestFailed:
         f.reset()
         assert not os.path.exists(path)
 
+    def test_remove_by_id_leaves_other_rows(self, tmp_path_str):
+        """`rip repair` clears repaired items one id at a time."""
+        path = os.path.join(tmp_path_str, "failed.db")
+        f = db.Failed(path)
+        f.add(("deezer", "track", "1"))
+        f.add(("deezer", "track", "2"))
+        f.add(("qobuz", "track", "3"))
+
+        f.remove(id="2")
+
+        assert [row[2] for row in f.all()] == ["1", "3"]
+
+    def test_remove_unknown_id_is_a_noop(self, tmp_path_str):
+        """Repair removes ids it believes succeeded; a stale one must not raise."""
+        path = os.path.join(tmp_path_str, "failed.db")
+        f = db.Failed(path)
+        f.add(("deezer", "track", "1"))
+
+        f.remove(id="not-there")
+
+        assert len(f.all()) == 1
+
 
 class TestDatabaseBaseValidation:
     def test_dummy_create_noop(self):

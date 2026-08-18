@@ -183,6 +183,91 @@ async def test_download_marks_failed_after_two_failures(caplog):
     t.db.set_failed.assert_called_once()
 
 
+async def test_download_removes_partial_file_after_persistent_failure(tmp_path):
+    """The download writes to its final path, so a failure leaves a truncated
+    file sitting in the library among the good ones."""
+    partial = tmp_path / "01 - Song.flac"
+    partial.write_bytes(b"truncated")
+
+    t = _track()
+    t.download_path = str(partial)
+    t.downloadable.download = AsyncMock(side_effect=RuntimeError("boom"))
+    with (
+        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
+        pytest.raises(NonStreamableError),
+    ):
+        await t.download()
+
+    assert not partial.exists()
+
+
+async def test_download_keeps_going_when_partial_cannot_be_removed(tmp_path, caplog):
+    """A failed cleanup must not mask the download error that caused it."""
+    partial = tmp_path / "01 - Song.flac"
+    partial.write_bytes(b"truncated")
+
+    t = _track()
+    t.download_path = str(partial)
+    t.downloadable.download = AsyncMock(side_effect=RuntimeError("boom"))
+    with (
+        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
+        patch("streamrip.media.track.os.remove", side_effect=OSError("read-only fs")),
+        pytest.raises(NonStreamableError, match="after 2 attempts"),
+    ):
+        await t.download()
+
+    assert "Could not remove partial download" in caplog.text
+
+
+async def test_download_no_partial_to_remove_is_not_an_error():
+    t = _track()
+    t.download_path = "/dl/album/does-not-exist.flac"
+    t.downloadable.download = AsyncMock(side_effect=RuntimeError("boom"))
+    with (
+        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
+        patch("streamrip.media.track.os.remove") as mock_remove,
+        pytest.raises(NonStreamableError),
+    ):
+        await t.download()
+
+    mock_remove.assert_not_called()
+
+
+async def test_download_failure_clears_progress_title_when_single():
+    """postprocess() normally clears it, but a failed download never gets there."""
+    t = _track(is_single=True)
+    t.download_path = "/dl/album/01 - Song.flac"
+    t.downloadable.download = AsyncMock(side_effect=RuntimeError("boom"))
+    with (
+        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
+        patch("streamrip.media.track.remove_title") as mock_remove_title,
+        pytest.raises(NonStreamableError),
+    ):
+        await t.download()
+
+    mock_remove_title.assert_called_once_with(t.meta.title)
+
+
+async def test_download_failure_does_not_clear_title_when_not_single():
+    """Album tracks don't register a title of their own; the album owns it."""
+    t = _track(is_single=False)
+    t.download_path = "/dl/album/01 - Song.flac"
+    t.downloadable.download = AsyncMock(side_effect=RuntimeError("boom"))
+    with (
+        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
+        patch("streamrip.media.track.remove_title") as mock_remove_title,
+        pytest.raises(NonStreamableError),
+    ):
+        await t.download()
+
+    mock_remove_title.assert_not_called()
+
+
 async def test_rip_does_not_postprocess_when_download_fails():
     """A failed download must not reach tagging — postprocess() would otherwise
     tag a missing or truncated file and record it as downloaded."""
@@ -554,6 +639,36 @@ async def test_pending_track_returns_none_on_metadata_exception():
         assert await pt.resolve() is None
 
 
+async def test_pending_track_records_failure_on_get_metadata_non_streamable():
+    """A track that dies in resolve() leaves no file and no downloads row, so
+    without a failed row it just goes missing with nothing left to retry."""
+    pt = _pending_track()
+    pt.client.get_metadata = AsyncMock(side_effect=NonStreamableError("geo"))
+    await pt.resolve()
+    pt.db.set_failed.assert_called_once_with("deezer", "track", "42")
+
+
+async def test_pending_track_records_failure_on_metadata_exception():
+    pt = _pending_track()
+    with patch("streamrip.media.track.TrackMetadata.from_resp", side_effect=ValueError("bad")):
+        await pt.resolve()
+    pt.db.set_failed.assert_called_once_with("deezer", "track", "42")
+
+
+async def test_pending_track_records_failure_on_downloadable_non_streamable():
+    pt = _pending_track()
+    pt.client.get_downloadable = AsyncMock(side_effect=NonStreamableError("no url"))
+    await pt.resolve()
+    pt.db.set_failed.assert_called_once_with("deezer", "track", "42")
+
+
+async def test_pending_track_does_not_record_failure_when_already_downloaded():
+    """Skipping an already-downloaded track is not a failure."""
+    pt = _pending_track(downloaded=True)
+    assert await pt.resolve() is None
+    pt.db.set_failed.assert_not_called()
+
+
 async def test_pending_track_returns_none_when_meta_is_none():
     pt = _pending_track()
     with patch("streamrip.media.track.TrackMetadata.from_resp", return_value=None):
@@ -617,6 +732,39 @@ async def test_pending_single_skips_if_downloaded():
     ps = _pending_single(downloaded=True)
     assert await ps.resolve() is None
     ps.client.get_metadata.assert_not_called()
+
+
+async def test_pending_single_records_failure_on_get_metadata_non_streamable():
+    ps = _pending_single()
+    ps.client.get_metadata = AsyncMock(side_effect=NonStreamableError("geo"))
+    await ps.resolve()
+    ps.db.set_failed.assert_called_once_with("deezer", "track", "1")
+
+
+async def test_pending_single_records_failure_on_album_metadata_exception():
+    ps = _pending_single()
+    with patch(
+        "streamrip.media.track.AlbumMetadata.from_track_resp",
+        side_effect=ValueError("bad"),
+    ):
+        await ps.resolve()
+    ps.db.set_failed.assert_called_once_with("deezer", "track", "1")
+
+
+async def test_pending_single_records_failure_on_track_metadata_exception():
+    ps = _pending_single()
+    with (
+        patch("streamrip.media.track.AlbumMetadata.from_track_resp", return_value=MagicMock()),
+        patch("streamrip.media.track.TrackMetadata.from_resp", side_effect=ValueError("bad")),
+    ):
+        await ps.resolve()
+    ps.db.set_failed.assert_called_once_with("deezer", "track", "1")
+
+
+async def test_pending_single_does_not_record_failure_when_already_downloaded():
+    ps = _pending_single(downloaded=True)
+    assert await ps.resolve() is None
+    ps.db.set_failed.assert_not_called()
 
 
 async def test_pending_single_returns_none_on_metadata_non_streamable():
