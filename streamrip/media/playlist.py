@@ -47,10 +47,15 @@ class PendingPlaylistTrack(Pending):
         if self.db.downloaded(self.id):
             logger.info(f"Track ({self.id}) already logged in database. Skipping.")
             return None
+        # As in PendingTrack/PendingSingle: record the failure, don't just log
+        # it. Nothing else here leaves a trace — no file, no downloads row — so
+        # an unrecorded track vanishes from the playlist with nothing for
+        # `rip repair` to retry.
         try:
             resp = await self.client.get_track_for_playlist(self.id)
         except NonStreamableError as e:
             logger.error(f"Could not stream track {self.id}: {e}")
+            self.db.set_failed(self.client.source, "track", self.id)
             return None
 
         album = AlbumMetadata.from_track_resp(resp, self.client.source)

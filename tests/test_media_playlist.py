@@ -197,6 +197,23 @@ async def test_ppt_resolve_returns_none_on_non_streamable():
     assert result is None
 
 
+async def test_ppt_resolve_records_failure_on_non_streamable():
+    """Nothing else records this track: no file, no downloads row. Without a
+    failed row it disappears from the playlist with nothing left to retry."""
+    ppt = _ppt()
+    ppt.client.get_track_for_playlist = AsyncMock(
+        side_effect=NonStreamableError("geo")
+    )
+    await ppt.resolve()
+    ppt.db.set_failed.assert_called_once_with("deezer", "track", "42")
+
+
+async def test_ppt_resolve_does_not_record_failure_when_already_downloaded():
+    ppt = _ppt(downloaded=True)
+    assert await ppt.resolve() is None
+    ppt.db.set_failed.assert_not_called()
+
+
 async def test_ppt_resolve_returns_none_when_album_is_none():
     ppt = _ppt()
     with patch("streamrip.media.playlist.AlbumMetadata.from_track_resp", return_value=None):
