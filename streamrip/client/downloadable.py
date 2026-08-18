@@ -129,7 +129,7 @@ class BasicDownloadable(Downloadable):
 
 
 class DeezerDownloadable(Downloadable):
-    is_encrypted = re.compile("/m(?:obile|edia)/")
+    is_encrypted = re.compile(r"/m(?:obile|edia)/")
 
     def __init__(self, session: aiohttp.ClientSession, info: dict):
         logger.debug("Deezer info for downloadable: %s", info)

@@ -104,7 +104,7 @@ def test_string_similarity_unrelated_is_low() -> None:
 # ---------------------------------------------------------------------------
 
 
-# Format: (query_title, query_artist, result_title, result_artist, description)  # noqa: ERA001
+# Format: (query_title, query_artist, result_title, result_artist, description)  # ruff: ignore[commented-out-code]
 _LOG_PAIRS = [
     # Simple exact match with case variants in artist
     ("Enter The Cipher", "Follow the Cipher", "Enter the Cipher", "Follow The Cipher", "artist capitalisation variant"),
@@ -118,7 +118,7 @@ _LOG_PAIRS = [
     ("Master of the Universe", "Angus McSix", "Master of the Universe", "ANGUS McSIX", "stylised all-caps artist"),
     # Artist uses 'In' capitalisation
     ("True Believer", "Beast in Black", "True Believer", "Beast In Black", "minor caps diff in artist"),
-    # Punctuation in title (apostrophe, dot)  # noqa: ERA001
+    # Punctuation in title (apostrophe, dot)  # ruff: ignore[commented-out-code]
     ("Mr. White", "Temperance", "Mr. White", "Temperance", "dot in title"),
     ("Circe's Spell", "Kalidia", "Circe's Spell", "Kalidia", "apostrophe in title"),
     ("Draugen's Maelstrom", "Elvenking", "Draugen's Maelstrom", "Elvenking", "apostrophe in title 2"),

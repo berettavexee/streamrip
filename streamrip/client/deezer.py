@@ -1079,7 +1079,7 @@ class DeezerClient(Client):
                     continue
                 if served_id not in wanted:
                     continue
-                self._url_results[(served_id, fmt)] = result
+                self._url_results[served_id, fmt] = result
 
     async def _ensure_url_batch(self, fmt: str) -> None:
         """Start or await the batch URL-resolution task for *fmt*.

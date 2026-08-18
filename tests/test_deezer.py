@@ -1171,8 +1171,8 @@ def test_batch_url_misaligned_results_never_mismatch_tracks(mock_deezer_client):
     arun(mock_deezer_client._batch_resolve_urls("FLAC"))
 
     # Each URL landed on the track it actually serves — not shifted by one.
-    assert mock_deezer_client._url_results[("2", "FLAC")] == _cdn_url("2")
-    assert mock_deezer_client._url_results[("3", "FLAC")] == _cdn_url("3")
+    assert mock_deezer_client._url_results["2", "FLAC"] == _cdn_url("2")
+    assert mock_deezer_client._url_results["3", "FLAC"] == _cdn_url("3")
     # The geoblocked track got no URL at all (individual resolution handles it).
     assert ("1", "FLAC") not in mock_deezer_client._url_results
 
@@ -1207,8 +1207,8 @@ def test_batch_url_transient_chunk_failure_still_resolves_later_chunks(mock_deez
     # Chunk 1 (tracks 1,2) failed → not cached; chunk 2 (tracks 3,4) still resolved.
     assert ("1", "FLAC") not in mock_deezer_client._url_results
     assert ("2", "FLAC") not in mock_deezer_client._url_results
-    assert mock_deezer_client._url_results[("3", "FLAC")] == _cdn_url("3")
-    assert mock_deezer_client._url_results[("4", "FLAC")] == _cdn_url("4")
+    assert mock_deezer_client._url_results["3", "FLAC"] == _cdn_url("3")
+    assert mock_deezer_client._url_results["4", "FLAC"] == _cdn_url("4")
     assert mock_deezer_client.client.get_tracks_url.call_count == 2
 
 

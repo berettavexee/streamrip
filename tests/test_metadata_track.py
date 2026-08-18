@@ -176,7 +176,7 @@ def test_from_deezer_basic():
     assert meta.tracknumber == 1
     assert meta.discnumber == 1
     assert meta.info.bit_depth == 16
-    assert meta.info.sampling_rate == 44.1
+    assert meta.info.sampling_rate == pytest.approx(44.1)
 
 
 def test_from_deezer_contributors_joined():

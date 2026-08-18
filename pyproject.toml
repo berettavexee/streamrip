@@ -45,10 +45,9 @@ certifi = { version = "^2025.1.31", optional = true }
 [tool.poetry.dev-dependencies]
 types-click = "^7.1.2"
 types-Pillow = "^8.3.1"
-ruff = "^0.1"
-black = "^26"
-isort = "^5.9.3"
-flake8 = "^3.9.2"
+# ruff couvre à lui seul isort (`I`), le cœur de flake8 (`E`/`F`) et le
+# formatage black (cf. [tool.ruff.format]) : les trois outils ont été retirés.
+ruff = ">=0.16"
 setuptools = "^83.0.0"
 pytest = "^9.0"
 pytest-mock = "^3.11.1"
@@ -71,6 +70,10 @@ build-backend = "poetry.core.masonry.api"
 [tool.ruff]
 # Le whitelist vulture contient des noms non définis à dessein (F821).
 extend-exclude = [".vulture_whitelist.py"]
+# Les règles preview sont activées pour absorber au fil de l'eau celles qui
+# seront stabilisées plus tard, plutôt que d'encaisser un CI rouge à chaque
+# bump majeur de ruff (cf. RUF036 arrivé avec 0.16).
+preview = true
 
 [tool.vulture]
 paths = ["streamrip", ".vulture_whitelist.py"]
@@ -78,8 +81,15 @@ min_confidence = 60
 
 [tool.ruff.lint]
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
-select = ["E4", "E7", "E9", "F", "I", "ASYNC", "N", "RUF", "ERA001"]
-ignore = []
+select = ["E4", "E7", "E9", "F", "I", "ASYNC", "N", "RUF", "commented-out-code"]
+ignore = [
+  # Les fakes des tests doivent être `async` pour matcher l'interface mockée,
+  # même quand leur corps n'attend rien.
+  "unused-async",
+  # Le préfixe `_` marque ici une variable privée/interne, pas une variable
+  # inutilisée : la relire est normal (cf. dummy-variable-rgx ci-dessous).
+  "used-dummy-variable",
+]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
