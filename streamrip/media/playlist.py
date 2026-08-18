@@ -254,17 +254,24 @@ class PendingPlaylist(Pending):
         return Playlist(name, self.config, self.client, tracks)
 
 
+# Last.fm inserts a two-letter locale segment when the site is browsed in a
+# language other than English (https://www.last.fm/fr/user/…). Copying a URL
+# from the browser therefore yields a path these patterns must tolerate, or the
+# URL falls through to the HTML playlist scraper and fails on a page that is
+# not a playlist. Non-capturing, so the group numbers below stay put.
+_LASTFM_LOCALE = r"https://www\.last\.fm/(?:[a-z]{2}/)?"
+
 _LASTFM_USER_LIBRARY_RE = re.compile(
-    r"https://www\.last\.fm/user/(\w+)/library/tracks"
+    _LASTFM_LOCALE + r"user/(\w+)/library/tracks"
 )
 _LASTFM_LOVED_TRACKS_RE = re.compile(
-    r"https://www\.last\.fm/user/(\w+)/loved"
+    _LASTFM_LOCALE + r"user/(\w+)/loved"
 )
 _LASTFM_ARTIST_TRACKS_RE = re.compile(
-    r"https://www\.last\.fm/music/([^/]+)/\+tracks"
+    _LASTFM_LOCALE + r"music/([^/]+)/\+tracks"
 )
 _LASTFM_ARTIST_PAGE_RE = re.compile(
-    r"https://www\.last\.fm/music/([^/]+)/?$"
+    _LASTFM_LOCALE + r"music/([^/]+)/?$"
 )
 _LASTFM_API = "https://ws.audioscrobbler.com/2.0/"
 

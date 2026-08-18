@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import streamrip.media.playlist as playlist_mod
 from streamrip.exceptions import NonStreamableError
 from streamrip.media.media import DownloadStats
 from streamrip.media.playlist import (
@@ -832,6 +833,72 @@ def _mock_loved_session(pages):
     mock_session.__aexit__ = AsyncMock(return_value=False)
     mock_session.get = MagicMock(return_value=mock_resp)
     return mock_session
+
+
+@pytest.mark.parametrize(
+    ("url", "parser"),
+    [
+        (
+            "https://www.last.fm/fr/user/bob/library/tracks?date_preset=LAST_365_DAYS",
+            "_parse_lastfm_user_top_tracks",
+        ),
+        ("https://www.last.fm/de/user/bob/loved", "_parse_lastfm_loved_tracks"),
+        ("https://www.last.fm/ja/music/Nirvana/+tracks", "_parse_lastfm_artist_top_tracks"),
+    ],
+)
+async def test_parse_lastfm_dispatch_accepts_locale_prefix(url, parser):
+    """Last.fm inserts a locale segment when browsing in another language.
+
+    A URL copied from a French browser session reads
+    ``.../fr/user/bob/library/tracks``. Without tolerating that segment, every
+    pattern misses and the URL falls through to the HTML playlist scraper,
+    which fails on a page that is not a playlist.
+    """
+    pl = _lastfm_playlist()
+    with patch.object(
+        pl, parser, new=AsyncMock(return_value=("T", [("S", "A", None)]))
+    ) as mock_parser:
+        title, pairs = await pl._parse_lastfm_playlist(url)
+
+    mock_parser.assert_awaited_once()
+    assert title == "T"
+    assert pairs == [("S", "A", None)]
+
+
+async def test_parse_lastfm_locale_artist_page_still_raises_hint():
+    """The 'use /+tracks' hint must survive the locale prefix too."""
+    pl = _lastfm_playlist()
+    with pytest.raises(ValueError, match=r"\+tracks"):
+        await pl._parse_lastfm_playlist("https://www.last.fm/es/music/Nirvana")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://www.last.fm/user/bob/library/tracks",
+        "https://www.last.fm/user/bob/loved",
+        "https://www.last.fm/music/Nirvana/+tracks",
+    ],
+)
+def test_lastfm_patterns_still_match_without_locale(url):
+    """The locale segment is optional: plain URLs must keep working."""
+    assert any(
+        pattern.match(url)
+        for pattern in (
+            playlist_mod._LASTFM_USER_LIBRARY_RE,
+            playlist_mod._LASTFM_LOVED_TRACKS_RE,
+            playlist_mod._LASTFM_ARTIST_TRACKS_RE,
+        )
+    )
+
+
+def test_lastfm_locale_does_not_swallow_the_username():
+    """The locale group is non-capturing, so group(1) stays the username."""
+    match = playlist_mod._LASTFM_USER_LIBRARY_RE.match(
+        "https://www.last.fm/fr/user/berettavexee/library/tracks"
+    )
+    assert match is not None
+    assert match.group(1) == "berettavexee"
 
 
 async def test_parse_lastfm_loved_tracks_dispatcher():
