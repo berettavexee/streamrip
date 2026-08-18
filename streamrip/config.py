@@ -221,6 +221,11 @@ class CliConfig:
     max_search_results: int
     # Resolve and match tracks but skip the actual download (for debugging)
     dry_run: bool = False
+    # Stop after this many tracks when resolving a playlist, a user's loved
+    # tracks, or an artist's top tracks. 0 means no limit. Set from
+    # --max-tracks; like dry_run it is a per-invocation switch and is not
+    # persisted to config.toml.
+    max_tracks: int = 0
 
 
 @dataclass(slots=True)

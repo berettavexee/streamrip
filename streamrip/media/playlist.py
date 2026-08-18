@@ -239,6 +239,18 @@ class PendingPlaylist(Pending):
         name = meta.name
         parent = self.config.session.downloads.folder
         folder = os.path.join(parent, clean_filepath(clean_filename(name)))
+        ids = meta.ids()
+        # A user's loved tracks and an artist's top tracks are both resolved as
+        # playlists, so capping here covers all three. Truncation happens before
+        # any track is resolved, so nothing is fetched only to be discarded.
+        max_tracks = self.config.session.cli.max_tracks
+        if max_tracks > 0 and len(ids) > max_tracks:
+            logger.info(
+                "Limiting '%s' to the first %d of %d tracks (--max-tracks).",
+                name, max_tracks, len(ids),
+            )
+            ids = ids[:max_tracks]
+
         tracks = [
             PendingPlaylistTrack(
                 id,
@@ -249,7 +261,7 @@ class PendingPlaylist(Pending):
                 position + 1,
                 self.db,
             )
-            for position, id in enumerate(meta.ids())
+            for position, id in enumerate(ids)
         ]
         return Playlist(name, self.config, self.client, tracks)
 

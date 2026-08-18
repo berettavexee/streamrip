@@ -45,11 +45,12 @@ def _client(source="deezer"):
     return c
 
 
-def _config(renumber=False, set_to_album=False, progress_bars=False):
+def _config(renumber=False, set_to_album=False, progress_bars=False, max_tracks=0):
     cfg = MagicMock()
     cfg.session.metadata.renumber_playlist_tracks = renumber
     cfg.session.metadata.set_playlist_to_album = set_to_album
     cfg.session.cli.progress_bars = progress_bars
+    cfg.session.cli.max_tracks = max_tracks
     cfg.session.downloads.folder = "/dl"
     cfg.session.artwork = MagicMock()
     cfg.session.downloads.verify_ssl = True
@@ -365,6 +366,67 @@ async def test_pending_playlist_resolve_returns_playlist():
     assert isinstance(result, Playlist)
     assert result.name == "Hot Tracks"
     assert len(result.tracks) == 2
+
+
+async def _resolve_with(max_tracks, ids, name="Hot Tracks"):
+    """Resolve a playlist of *ids* under a --max-tracks cap of *max_tracks*."""
+    pp = PendingPlaylist(
+        id="1", client=_client(), config=_config(max_tracks=max_tracks), db=_db()
+    )
+    meta = MagicMock()
+    meta.name = name
+    meta.ids.return_value = list(ids)
+    with (
+        patch("streamrip.media.playlist.PlaylistMetadata.from_resp", return_value=meta),
+        patch("streamrip.media.playlist.clean_filepath", side_effect=lambda x: x),
+        patch("streamrip.media.playlist.clean_filename", side_effect=lambda x: x),
+    ):
+        return await pp.resolve()
+
+
+async def test_pending_playlist_caps_tracks_at_max_tracks():
+    """Loved tracks and artist top tracks resolve as playlists too, so this
+    single cap covers all three."""
+    result = await _resolve_with(2, ["t1", "t2", "t3", "t4", "t5"])
+
+    assert len(result.tracks) == 2
+    assert [t.id for t in result.tracks] == ["t1", "t2"]
+
+
+async def test_pending_playlist_max_tracks_keeps_positions_contiguous():
+    """Positions number the kept tracks, not their rank in the full list."""
+    result = await _resolve_with(3, ["t1", "t2", "t3", "t4"])
+
+    assert [t.position for t in result.tracks] == [1, 2, 3]
+
+
+async def test_pending_playlist_max_tracks_zero_means_no_limit():
+    result = await _resolve_with(0, [f"t{i}" for i in range(120)])
+
+    assert len(result.tracks) == 120
+
+
+async def test_pending_playlist_max_tracks_above_length_keeps_everything():
+    result = await _resolve_with(50, ["t1", "t2"])
+
+    assert len(result.tracks) == 2
+
+
+async def test_pending_playlist_max_tracks_logs_when_truncating(caplog):
+    with caplog.at_level(logging.INFO, logger="streamrip"):
+        await _resolve_with(2, ["t1", "t2", "t3"], name="Loved Tracks")
+
+    assert any(
+        "Limiting 'Loved Tracks' to the first 2 of 3 tracks" in r.message
+        for r in caplog.records
+    )
+
+
+async def test_pending_playlist_max_tracks_silent_when_not_truncating(caplog):
+    with caplog.at_level(logging.INFO, logger="streamrip"):
+        await _resolve_with(50, ["t1", "t2"])
+
+    assert not any("Limiting" in r.message for r in caplog.records)
 
 
 # ---------------------------------------------------------------------------

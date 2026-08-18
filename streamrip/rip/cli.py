@@ -70,6 +70,12 @@ def coro(f):
     help="Convert the downloaded files to an audio codec (ALAC, FLAC, AIFF, MP3, AAC, OGG, or OPUS)",
 )
 @click.option(
+    "--max-tracks",
+    help="Stop after this many tracks from a playlist, a user's loved tracks, "
+    "or an artist's top tracks. 0 (the default) means no limit.",
+    type=click.IntRange(min=0),
+)
+@click.option(
     "--no-progress",
     help="Do not show progress bars",
     is_flag=True,
@@ -103,7 +109,8 @@ def coro(f):
 )
 @click.pass_context
 def rip(
-    ctx, config_path, folder, no_db, quality, codec, no_progress, no_ssl_verify, verbose, log_file, dry_run
+    ctx, config_path, folder, no_db, quality, codec, max_tracks, no_progress,
+    no_ssl_verify, verbose, log_file, dry_run,
 ):
     """Streamrip: the all in one music downloader."""
     global logger
@@ -194,6 +201,9 @@ def rip(
         if codec.upper() not in valid_codecs:
             raise click.BadParameter(f"codec must be one of {valid_codecs}", param_hint="'--codec'")
         c.session.conversion.codec = codec.upper()
+
+    if max_tracks is not None:
+        c.session.cli.max_tracks = max_tracks
 
     if no_progress:
         c.session.cli.progress_bars = False
