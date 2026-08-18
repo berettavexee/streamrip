@@ -184,8 +184,12 @@ async def test_download_marks_failed_after_two_failures(caplog):
 
 
 async def test_download_removes_partial_file_after_persistent_failure(tmp_path):
-    """The download writes to its final path, so a failure leaves a truncated
-    file sitting in the library among the good ones."""
+    """Track.download() clears the download path once both attempts fail.
+
+    A backstop: Downloadable._download already discards its own partial, so in
+    production this finds nothing. The downloadable is mocked here, which is
+    what leaves a file for it to clean up.
+    """
     partial = tmp_path / "01 - Song.flac"
     partial.write_bytes(b"truncated")
 

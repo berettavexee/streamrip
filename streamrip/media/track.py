@@ -143,12 +143,15 @@ class Track(Media):
                             ) from e
 
     def _discard_partial_download(self) -> None:
-        """Delete the truncated file left behind by a failed download.
+        """Delete any file left at the download path after a failed download.
 
-        The download writes straight to its final path in the library, so a
-        failure leaves a partial file sitting among the good ones. Unlike an
-        integrity failure — where the file is kept for inspection because it
-        looks complete — there is nothing to inspect here.
+        A backstop, not the primary cleanup: every ``Downloadable._download``
+        already calls ``discard_partial_file`` on error, so this should find
+        nothing. It guards against a future download path forgetting to —
+        the file sits at its final location in the library, where the tagging
+        and integrity stages would happily pick it up. Unlike an integrity
+        failure, where the file is kept for inspection because it looks
+        complete, there is nothing to inspect here.
 
         Failure to delete is logged and swallowed: the download error that
         triggered this is the one worth propagating.
