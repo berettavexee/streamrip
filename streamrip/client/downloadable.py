@@ -146,8 +146,10 @@ class DeezerDownloadable(Downloadable):
         self.quality = info["quality"]
 
         # Choose the extension from the actual container. The CDN URL carries it
-        # (…/<md5>.flac?hdnea=…); fall back to the resolved quality only for URLs
-        # that don't (the legacy /mobile/ CDN, which always serves FLAC).
+        # (…/<md5>.flac?hdnea=…); the quality fallback below only covers URLs
+        # that don't. The one such shape streamrip used to produce — the legacy
+        # /mobile/ CDN — is gone (DeezerClient no longer builds those URLs, and
+        # Deezer retired the hosts), so this branch is now purely defensive.
         url_name = self.url.split("?", 1)[0].rsplit("/", 1)[-1]
         url_ext = url_name.rsplit(".", 1)[-1].lower() if "." in url_name else ""
         if url_ext in ("flac", "mp3"):

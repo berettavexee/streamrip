@@ -1,6 +1,4 @@
 import asyncio
-import binascii
-import hashlib
 import logging
 import re
 from collections.abc import ItemsView
@@ -9,7 +7,6 @@ from typing import Any, Callable, ClassVar, Coroutine, Generic, TypeVar
 import aiolimiter
 import deezer
 import requests
-from Cryptodome.Cipher import AES
 from deezer.errors import DataException, GWAPIError
 
 from ..config import Config
@@ -840,14 +837,10 @@ class DeezerClient(Client):
 
         quality = max(0, min(quality, 2))
         track_info = await self._get_gw_track(item_id)
+        # Raises rather than returning an empty URL when nothing resolves.
         url, final_quality, served_id = await self._resolve_quality(
             track_info, quality, item_id
         )
-
-        if not url:
-            raise NonStreamableError(
-                "Could not retrieve a download URL for track %s" % item_id
-            )
 
         # served_id is the ID of the track actually behind ``url`` — it differs
         # from item_id when a geoblock fell back to an alternate track. The
@@ -875,8 +868,8 @@ class DeezerClient(Client):
         quality: int,
         item_id: str,
         is_retry: bool = False,
-    ) -> tuple[str | None, int, str]:
-        """Try qualities from requested down to 0; fall back to AES CDN on exhaustion.
+    ) -> tuple[str, int, str]:
+        """Try qualities from the requested one down to 0.
 
         Handles WrongLicense (tries next lower quality) and WrongGeolocation
         (retries once with the FALLBACK track ID if available).
@@ -884,19 +877,18 @@ class DeezerClient(Client):
         Args:
             track_info: GW track info dict (must contain TRACK_TOKEN).
             quality: Starting quality level (0-2, clamped by caller).
-            item_id: Track ID, used for geoblocking retry and CDN URL construction.
+            item_id: Track ID, used for the geoblocking retry.
             is_retry: True when already handling a geoblocking fallback to prevent loops.
 
         Returns:
             ``(url, effective_quality, served_id)`` — ``served_id`` is the ID of the
             track the URL actually points to (``item_id``, or the FALLBACK id after a
-            geoblock retry); the caller derives the Blowfish key from it. ``url`` is
-            None only if the CDN fallback URL itself is empty or missing (triggers
-            NonStreamableError in the caller).
+            geoblock retry); the caller derives the Blowfish key from it.
 
         Raises:
-            NonStreamableError: On WrongGeolocation with no fallback, on missing
-                TRACK_TOKEN, or when CDN fallback fields are absent.
+            NonStreamableError: On missing TRACK_TOKEN, on WrongGeolocation with
+                no fallback, on WrongLicense when quality fallback is disabled,
+                or when no quality yielded a URL.
         """
         token = track_info.get("TRACK_TOKEN")
         if token is None:
@@ -937,55 +929,17 @@ class DeezerClient(Client):
                     )
                 raise NonStreamableError("Track geoblocked and no fallback available.")
 
-        md5 = track_info.get("MD5_ORIGIN")
-        media_version = track_info.get("MEDIA_VERSION")
-        if not md5 or not media_version:
-            raise NonStreamableError(
-                f"Deezer track {item_id}: token API failed and CDN fallback requires "
-                "MD5_ORIGIN/MEDIA_VERSION which are missing"
-            )
-        return self._get_encrypted_file_url(item_id, md5, media_version), 2, item_id
-
-    def _get_encrypted_file_url(
-        self,
-        meta_id: str,
-        track_hash: str,
-        media_version: str,
-    ) -> str:
-        """Build the legacy AES-ECB CDN URL used when the token API returns nothing.
-
-        Args:
-            meta_id: The track metadata ID.
-            track_hash: The MD5 hash of the track origin URL (MD5_ORIGIN).
-            media_version: The media version string from GW track info.
-
-        Returns:
-            Signed CDN URL pointing to the AES-encrypted audio file.
-        """
-        logger.debug("Falling back to encrypted file URL for track %s", meta_id)
-        # CDN fallback always encodes FLAC; use the GW format ID from _QUALITY_MAP.
-        gw_format_id = self._QUALITY_MAP[2][0]  # 1 = FLAC
-
-        url_bytes = b"\xa4".join((
-            track_hash.encode(),
-            str(gw_format_id).encode(),
-            meta_id.encode(),
-            media_version.encode(),
-        ))
-        url_hash = hashlib.md5(url_bytes).hexdigest()
-        info_bytes = bytearray(url_hash.encode())
-        info_bytes.extend(b"\xa4")
-        info_bytes.extend(url_bytes)
-        info_bytes.extend(b"\xa4")
-        padding_len = 16 - (len(info_bytes) % 16)
-        info_bytes.extend(b"." * padding_len)
-
-        path = binascii.hexlify(
-            AES.new(b"jo6aey6haid2Teih", AES.MODE_ECB).encrypt(info_bytes),
-        ).decode("utf-8")
-        url = f"https://e-cdns-proxy-{track_hash[0]}.dzcdn.net/mobile/1/{path}"
-        logger.debug("Encrypted file path %s", url)
-        return url
+        # No fallback left to try. Until 2026 this fell back to the legacy
+        # AES-ECB CDN at e-cdns-proxy-<c>.dzcdn.net; Deezer has retired those
+        # hosts and none of the sixteen resolve any more, so building such a
+        # URL only bought two doomed download attempts and a "Domain name not
+        # found" that pointed at the wrong culprit. Failing here instead says
+        # what actually happened, immediately.
+        raise NonStreamableError(
+            f"Deezer track {item_id}: no download URL at any quality. The "
+            "legacy e-cdns-proxy CDN that used to serve as a fallback has been "
+            "retired by Deezer, so there is nothing left to try."
+        )
 
     _BATCH_URL_CHUNK_SIZE: ClassVar[int] = 1000
 

@@ -182,8 +182,13 @@ def test_deezer_no_fallback_when_disabled(mock_deezer_client):
 
 
 def test_deezer_wrong_license_all_qualities(mock_deezer_client):
-    """WrongLicense on every quality level falls through to the encrypted CDN URL."""
-    mock_track_info = {
+    """WrongLicense on every quality level fails immediately.
+
+    This used to fall through to the legacy e-cdns-proxy CDN. Deezer retired
+    those hosts, so such a URL could only ever produce two doomed download
+    attempts and a DNS error naming the wrong culprit.
+    """
+    mock_deezer_client.client.gw.get_track.return_value = {
         "FILESIZE_FLAC": 25_000_000,
         "FILESIZE_MP3_320": 5_000_000,
         "FILESIZE_MP3_128": 2_000_000,
@@ -191,20 +196,10 @@ def test_deezer_wrong_license_all_qualities(mock_deezer_client):
         "MD5_ORIGIN": "abc123def456abc123def456abc12345",
         "MEDIA_VERSION": "1",
     }
-    mock_deezer_client.client.gw.get_track.return_value = mock_track_info
     mock_deezer_client.client.get_track_url.side_effect = deezer.WrongLicense("any")
 
-    with patch.object(
-        mock_deezer_client,
-        "_get_encrypted_file_url",
-        return_value="https://e-cdns-proxy-a.dzcdn.net/mobile/1/deadbeef",
-    ) as mock_encrypted:
-        downloadable = arun(mock_deezer_client.get_downloadable("123", quality=2))
-
-    mock_encrypted.assert_called_once_with(
-        "123", "abc123def456abc123def456abc12345", "1"
-    )
-    assert downloadable.url == "https://e-cdns-proxy-a.dzcdn.net/mobile/1/deadbeef"
+    with pytest.raises(NonStreamableError, match="no download URL at any quality"):
+        arun(mock_deezer_client.get_downloadable("123", quality=2))
 
 
 # ===== get_downloadable — geoblocking =====
@@ -264,9 +259,9 @@ def test_deezer_geoblocked_no_fallback(mock_deezer_client):
 
 # ===== get_downloadable — encrypted URL fallback =====
 
-def test_deezer_encrypted_url_fallback(mock_deezer_client):
-    """When get_track_url returns None for all qualities, falls back to the AES-encrypted CDN URL."""
-    mock_track_info = {
+def test_deezer_no_url_at_any_quality_fails_immediately(mock_deezer_client):
+    """get_track_url returning None everywhere raises instead of guessing a URL."""
+    mock_deezer_client.client.gw.get_track.return_value = {
         "FILESIZE_FLAC": 25_000_000,
         "FILESIZE_MP3_320": 5_000_000,
         "FILESIZE_MP3_128": 2_000_000,
@@ -274,20 +269,39 @@ def test_deezer_encrypted_url_fallback(mock_deezer_client):
         "MD5_ORIGIN": "abc123def456abc123def456abc12345",
         "MEDIA_VERSION": "1",
     }
-    mock_deezer_client.client.gw.get_track.return_value = mock_track_info
     mock_deezer_client.client.get_track_url.return_value = None
 
-    with patch.object(
-        mock_deezer_client,
-        "_get_encrypted_file_url",
-        return_value="https://e-cdns-proxy-a.dzcdn.net/mobile/1/deadbeef",
-    ) as mock_encrypted:
-        downloadable = arun(mock_deezer_client.get_downloadable("123", quality=2))
+    with pytest.raises(NonStreamableError, match="no download URL at any quality"):
+        arun(mock_deezer_client.get_downloadable("123", quality=2))
 
-    mock_encrypted.assert_called_once_with(
-        "123", "abc123def456abc123def456abc12345", "1"
-    )
-    assert downloadable.url == "https://e-cdns-proxy-a.dzcdn.net/mobile/1/deadbeef"
+
+def test_deezer_exhaustion_error_names_the_retired_cdn(mock_deezer_client):
+    """The message must say why nothing is left to try, not merely that it failed."""
+    mock_deezer_client.client.gw.get_track.return_value = {
+        "TRACK_TOKEN": "test_token",
+        "MD5_ORIGIN": "abc123def456abc123def456abc12345",
+        "MEDIA_VERSION": "1",
+    }
+    mock_deezer_client.client.get_track_url.return_value = None
+
+    with pytest.raises(NonStreamableError, match="e-cdns-proxy"):
+        arun(mock_deezer_client.get_downloadable("123", quality=2))
+
+
+def test_deezer_never_builds_a_legacy_cdn_url(mock_deezer_client):
+    """No path may produce an e-cdns-proxy URL: none of the sixteen hosts
+    resolve any more, so such a URL is guaranteed to fail at download time."""
+    mock_deezer_client.client.gw.get_track.return_value = {
+        "TRACK_TOKEN": "test_token",
+        "MD5_ORIGIN": "abc123def456abc123def456abc12345",
+        "MEDIA_VERSION": "1",
+    }
+    mock_deezer_client.client.get_track_url.return_value = None
+
+    with pytest.raises(NonStreamableError) as excinfo:
+        arun(mock_deezer_client.get_downloadable("123", quality=2))
+
+    assert "/mobile/1/" not in str(excinfo.value)
 
 
 # ===== get_album =====
@@ -877,67 +891,8 @@ def test_get_downloadable_missing_cdn_fields(mock_deezer_client):
     }
     mock_deezer_client.client.get_track_url.side_effect = deezer.WrongLicense("any")
 
-    with pytest.raises(NonStreamableError, match="MD5_ORIGIN/MEDIA_VERSION"):
+    with pytest.raises(NonStreamableError, match="no download URL at any quality"):
         arun(mock_deezer_client.get_downloadable("123", quality=2))
-
-
-def test_get_downloadable_encrypted_url_none(mock_deezer_client):
-    """NonStreamableError when the CDN fallback returns an empty URL."""
-    mock_deezer_client.client.gw.get_track.return_value = {
-        "FILESIZE_FLAC": 25_000_000,
-        "FILESIZE_MP3_320": 5_000_000,
-        "FILESIZE_MP3_128": 2_000_000,
-        "TRACK_TOKEN": "test_token",
-        "MD5_ORIGIN": "abc123",
-        "MEDIA_VERSION": "1",
-    }
-    mock_deezer_client.client.get_track_url.side_effect = deezer.WrongLicense("any")
-
-    with patch.object(mock_deezer_client, "_get_encrypted_file_url", return_value=None):
-        with pytest.raises(NonStreamableError, match="Could not retrieve"):
-            arun(mock_deezer_client.get_downloadable("123", quality=2))
-
-
-# ===== _get_encrypted_file_url =====
-
-def test_get_encrypted_file_url_url_structure(mock_deezer_client):
-    """_get_encrypted_file_url generates a CDN URL whose proxy prefix matches the hash's first char."""
-    url = mock_deezer_client._get_encrypted_file_url(
-        meta_id="12345",
-        track_hash="abc123def456abc123def456abc12345",
-        media_version="1",
-    )
-    # Proxy subdomain is derived from track_hash[0] = 'a'.
-    assert url.startswith("https://e-cdns-proxy-a.dzcdn.net/mobile/1/")
-    # Path is AES-ECB output encoded as hex — always a non-trivial string.
-    path = url.split("/mobile/1/")[1]
-    assert len(path) > 32
-    assert all(c in "0123456789abcdef" for c in path)
-
-
-def test_get_encrypted_file_url_format_id_from_quality_map(mock_deezer_client):
-    """_get_encrypted_file_url uses _QUALITY_MAP[2][0] as the format ID, not a hardcoded literal.
-
-    _QUALITY_MAP[2] is the FLAC entry; its GW format ID is 1. The encrypted CDN
-    always serves FLAC, so changing the map entry must change the format byte in
-    the URL-hash input.
-    """
-    # Patch _QUALITY_MAP to replace the FLAC GW format ID (index 2) with a sentinel.
-    original_map = mock_deezer_client._QUALITY_MAP
-    patched_map = [original_map[0], original_map[1], (99, original_map[2][1])]
-    with patch.object(DeezerClient, "_QUALITY_MAP", patched_map):
-        url_patched = mock_deezer_client._get_encrypted_file_url(
-            meta_id="12345",
-            track_hash="abc123def456abc123def456abc12345",
-            media_version="1",
-        )
-    url_original = mock_deezer_client._get_encrypted_file_url(
-        meta_id="12345",
-        track_hash="abc123def456abc123def456abc12345",
-        media_version="1",
-    )
-    # Different format IDs must produce different encrypted paths.
-    assert url_patched != url_original
 
 
 # ===== _HttpsUpgradeSession =====

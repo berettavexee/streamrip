@@ -110,32 +110,6 @@ class TestDeezerClientAlbumCache:
         assert result["title"] == "Cached Album"
 
 
-# ── DeezerClient._get_encrypted_file_url ─────────────────────────────────────
-
-class TestDeezerEncryptedFileUrl:
-    def test_returns_cdn_url(self):
-        from streamrip.client.deezer import DeezerClient
-        config = Config.defaults()
-        client = DeezerClient(config)
-
-        url = client._get_encrypted_file_url(
-            "77874822",
-            "d41d8cd98f00b204e9800998ecf8427e",
-            "1",
-        )
-        assert url.startswith("https://e-cdns-proxy-")
-        assert ".dzcdn.net/mobile/1/" in url
-
-    def test_deterministic(self):
-        from streamrip.client.deezer import DeezerClient
-        config = Config.defaults()
-        client = DeezerClient(config)
-
-        u1 = client._get_encrypted_file_url("123", "abcdef1234567890abcdef1234567890", "2")
-        u2 = client._get_encrypted_file_url("123", "abcdef1234567890abcdef1234567890", "2")
-        assert u1 == u2
-
-
 # ── DeezerClient.get_track_for_playlist ──────────────────────────────────────
 
 class TestDeezerGetTrackForPlaylist:
