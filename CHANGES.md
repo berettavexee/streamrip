@@ -42,6 +42,8 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - ReplayGain track gain (`GAIN` field from GW API) written as `REPLAYGAIN_TRACK_GAIN` to FLAC, `TXXX:replaygain_track_gain` to MP3, and iTunes freeform atom to MP4
 - Fix `KeyError` when `disk_number` is absent from the last track in a Deezer album response ([#994](https://github.com/nathom/streamrip/pull/994))
 
+- **Fix the retired legacy CDN fallback wasting two download attempts per track.** When no quality yielded a URL, `_resolve_quality` fell back to building an AES-ECB URL at `e-cdns-proxy-<c>.dzcdn.net/mobile/1/…`. Deezer has retired that CDN — none of the sixteen possible hosts resolve — so the URL could never succeed: the track burned both download attempts and failed with `Cannot connect to host … [Domain name not found]`, a DNS error pointing at the wrong culprit. Exhausting every quality now raises immediately with a message naming the retired CDN. A real-world run put 8 of 50 loved tracks (16 %) through this path, producing 25 log lines; the same run now produces 8, one per track, each stating the actual cause. `_get_encrypted_file_url` and the `MD5_ORIGIN`/`MEDIA_VERSION` check that only fed it are gone.
+
 ## Tidal
 
 - MPEG-DASH manifest (`application/dash+xml`) support for `HI_RES_LOSSLESS` streams — required since Tidal dropped MQA ([#974](https://github.com/nathom/streamrip/issues/974), [#981](https://github.com/nathom/streamrip/issues/981))
@@ -86,6 +88,10 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - Fix `truncate_str` to explicitly use UTF-8 encoding and skip the encode/decode round-trip when the filename is already within the 255-byte limit
 - Mutagen file I/O (tag read + write) runs in a thread pool via `asyncio.to_thread`, releasing the download slot before tagging completes — the next track's download starts immediately while the previous one is being tagged
 
+- **Fix tracks failing during `resolve()` leaving no trace at all.** Six exception paths across `PendingTrack` and `PendingSingle`, plus one in `PendingPlaylistTrack`, logged the failure and returned `None` without recording it. Such a track produces no file and no `downloads` row either, so with no `failed_downloads` row it simply went missing from its album or playlist, with nothing left for a retry to find. All of them now call `set_failed()`. Partially from [#1023](https://github.com/nathom/streamrip/pull/1023) — the core of that PR (a failed download recorded as *downloaded*) was already fixed here by a different route, so its `download()` rework was not taken.
+- Fix a failed download leaving its truncated file at the final path, among the good files in the library. It is now removed; a cleanup error is logged rather than masking the download error being raised. This is deliberately different from an integrity failure, where the file is kept for inspection because it looks complete.
+- Fix a single track whose download failed keeping its title in the progress-bar header for the rest of the session — `postprocess()` normally clears it, but a failed download never reaches it
+
 ## Converter
 
 - OGG/OPUS: cover art is embedded post-conversion via `mutagen` (`METADATA_BLOCK_PICTURE`), and `-vn` prevents an unwanted Theora video stream ([#992](https://github.com/nathom/streamrip/pull/992))
@@ -93,6 +99,10 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - `OPUS` exposed as a `-c`/`--codec` option in the CLI ([#989](https://github.com/nathom/streamrip/pull/989))
 - FFmpeg `stdin` redirected to `/dev/null` to prevent terminal echo/raw-mode corruption after a rip ([#996](https://github.com/nathom/streamrip/pull/996))
 - Removed the unused `get_quality_arg`/`_bitrate_map` codec methods (never called — conversion quality is driven by each codec's `default_ffmpeg_arg`)
+
+- **AIFF added as a conversion codec, and converted files are tagged again afterwards.** ffmpeg does not carry every field across a container change: measured on a fully tagged FLAC source, it drops ISRC and lyrics when converting to MP3 or ALAC, and writes no tags at all into AIFF (0 of 12 frames). `Track._convert` now re-tags the converted file. Containers `tag_file()` cannot write (opus, ogg) are skipped and keep what ffmpeg copied, plus the cover the converter embeds itself via `_embed_cover_art`. From [#1006](https://github.com/nathom/streamrip/pull/1006); the list of taggable extensions is exported as `TAGGABLE_EXTENSIONS` from `tagger.py` rather than duplicated in `_convert`, so it cannot drift from the dispatch in `tag_file()`.
+- Fix `tag_file()` embedding a second copy of the cover into a FLAC that already had one. `Picture.add_picture()` appends where `ID3.add()` and the MP4 `covr` assignment replace, so re-tagging a re-encoded FLAC left two identical pictures. Existing pictures are now cleared first, making tagging idempotent for every container.
+- Note: AIFF is written as big-endian 24-bit PCM (`pcm_s24be`) regardless of the configured conversion `bit_depth`, so a 16-bit source is upsampled to 24 bits. Lossless, but larger than necessary.
 
 ## Last.fm
 
@@ -110,6 +120,8 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - Fix typo "occured" → "occurred" in error log
 - Refactored the three API-backed parsers (`user.getTopTracks`, `user.getLovedTracks`, `artist.getTopTracks`) onto a single `_fetch_lastfm_paginated` helper. They previously duplicated the same connector setup, `@attr.totalPages` pagination loop, and `max_tracks` guard; the shared loop now lives in one place, leaving each parser to handle only its URL parsing, title, and method-specific parameters. Behaviour is unchanged (the loved-tracks parser opts out of duration extraction via `extract_duration=False`).
 
+- **Fix every Last.fm URL carrying a locale prefix falling through to the HTML scraper.** Last.fm inserts a two-letter locale segment when the site is browsed in another language, so a URL copied from the browser reads `https://www.last.fm/fr/user/<name>/library/tracks`. None of the four URL patterns tolerated that segment: the URL matched none of them, fell through to the playlist HTML scraper, and failed with "Could not find playlist title … the HTML structure may have changed" — a message blaming Last.fm when the real cause was the prefix. All four patterns now accept an optional locale; the added group is non-capturing, so the username or artist is still group 1.
+
 ## CLI / misc
 
 - `-l`/`--log-file` option writes all log messages at DEBUG level to a file for post-mortem analysis ([#81](https://github.com/nathom/streamrip/issues/81)); fix: DEBUG messages from the `streamrip` logger now correctly reach the log file in non-verbose mode; fix: the `RichHandler` is explicitly held at INFO when the root logger is lowered to DEBUG for file output, preventing DEBUG messages from bleeding into the terminal alongside normal output
@@ -123,12 +135,19 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - `-n`/`--dry-run` flag resolves and matches tracks without downloading anything — each would-be download is logged at INFO level and the end-of-session summary is labelled `[DRY RUN]`; useful for validating Last.fm matching and generating clean debug logs
 - Malformed, unsupported, or unresolvable URLs are now skipped with a warning instead of aborting the entire session — a bad URL in a batch no longer prevents the other URLs from being processed
 
+- `rip repair` retries every item in the failed-downloads database and clears the ones that succeed; items that fail again stay logged so the command can simply be run again. Repaired tracks land in their album's folder by default (`--flat` opts out), since a repaired track is nearly always one missing from an otherwise complete album. Stale `downloads` rows are cleared first, or `resolve()` would skip the retry as already-downloaded. Success is detected through the invariant that `set_downloaded()` is only reached via `postprocess()`, which a failed download never reaches. From [#1023](https://github.com/nathom/streamrip/pull/1023).
+- `--max-tracks N` caps the number of tracks taken from a playlist, a user's loved tracks, or an artist's top tracks (0, the default, means no limit). All three resolve through `PendingPlaylist`, so a single cap covers them. Truncation happens on the id list before any track is resolved, so nothing is fetched only to be discarded — the full list is still retrieved, so the GW pagination behind a large favorites list is exercised either way. Like `--dry-run` it is a per-invocation switch and is not persisted to `config.toml`, so no config-version bump is triggered.
+
 ## Tests
 
 - Unit test suite added: `metadata/album.py` (99%), `metadata/track.py` (100%), `metadata/playlist.py` (100%), `metadata/covers.py` (100%), `metadata/tagger.py` (99%), `metadata/search_results.py` (98%), `media/track.py` (100%), `media/playlist.py` (100%)
 - Fix `LabelSummary.summarize()` / `preview()` infinite recursion: both returned `str(self)` which called `Summary.__str__` which called `summarize()` in a loop
 - Fix `AlbumSummary` bug where `item.get("artist", {}).get("name")` raised `AttributeError` when the `artist` field was a plain string rather than a dict
 - Dynamic coverage badge wired to CI via GitHub Actions + Gist + shields.io
+
+- Real-world validation suite (`run_realworld_tests.sh`, local and gitignored) covering ten cases against live Deezer/Last.fm: individual tracks, album, playlist, loved tracks, artist top tracks, Last.fm, AIFF and OPUS conversion, and `rip repair`. Each case runs in isolation with its own download folder and DEBUG log, and is validated on container/extension coherence via `file(1)` plus, for conversion cases, tag presence and exactly one embedded cover via mutagen. Three of this round's fixes — the Last.fm locale prefix, the retired Deezer CDN, and the third unrecorded `resolve()` path — were only visible from these runs.
+- End-to-end conversion tests (`tests/test_conversion_tagging.py`) exercise the real ffmpeg + mutagen round trip rather than mocks, since the failures they guard against only show up in the actual file; skipped when ffmpeg is unavailable, as on CI. Includes regression coverage that opus/ogg keep their cover art through conversion.
+- `db.remove()` carried a "NOT TESTED" warning and `rip repair` depends on it; it now has coverage on the `Failed` table, including the no-op case for an absent id.
 
 ## Maintenance
 
@@ -137,3 +156,5 @@ All fixes and improvements present in this fork on top of [`nathom/streamrip:dev
 - Removed vestigial YouTube support: no YouTube client ever existed, so the `[youtube]` config section, `YoutubeConfig`, `YOUTUBE_URL_REGEX`, and the associated default paths were dropped. Existing `config.toml` files keep working (the now-unread `[youtube]` section is ignored); the config version is intentionally left unchanged so no forced migration is triggered.
 - Removed dead code surfaced by `vulture`: the orphaned `LASTFM_URL_REGEX` (Last.fm URL routing goes through another path) and the unused converter codec methods noted above.
 - Added a curated `vulture` whitelist (`.vulture_whitelist.py` + `[tool.vulture]` in `pyproject.toml`) so dead-code analysis runs clean and genuinely new dead code stands out. Tidal/Qobuz methods that are unused in this Deezer-focused fork are whitelisted rather than deleted, to preserve parity with upstream and avoid merge conflicts.
+- Aligned the local ruff with CI. The `Ruff` workflow uses `astral-sh/ruff-action@v3` without a version pin, so CI always installs the latest ruff while `pyproject.toml` capped it at `^0.1` (lock: 0.1.15). `RUF036` was stabilised in ruff 0.16 and turned CI red on untouched code the local venv could not see. The dev dependency is now `ruff >= 0.16` and `preview = true` is enabled, so rules that are about to be stabilised surface locally first. `unused-async` and `used-dummy-variable` are ignored deliberately (async test fakes must match the mocked interface; `_` marks private state here). Inline suppressions use ruff's `# ruff: ignore[...]` syntax and `lint.select` uses rule names, as `redirected-noqa` and `rule-code-in-select` require.
+- Removed `black`, `isort` and `flake8` from the dev dependencies: unused, with no config files and no CI step, and fully covered by ruff (`I` = isort, `E`/`F` = the core of flake8, `[tool.ruff.format]` = black).
