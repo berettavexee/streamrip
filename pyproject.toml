@@ -105,6 +105,14 @@ unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.format]
+# Le `preview = true` de [tool.ruff] est là pour le LINTER — voir le commentaire
+# là-bas. Il s'appliquerait aussi au formateur, dont les styles preview ne sont
+# pas figés : formater en preview graverait une mise en forme qui rebouge au
+# prochain bump de ruff (p. ex. le « hugging » `f(*[\n ... \n])`, absent du style
+# stable et du code upstream). Le formateur est donc explicitement remis en
+# stable ici. Ne pas retirer cette ligne sans reformater tout le dépôt.
+preview = false
+
 # Like Black, use double quotes for strings.
 quote-style = "double"
 

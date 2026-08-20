@@ -18,3 +18,10 @@ jobs:
 
       - name: Run ruff check
         uses: astral-sh/ruff-action@v3
+
+      # Second step rather than a combined one: a lint failure and a formatting
+      # failure are different problems, and the log should say which it is.
+      - name: Run ruff format --check
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "format --check"
