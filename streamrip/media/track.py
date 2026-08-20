@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import time
 from dataclasses import dataclass
 
 from .. import converter
@@ -44,6 +45,10 @@ class Track(Media):
         download_path: Final on-disk path; set during :meth:`preprocess`.
         is_single: ``True`` when the track is downloaded standalone (not as
             part of an album), which affects the progress-bar title.
+        _queue_wait: Seconds spent waiting for a download-semaphore slot; set
+            by :meth:`download` and reported in the phase-timing debug log.
+        _download_time: Seconds spent actually transferring the file (all
+            attempts, excluding queue wait); set by :meth:`download`.
     """
 
     meta: TrackMetadata
@@ -56,6 +61,8 @@ class Track(Media):
     # change?
     download_path: str = ""
     is_single: bool = False
+    _queue_wait: float = 0.0
+    _download_time: float = 0.0
 
     async def rip(self, stats: DownloadStats | None = None) -> None:
         try:
@@ -71,7 +78,16 @@ class Track(Media):
             try:
                 await self.preprocess()
                 await self.download()
+                t0 = time.monotonic()
                 await self.postprocess()
+                logger.debug(
+                    "Phase timing for '%s': queue wait %.2fs, download %.2fs, "
+                    "postprocess %.2fs",
+                    self.meta.title,
+                    self._queue_wait,
+                    self._download_time,
+                    time.monotonic() - t0,
+                )
                 if stats is not None:
                     stats.record_success(self.download_path)
             except Exception:
@@ -101,6 +117,10 @@ class Track(Media):
         is raised, so that :meth:`postprocess` never runs on a missing or
         truncated file.
 
+        Sets :attr:`_queue_wait` (time blocked on the semaphore) and, on
+        success, :attr:`_download_time` (transfer time across all attempts),
+        so the phase-timing debug log can separate contention from bandwidth.
+
         Args:
             stats: Unused (kept for interface symmetry with
                 :meth:`Media.download`).
@@ -108,7 +128,10 @@ class Track(Media):
         Raises:
             NonStreamableError: When both attempts fail.
         """
+        t0 = time.monotonic()
         async with global_download_semaphore(self.config.session.downloads):
+            self._queue_wait = time.monotonic() - t0
+            t0 = time.monotonic()
             for attempt in range(2):
                 suffix = " (retry)" if attempt else ""
                 label = f"Track {self.meta.tracknumber}{suffix}"
@@ -119,6 +142,7 @@ class Track(Media):
                 ) as callback:
                     try:
                         await self.downloadable.download(self.download_path, callback)
+                        self._download_time = time.monotonic() - t0
                         return
                     except Exception as e:
                         if attempt == 0:

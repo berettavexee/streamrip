@@ -119,12 +119,15 @@ class Main:
         if not url_pairs:
             return
 
+        t0 = time.monotonic()
         unique_sources = {p.source for _, p in url_pairs}
         logged_in = await asyncio.gather(
             *[self.get_logged_in_client(s) for s in unique_sources]
         )
         clients = dict(zip(unique_sources, logged_in))
+        t_login = time.monotonic() - t0
 
+        t0 = time.monotonic()
         results = await asyncio.gather(
             *[p.into_pending(clients[p.source], self.config, self.database) for _, p in url_pairs],
             return_exceptions=True,
@@ -135,6 +138,12 @@ class Main:
                 console.print(f"[red]Error processing [cyan]{url}[/cyan]: {result}[/red]")
             else:
                 self.pending.append(result)
+        logger.debug(
+            "Phase timing: login %.2fs, add %d URL(s) %.2fs",
+            t_login,
+            len(url_pairs),
+            time.monotonic() - t0,
+        )
 
     async def get_logged_in_client(self, source: str):
         """Return a functioning client instance for `source`."""
@@ -163,6 +172,8 @@ class Main:
 
     async def resolve(self):
         """Resolve all currently pending items."""
+        t0 = time.monotonic()
+        n_pending = len(self.pending)
         with console.status("Resolving URLs...", spinner="dots"):
             results = await asyncio.gather(
                 *[p.resolve() for p in self.pending], return_exceptions=True
@@ -176,6 +187,12 @@ class Main:
 
         self.media.extend(new_media)
         self.pending.clear()
+        logger.debug(
+            "Phase timing: resolved %d/%d pending item(s) %.2fs",
+            len(new_media),
+            n_pending,
+            time.monotonic() - t0,
+        )
 
     async def rip(self):
         """Download all resolved items and print an end-of-session summary."""
@@ -187,6 +204,9 @@ class Main:
         )
 
         elapsed = time.monotonic() - t0
+        logger.debug(
+            "Phase timing: downloaded %d media item(s) %.2fs", len(self.media), elapsed
+        )
 
         for result in results:
             if isinstance(result, Exception):

@@ -1,5 +1,7 @@
 """Tests for streamrip/media/track.py."""
 
+import asyncio
+import logging
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -153,6 +155,59 @@ async def test_download_success_first_attempt():
     ):
         await t.download()
     t.downloadable.download.assert_awaited_once()
+
+
+async def test_download_records_queue_wait_and_transfer_separately():
+    """The two phase timers must measure disjoint spans, not one another.
+
+    They exist to answer whether a slow session is bandwidth-bound or bound by
+    ``max_connections``; a timer that started before the semaphore would fold
+    contention into the transfer figure and answer neither.
+    """
+    t = _track()
+    t.download_path = "/dl/album/01 - Song.flac"
+
+    async def slow_acquire():
+        await asyncio.sleep(0.05)
+
+    slow_cm = _async_cm()
+    slow_cm.__aenter__ = AsyncMock(side_effect=slow_acquire)
+
+    async def slow_download(*_args, **_kwargs):
+        await asyncio.sleep(0.05)
+
+    t.downloadable.download = AsyncMock(side_effect=slow_download)
+    with (
+        patch(
+            "streamrip.media.track.global_download_semaphore", return_value=slow_cm
+        ),
+        patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
+    ):
+        await t.download()
+
+    assert t._queue_wait >= 0.04
+    assert t._download_time >= 0.04
+    # The transfer timer starts after the slot is acquired, so it cannot have
+    # absorbed the wait.
+    assert t._download_time < t._queue_wait + 0.04
+
+
+async def test_rip_logs_the_phase_breakdown(caplog, tmp_path):
+    """rip() emits one DEBUG line per track splitting wait / transfer / postprocess."""
+    t = _track()
+    t.folder = str(tmp_path)
+    t.postprocess = AsyncMock()
+    with (
+        caplog.at_level(logging.DEBUG, logger="streamrip"),
+        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
+        patch("streamrip.media.track.advance_overall"),
+    ):
+        await t.rip()
+
+    assert "Phase timing for 'Song'" in caplog.text
+    assert "queue wait" in caplog.text
+    assert "postprocess" in caplog.text
 
 
 async def test_download_retries_on_first_failure(caplog):
