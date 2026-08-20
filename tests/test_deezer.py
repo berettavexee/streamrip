@@ -9,6 +9,7 @@ import tomllib
 from deezer.errors import DataException, GWAPIError
 from util import arun
 
+from streamrip.client.client import DEFAULT_USER_AGENT
 from streamrip.client.deezer import (
     DeezerClient,
     _HttpsUpgradeSession,
@@ -182,7 +183,7 @@ def test_deezer_no_fallback_when_disabled(mock_deezer_client):
 
 
 def test_deezer_wrong_license_all_qualities(mock_deezer_client):
-    """WrongLicense on every quality level fails immediately.
+    """WrongLicense on every quality level, with no FALLBACK, fails immediately.
 
     This used to fall through to the legacy e-cdns-proxy CDN. Deezer retired
     those hosts, so such a URL could only ever produce two doomed download
@@ -198,8 +199,34 @@ def test_deezer_wrong_license_all_qualities(mock_deezer_client):
     }
     mock_deezer_client.client.get_track_url.side_effect = deezer.WrongLicense("any")
 
-    with pytest.raises(NonStreamableError, match="no download URL at any quality"):
+    with pytest.raises(NonStreamableError, match="no fallback track is available"):
         arun(mock_deezer_client.get_downloadable("123", quality=2))
+
+
+def test_deezer_wrong_license_all_qualities_follows_fallback(mock_deezer_client):
+    """WrongLicense everywhere still tries FALLBACK before giving up.
+
+    A licence refusal on every tier and a delisting look the same from here:
+    the requested ID yields nothing. Deezer's replacement release may well be
+    licensed, so it is worth the one extra round-trip.
+    """
+    def gw_get_track_side_effect(track_id):
+        if track_id == "123":
+            return {"TRACK_TOKEN": "token_123", "FALLBACK": {"SNG_ID": "456"}}
+        return {"TRACK_TOKEN": "token_456"}
+
+    mock_deezer_client.client.gw.get_track.side_effect = gw_get_track_side_effect
+
+    def url_side_effect(token, fmt):
+        if token == "token_123":
+            raise deezer.WrongLicense(fmt)
+        return "https://test.flac"
+
+    mock_deezer_client.client.get_track_url.side_effect = url_side_effect
+
+    downloadable = arun(mock_deezer_client.get_downloadable("123", quality=2))
+    assert downloadable.quality == 2
+    assert downloadable.id == "456"
 
 
 # ===== get_downloadable — geoblocking =====
@@ -257,10 +284,10 @@ def test_deezer_geoblocked_no_fallback(mock_deezer_client):
         arun(mock_deezer_client.get_downloadable("123", quality=2))
 
 
-# ===== get_downloadable — encrypted URL fallback =====
+# ===== get_downloadable — URL exhaustion and delisted-track recovery =====
 
 def test_deezer_no_url_at_any_quality_fails_immediately(mock_deezer_client):
-    """get_track_url returning None everywhere raises instead of guessing a URL."""
+    """get_track_url returning None everywhere, with no FALLBACK, raises."""
     mock_deezer_client.client.gw.get_track.return_value = {
         "FILESIZE_FLAC": 25_000_000,
         "FILESIZE_MP3_320": 5_000_000,
@@ -271,11 +298,11 @@ def test_deezer_no_url_at_any_quality_fails_immediately(mock_deezer_client):
     }
     mock_deezer_client.client.get_track_url.return_value = None
 
-    with pytest.raises(NonStreamableError, match="no download URL at any quality"):
+    with pytest.raises(NonStreamableError, match="no fallback track is available"):
         arun(mock_deezer_client.get_downloadable("123", quality=2))
 
 
-def test_deezer_exhaustion_error_names_the_retired_cdn(mock_deezer_client):
+def test_deezer_exhaustion_error_says_the_track_may_be_delisted(mock_deezer_client):
     """The message must say why nothing is left to try, not merely that it failed."""
     mock_deezer_client.client.gw.get_track.return_value = {
         "TRACK_TOKEN": "test_token",
@@ -284,8 +311,63 @@ def test_deezer_exhaustion_error_names_the_retired_cdn(mock_deezer_client):
     }
     mock_deezer_client.client.get_track_url.return_value = None
 
-    with pytest.raises(NonStreamableError, match="e-cdns-proxy"):
+    with pytest.raises(NonStreamableError, match="delisted"):
         arun(mock_deezer_client.get_downloadable("123", quality=2))
+
+
+def test_deezer_null_urls_follow_fallback(mock_deezer_client):
+    """No URL at any tier resolves through FALLBACK.SNG_ID.
+
+    The delisted old-catalog case: GW answers with a token but Deezer hands out
+    no URL for it at any quality, while FALLBACK names the release that
+    superseded it (a remaster), which streams normally.
+    """
+    def gw_get_track_side_effect(track_id):
+        if track_id == "123":
+            return {
+                "FILESIZE_FLAC": 0,
+                "FILESIZE_MP3_320": 0,
+                "FILESIZE_MP3_128": 0,
+                "TRACK_TOKEN": "token_123",
+                "FALLBACK": {"SNG_ID": "456"},
+            }
+        return {
+            "FILESIZE_FLAC": 25_000_000,
+            "TRACK_TOKEN": "token_456",
+        }
+
+    mock_deezer_client.client.gw.get_track.side_effect = gw_get_track_side_effect
+
+    def url_side_effect(token, fmt):
+        return None if token == "token_123" else "https://test.flac"
+
+    mock_deezer_client.client.get_track_url.side_effect = url_side_effect
+
+    downloadable = arun(mock_deezer_client.get_downloadable("123", quality=2))
+    assert downloadable.quality == 2
+    # As in the geoblock case: the bytes are the fallback track's, so the
+    # Blowfish key must be derived from its ID, not from the requested one.
+    assert downloadable.id == "456"
+    assert mock_deezer_client.client.gw.get_track.call_count == 2
+
+
+def test_deezer_fallback_not_followed_twice(mock_deezer_client):
+    """A fallback track that itself resolves nowhere raises instead of looping.
+
+    Deezer's FALLBACK chains can point back at another dead entry; ``is_retry``
+    stops after one hop rather than recursing until the stack gives out.
+    """
+    mock_deezer_client.client.gw.get_track.return_value = {
+        "TRACK_TOKEN": "test_token",
+        "FALLBACK": {"SNG_ID": "456"},
+    }
+    mock_deezer_client.client.get_track_url.return_value = None
+
+    with pytest.raises(NonStreamableError, match="no fallback track is available"):
+        arun(mock_deezer_client.get_downloadable("123", quality=2))
+
+    # Once for the requested track, once for the fallback — never a third time.
+    assert mock_deezer_client.client.gw.get_track.call_count == 2
 
 
 def test_deezer_never_builds_a_legacy_cdn_url(mock_deezer_client):
@@ -881,7 +963,11 @@ def test_get_downloadable_no_token(mock_deezer_client):
 
 
 def test_get_downloadable_missing_cdn_fields(mock_deezer_client):
-    """NonStreamableError when all qualities fail and MD5/MEDIA_VERSION are absent."""
+    """NonStreamableError when all qualities fail and MD5/MEDIA_VERSION are absent.
+
+    Those two fields fed the legacy CDN URL builder and are read nowhere now;
+    the point of the case is that their absence changes nothing.
+    """
     mock_deezer_client.client.gw.get_track.return_value = {
         "FILESIZE_FLAC": 25_000_000,
         "FILESIZE_MP3_320": 5_000_000,
@@ -891,7 +977,7 @@ def test_get_downloadable_missing_cdn_fields(mock_deezer_client):
     }
     mock_deezer_client.client.get_track_url.side_effect = deezer.WrongLicense("any")
 
-    with pytest.raises(NonStreamableError, match="no download URL at any quality"):
+    with pytest.raises(NonStreamableError, match="no fallback track is available"):
         arun(mock_deezer_client.get_downloadable("123", quality=2))
 
 
@@ -926,6 +1012,37 @@ def test_https_upgrade_session_installed_on_gw():
     assert isinstance(client.client.gw.session, _HttpsUpgradeSession)
     assert isinstance(client.client.api.session, _HttpsUpgradeSession)
     assert isinstance(client.client.session, _HttpsUpgradeSession)
+
+
+# ===== User-Agent =====
+
+def test_deezer_user_agent_reaches_gw_and_api_headers():
+    """The UA must land in http_headers, which is what deezer-py puts on the wire.
+
+    deezer-py passes ``headers=self.http_headers`` on every GW and REST call,
+    and in requests a per-request header beats the session's — so setting only
+    ``session.headers`` would leave the private GW API seeing deezer-py's own
+    stale default instead.
+    """
+    config = Config.defaults()
+    config.session.deezer.arl = "test_arl"
+    client = DeezerClient(config)
+
+    assert client.client.http_headers["User-Agent"] == DEFAULT_USER_AGENT
+    # api and gw hold the same dict by construction; assert it, since the fix
+    # relies on mutating in place rather than reassigning.
+    assert client.client.api.http_headers is client.client.http_headers
+    assert client.client.gw.http_headers is client.client.http_headers
+
+
+def test_deezer_user_agent_matches_the_download_session():
+    """One identity across both HTTP stacks, not two."""
+    config = Config.defaults()
+    config.session.deezer.arl = "test_arl"
+    client = DeezerClient(config)
+
+    assert client.client.session.headers["User-Agent"] == DEFAULT_USER_AGENT
+    assert client.client.http_headers["User-Agent"] == DEFAULT_USER_AGENT
 
 
 # ===== _gw_to_track_dict =====

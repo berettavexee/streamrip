@@ -15,7 +15,7 @@ from ..exceptions import (
     MissingCredentialsError,
     NonStreamableError,
 )
-from .client import Client
+from .client import DEFAULT_USER_AGENT, Client
 from .deezer_pipe import DeezerPipeClient
 from .downloadable import DeezerDownloadable
 
@@ -220,6 +220,21 @@ class DeezerClient(Client):
         self.client.session = _session
         self.client.api.session = _session
         self.client.gw.session = _session
+
+        # Deezer is reached over two HTTP stacks: deezer-py's requests session
+        # for metadata/search/GW/REST, and the shared aiohttp session for byte
+        # streams and artwork. Only the latter carried DEFAULT_USER_AGENT, so
+        # the private GW API saw a different — and by now several years stale —
+        # identity than the CDN did. Align them.
+        #
+        # It has to be http_headers, not _session.headers: deezer-py passes
+        # ``headers=self.http_headers`` on every call, and in requests a
+        # per-request header beats the session's. The dict is shared by
+        # construction with ``client.api`` and ``client.gw``, so mutating it in
+        # place reaches all three. The session header is set too, for any path
+        # that omits the keyword.
+        self.client.http_headers["User-Agent"] = DEFAULT_USER_AGENT
+        _session.headers["User-Agent"] = DEFAULT_USER_AGENT
 
     # ── low-level API helpers ─────────────────────────────────────────────────
 
@@ -843,9 +858,10 @@ class DeezerClient(Client):
         )
 
         # served_id is the ID of the track actually behind ``url`` — it differs
-        # from item_id when a geoblock fell back to an alternate track. The
-        # Blowfish decryption key is derived from this ID, so it must match the
-        # served content, not the originally requested track.
+        # from item_id whenever _resolve_quality followed FALLBACK.SNG_ID, be it
+        # for a geoblock or for a delisted track. The Blowfish decryption key is
+        # derived from this ID, so it must match the served content, not the
+        # originally requested track.
         dl_info = {
             "id": served_id,
             "url": url,
@@ -869,26 +885,29 @@ class DeezerClient(Client):
         item_id: str,
         is_retry: bool = False,
     ) -> tuple[str, int, str]:
-        """Try qualities from the requested one down to 0.
+        """Try qualities from the requested one down to 0, following FALLBACK.
 
         Handles WrongLicense (tries next lower quality) and WrongGeolocation
-        (retries once with the FALLBACK track ID if available).
+        (retries once with the FALLBACK track ID if available). When no tier
+        yields a URL at all — the signature of a delisted old-catalog track,
+        whose GW metadata also reports ``FILESIZE_* = 0`` — the FALLBACK track
+        is tried once before giving up.
 
         Args:
             track_info: GW track info dict (must contain TRACK_TOKEN).
             quality: Starting quality level (0-2, clamped by caller).
-            item_id: Track ID, used for the geoblocking retry.
-            is_retry: True when already handling a geoblocking fallback to prevent loops.
+            item_id: Track ID, used for the fallback retries and error messages.
+            is_retry: True when already resolving a FALLBACK track, to prevent loops.
 
         Returns:
             ``(url, effective_quality, served_id)`` — ``served_id`` is the ID of the
             track the URL actually points to (``item_id``, or the FALLBACK id after a
-            geoblock retry); the caller derives the Blowfish key from it.
+            fallback retry); the caller derives the Blowfish key from it.
 
         Raises:
             NonStreamableError: On missing TRACK_TOKEN, on WrongGeolocation with
                 no fallback, on WrongLicense when quality fallback is disabled,
-                or when no quality yielded a URL.
+                or when no quality yielded a URL and no fallback track exists.
         """
         token = track_info.get("TRACK_TOKEN")
         if token is None:
@@ -929,16 +948,33 @@ class DeezerClient(Client):
                     )
                 raise NonStreamableError("Track geoblocked and no fallback available.")
 
-        # No fallback left to try. Until 2026 this fell back to the legacy
-        # AES-ECB CDN at e-cdns-proxy-<c>.dzcdn.net; Deezer has retired those
-        # hosts and none of the sixteen resolve any more, so building such a
-        # URL only bought two doomed download attempts and a "Domain name not
-        # found" that pointed at the wrong culprit. Failing here instead says
-        # what actually happened, immediately.
+        # Token resolution yielded nothing at any tier. Follow Deezer's own
+        # redirect: FALLBACK.SNG_ID names the release that superseded a delisted
+        # track (typically a remaster), and that one usually is streamable. This
+        # is the same field the geoblock branch above uses, reached from the
+        # other direction — there the API says "not here", here it says nothing
+        # at all.
+        if not is_retry and fallback_id:
+            logger.debug(
+                "No download URL for track %s at any quality; "
+                "retrying with fallback ID %s",
+                item_id,
+                fallback_id,
+            )
+            fallback_info = await self._get_gw_track(fallback_id)
+            return await self._resolve_quality(
+                fallback_info, quality, fallback_id, is_retry=True
+            )
+
+        # Nothing left to try. Until 2026 this fell back to the legacy AES-ECB
+        # CDN at e-cdns-proxy-<c>.dzcdn.net; Deezer has retired those hosts and
+        # none of the sixteen resolve any more, so building such a URL only
+        # bought two doomed download attempts and a "Domain name not found"
+        # that pointed at the wrong culprit. Failing here instead says what
+        # actually happened, immediately.
         raise NonStreamableError(
-            f"Deezer track {item_id}: no download URL at any quality. The "
-            "legacy e-cdns-proxy CDN that used to serve as a fallback has been "
-            "retired by Deezer, so there is nothing left to try."
+            f"Deezer serves no download URL for track {item_id} at any quality "
+            "and no fallback track is available (track delisted?)"
         )
 
     _BATCH_URL_CHUNK_SIZE: ClassVar[int] = 1000

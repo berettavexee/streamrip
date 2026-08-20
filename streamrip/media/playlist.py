@@ -87,11 +87,13 @@ class PendingPlaylistTrack(Pending):
             self.db.set_failed(self.client.source, "track", self.id)
             return None
 
-        # A geoblocked track is served from an alternate ("fallback") track whose
-        # id differs from the requested one. The requested track's metadata — most
-        # visibly its cover — is then unreliable (Deezer serves a placeholder or a
-        # missing image for the geoblocked release), so rebuild album/meta/cover
-        # from the track that was actually served.
+        # The track may be served from an alternate ("fallback") track whose id
+        # differs from the requested one — either because the requested one is
+        # geoblocked, or because it is delisted and Deezer redirects to the
+        # release that superseded it. Either way the requested track's metadata
+        # — most visibly its cover — no longer describes the bytes on disk
+        # (Deezer serves a placeholder or a missing image for such releases), so
+        # rebuild album/meta/cover from the track that was actually served.
         served_id = getattr(downloadable, "id", None)
         if served_id is not None and str(served_id) != str(self.id):
             fb = await self._resolve_fallback_metadata(str(served_id))
@@ -118,9 +120,10 @@ class PendingPlaylistTrack(Pending):
     ) -> tuple[AlbumMetadata, TrackMetadata, str | None] | None:
         """Rebuild album, track metadata, and cover from the actually-served track.
 
-        Used when a geoblock made ``get_downloadable`` fall back to an alternate
-        track: the served track carries the real cover and album info, whereas the
-        originally requested (geoblocked) track exposes only a placeholder cover.
+        Used when ``get_downloadable`` followed ``FALLBACK.SNG_ID`` to an
+        alternate track, be it for a geoblock or a delisting: the served track
+        carries the real cover and album info, whereas the originally requested
+        one exposes only a placeholder cover.
 
         Args:
             served_id: The Deezer ID of the track the download URL points to.
@@ -142,13 +145,13 @@ class PendingPlaylistTrack(Pending):
                 self.config.session.artwork, for_playlist=True,
             )
             logger.debug(
-                "Track %s geoblocked; using fallback %s for metadata and cover",
+                "Track %s served from fallback %s; using it for metadata and cover",
                 self.id, served_id,
             )
             return fb_album, fb_meta, cover
         except Exception as e:
             logger.warning(
-                "Could not fetch fallback metadata for geoblocked track %s "
+                "Could not fetch fallback metadata for track %s "
                 "(served %s): %s — keeping original metadata",
                 self.id, served_id, e,
             )
