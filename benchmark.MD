@@ -1,0 +1,130 @@
+# Benchmark — this fork vs upstream
+
+Wall-clock comparison of a full download, this fork against
+[`nathom/streamrip`](https://github.com/nathom/streamrip), on identical inputs
+and matched settings.
+
+Measured on 2026-08-20. Fork at `57d363a` (2.2.1), upstream at `e329161` (2.2.0,
+the head of `nathom/streamrip:dev`). Both on Python 3.12.3, 12 cores, 15 GB RAM,
+same machine, same network, same Deezer account, FLAC (`quality = 2`) requested
+throughout.
+
+## Results
+
+**Album — Daft Punk, *Discovery*, 14 tracks, 420 MB** (6 runs each):
+
+| | mean | median | min – max | σ | effective throughput |
+|---|---|---|---|---|---|
+| **This fork** | **17.09 s** | 16.98 s | 16.73 – 17.67 | 0.32 | 24.5 MB/s |
+| Upstream | 23.47 s | 23.31 s | 22.17 – 25.28 | 0.98 | 17.9 MB/s |
+
+The fork is **6.38 s faster, 27 % of upstream's time (1.37×)**.
+
+**Playlist — 59 tracks, 1.8 GB** (3 runs each):
+
+| | mean | median | min – max | σ | effective throughput |
+|---|---|---|---|---|---|
+| **This fork** | **65.04 s** | 65.56 s | 63.16 – 66.39 | 1.37 | 28.1 MB/s |
+| Upstream | 101.88 s | 101.47 s | 100.82 – 103.36 | 1.08 | 17.7 MB/s |
+
+The fork is **36.85 s faster, 36 % of upstream's time (1.57×)**.
+
+In both workloads the two ranges do not overlap: the fork's slowest run beats
+upstream's fastest. The margin widens with the batch size, which is what the
+batched CDN URL resolution predicts — it collapses one HTTP round trip per track
+into one call per thousand tracks, so it has more to save on 59 tracks than on
+14.
+
+## The playlist run is not the same work
+
+Upstream produced 59 files and 1804 MB; the fork produced 59 files and 1827 MB.
+The whole 23 MB difference is a single track:
+
+| | file | size |
+|---|---|---|
+| This fork | `31. Children Of Bodom - Oops!...I Did It Again.flac` | 25 MB |
+| Upstream | `31. Children Of Bodom - Oops!...I Did It Again.mp3` | 3.2 MB |
+
+That track is geoblocked for this account. The fork follows Deezer's own
+`FALLBACK.SNG_ID` redirect and gets the lossless stream of the release that
+superseded it — `flac -t` confirms the file decodes clean. Upstream has no
+fallback path, so it degrades the track to MP3. Upstream is therefore doing
+*slightly less work* in the runs above, which makes its deficit a floor rather
+than a ceiling.
+
+## Where the time goes
+
+The gap is not in metadata resolution. From process start to the first byte of
+audio, the fork takes ~1 s and upstream ~2 s. The fork's own phase timing
+(`-v`) on the album breaks down as:
+
+```
+Phase timing: login 0.24s, add 1 URL(s) 0.00s
+Phase timing: resolved 1/1 pending item(s) 0.37s
+Phase timing: downloaded 1 media item(s) 15.89s
+```
+
+So ~6 of the 6.4 s are inside the transfer phase — and it is not bandwidth
+bound, since the two move identical bytes at 24.5 MB/s against 17.9 MB/s. The
+mechanism the logs point at is upstream resolving each track's CDN URL *at the
+moment it starts downloading it* — its verbose log shows 14 separate
+`Fetching deezer url with token` lines — so every task stalls on a round trip
+the fork has already made in batch. That is inference from the measurements, not
+a proof: no socket-level instrumentation was done.
+
+## Method
+
+Both sides ran the same command shape against a fresh output directory:
+
+```
+rip --config-path <bench config> -ndb -f <fresh dir> url <URL>
+```
+
+- **Runs alternate** fork, upstream, fork, upstream… Measuring one side three
+  times and then the other would charge any network or CDN drift between the two
+  blocks to the implementation — and there was drift: upstream's album runs slid
+  from 22.2 s to 25.3 s across the session.
+- **Each side gets a config built from its own template**, with the same values
+  injected: `quality = 2`, `max_connections = 6`, `concurrency = true`,
+  `requests_per_minute = 60`. Copying the fork's config to upstream would not
+  work — the config version differs and the fork has dropped dead fields.
+- **`check_for_updates = false` on both.** Both projects otherwise make a
+  version-check HTTP call that has nothing to do with download performance, and
+  it fires only when a newer release exists, so leaving it on would penalise
+  whichever side happens to be behind.
+- **`-ndb` and a fresh directory per run**, so nothing is skipped as already
+  downloaded and nothing is resumed.
+- **Every run is checked for completeness** — file count, total bytes, exit
+  code — before its timing is kept. A run that failed or produced fewer files is
+  not a faster run.
+- The user's real `~/.config/streamrip/config.toml` is never read or written by
+  the benchmark; the ARL is injected into throwaway configs at mode 0600.
+
+`use_deezloader`, which upstream still has and this fork removed, does not
+affect the comparison: upstream's own code never uses it when an ARL is present.
+
+## Reproducing
+
+Upstream is installed from its own tree into a separate virtualenv:
+
+```bash
+git archive upstream/dev | tar -x -C /tmp/bench/upstream
+cd /tmp/bench/upstream && python3.12 -m venv .venv && .venv/bin/pip install -e .
+```
+
+Upstream's shipped `config.toml` leaves `downloads_path` and
+`failed_downloads_path` empty, and its `db.Failed.__init__` asserts on a
+non-empty path, so those two must be filled in or the run dies before it starts.
+
+## Limits
+
+- One machine, one network, one account, one evening. These numbers describe a
+  ratio between two implementations under identical conditions, not absolute
+  throughput anyone else should expect.
+- Three runs per side on the playlist, six on the album. Enough for
+  non-overlapping ranges at this effect size, not enough for a confidence
+  interval worth quoting.
+- Only the Deezer path is covered. Qobuz, Tidal and SoundCloud are untested here
+  and most of this fork's divergence is Deezer-specific anyway.
+- Downloads land on a warm CDN. A cold cache would likely move both numbers and
+  might not move them equally.
