@@ -1,6 +1,6 @@
 # Benchmark — this fork vs upstream
 
-Wall-clock comparison of a full download, this fork against
+Time, CPU and memory for a full download, this fork against
 [`nathom/streamrip`](https://github.com/nathom/streamrip), on identical inputs
 and matched settings.
 
@@ -8,6 +8,10 @@ Measured on 2026-08-20. Fork at `57d363a` (2.2.1), upstream at `e329161` (2.2.0,
 the head of `nathom/streamrip:dev`). Both on Python 3.12.3, 12 cores, 15 GB RAM,
 same machine, same network, same Deezer account, FLAC (`quality = 2`) requested
 throughout.
+
+Summary: the fork finishes in **73 % of upstream's time** on an album and
+**64 %** on a playlist, using **a third of the peak memory**, and it brings back
+one geoblocked track in FLAC that upstream degrades to MP3.
 
 ## Results
 
@@ -30,10 +34,15 @@ The fork is **6.38 s faster, 27 % of upstream's time (1.37×)**.
 The fork is **36.85 s faster, 36 % of upstream's time (1.57×)**.
 
 In both workloads the two ranges do not overlap: the fork's slowest run beats
-upstream's fastest. The margin widens with the batch size, which is what the
-batched CDN URL resolution predicts — it collapses one HTTP round trip per track
-into one call per thousand tracks, so it has more to save on 59 tracks than on
-14.
+upstream's fastest. The fork is also the steadier of the two on the album, at a
+third of upstream's standard deviation.
+
+**Resources**, from one instrumented playlist run per side:
+
+| | wall | user CPU | sys CPU | total CPU | peak RSS |
+|---|---|---|---|---|---|
+| **This fork** | 67.2 s | 54.4 s | 17.6 s | **72.0 s** | **139 MB** |
+| Upstream | 102.7 s | 71.1 s | 43.8 s | **114.9 s** | **381 MB** |
 
 ## The playlist run is not the same work
 
@@ -52,11 +61,54 @@ fallback path, so it degrades the track to MP3. Upstream is therefore doing
 *slightly less work* in the runs above, which makes its deficit a floor rather
 than a ceiling.
 
-## Where the time goes
+## Where the time goes: the decryption path
 
-The gap is not in metadata resolution. From process start to the first byte of
-audio, the fork takes ~1 s and upstream ~2 s. The fork's own phase timing
-(`-v`) on the album breaks down as:
+Upstream burns **42.9 s more CPU** than the fork for a 35.5 s wall gap. Both run
+a single asyncio event loop, so that extra CPU is not absorbed by the eleven idle
+cores — it is time during which no download is progressing. The gap is compute,
+not network: the two move identical bytes, and neither is bandwidth bound at
+24.5 MB/s against 17.9.
+
+It comes from how each one decrypts. Deezer encrypts only the first 2048 bytes
+of every 6144-byte segment, and the segments are independent, so the stream can
+be decrypted as it arrives. Upstream does not do that — `DeezerDownloadable._download`
+accumulates the **entire track in memory** first:
+
+```python
+buf = bytearray()
+async for data, _ in resp.content.iter_chunks():
+    buf += data                                  # whole track buffered
+...                                              # only once the transfer ends:
+async with aiofiles.open(path, "wb") as audio:
+    for i in range(0, buflen, encrypt_chunk_size):
+        ...
+        await audio.write(decrypted_chunk)       # one write per 6 KB segment
+```
+
+This fork keeps a small carry instead, decrypts whole segments as chunks land,
+and writes them in batches — so the work overlaps the transfer rather than
+following it.
+
+Two consequences, both measured:
+
+- **Write granularity.** Over the same album — 14 tracks, 420 MB — upstream
+  issues **68,750 `write` syscalls against this fork's 2,662** (`strace -c`):
+  6 KB per write against 158 KB. Since `aiofiles` dispatches every write to a
+  thread pool, that is also 26× the thread-pool round trips. Time inside `write`
+  alone: 3.05 s against 0.80 s.
+- **Memory.** Buffering whole tracks with six concurrent downloads puts peak RSS
+  at **381 MB against 139 MB**. It scales with track size rather than staying
+  flat, so hi-res material would widen it further.
+
+Isolated from the network, decrypting and writing one 25 MB track costs 0.92 s
+the upstream way against 0.44 s streaming — and upstream pays that bill *after*
+the transfer, where this fork has already spent it while bytes were still
+arriving.
+
+Metadata resolution is a smaller, separate effect. From process start to the
+first byte of audio there is only about a second between them, and the fork's own
+phase timing on the album puts resolution at a rounding error next to the
+transfer:
 
 ```
 Phase timing: login 0.24s, add 1 URL(s) 0.00s
@@ -64,45 +116,9 @@ Phase timing: resolved 1/1 pending item(s) 0.37s
 Phase timing: downloaded 1 media item(s) 15.89s
 ```
 
-So ~6 of the 6.4 s are inside the transfer phase, and it is not bandwidth bound:
-the two move identical bytes at 24.5 MB/s against 17.9 MB/s. Nor is the machine
-waiting on the network. On the playlist:
-
-| | wall | user CPU | sys CPU | total CPU | peak RSS |
-|---|---|---|---|---|---|
-| This fork | 67.2 s | 54.4 s | 17.6 s | **72.0 s** | **139 MB** |
-| Upstream | 102.7 s | 71.1 s | 43.8 s | **114.9 s** | **381 MB** |
-
-Upstream burns **42.9 s more CPU** for a 35.5 s wall gap. Both run a single
-asyncio event loop, so that extra CPU is not absorbed by spare cores — it is
-time no download is progressing.
-
-It comes from how each decrypts. Deezer encrypts only the first 2048 bytes of
-every 6144-byte segment, and segments are independent, so the stream can be
-decrypted as it arrives. Upstream does not: `DeezerDownloadable._download`
-accumulates the **entire track in a `bytearray`**, and only once the transfer is
-finished walks that buffer segment by segment, awaiting a write per segment.
-This fork keeps a small carry, decrypts whole segments as chunks land, and
-writes them in batches.
-
-Two consequences, both measured:
-
-- **Write granularity.** Over the same album — 14 tracks, 420 MB — upstream
-  issues **68,750 `write` syscalls against this fork's 2,662** (`strace -c`),
-  6 KB per write against 158 KB. Since `aiofiles` dispatches each write to a
-  thread pool, that is also 26× the thread-pool round trips. Time in `write`
-  alone: 3.05 s against 0.80 s.
-- **Memory.** Buffering whole tracks with six concurrent downloads puts peak RSS
-  at 381 MB against 139 MB. It also scales with track size rather than staying
-  flat.
-
-Isolated from the network, decrypting and writing one 25 MB track costs 0.92 s
-the upstream way against 0.44 s streaming — and upstream pays it *after* the
-transfer, where this fork overlaps it with the bytes still arriving.
-
-Metadata resolution is a smaller and separate effect: batched CDN URL resolution
-replaces one round trip per track with one per batch, which is what makes the
-margin widen from 27 % on 14 tracks to 36 % on 59.
+Batched CDN URL resolution replaces one HTTP round trip per track with one per
+batch, which is what makes the margin widen from 27 % on 14 tracks to 36 % on
+59 — but it is not what creates the margin in the first place.
 
 ## Method
 
@@ -137,7 +153,7 @@ affect the comparison: upstream's own code never uses it when an ARL is present.
 
 ## Reproducing
 
-Upstream is installed from its own tree into a separate virtualenv:
+Install upstream from its own tree into a separate virtualenv:
 
 ```bash
 git archive upstream/dev | tar -x -C /tmp/bench/upstream
@@ -146,7 +162,15 @@ cd /tmp/bench/upstream && python3.12 -m venv .venv && .venv/bin/pip install -e .
 
 Upstream's shipped `config.toml` leaves `downloads_path` and
 `failed_downloads_path` empty, and its `db.Failed.__init__` asserts on a
-non-empty path, so those two must be filled in or the run dies before it starts.
+non-empty path, so both must be filled in or the run dies before it starts.
+
+Timings come from wall clock around each invocation. The resource figures come
+from:
+
+```bash
+/usr/bin/time -f "%e wall  %U user  %S sys  %M KB RSS" <rip invocation>
+strace -f -c -e trace=write <rip invocation>
+```
 
 ## Limits
 
@@ -156,11 +180,10 @@ non-empty path, so those two must be filled in or the run dies before it starts.
 - Three runs per side on the playlist, six on the album. Enough for
   non-overlapping ranges at this effect size, not enough for a confidence
   interval worth quoting.
-- Only the Deezer path is covered. Qobuz, Tidal and SoundCloud are untested here
-  and most of this fork's divergence is Deezer-specific anyway.
-- Downloads land on a warm CDN. A cold cache would likely move both numbers and
-  might not move them equally.
 - The CPU, syscall and memory figures come from one instrumented run per side,
-  not from repeated trials. Their ratios are large enough to be read as
-  qualitative — 26× the syscalls, 2.7× the memory — but the exact numbers are
-  not averages.
+  not from repeated trials. Their ratios are large enough to read qualitatively —
+  26× the syscalls, 2.7× the memory — but the exact numbers are not averages.
+- Only the Deezer path is covered. Qobuz, Tidal and SoundCloud are untested here,
+  and most of this fork's divergence is Deezer-specific anyway.
+- Downloads land on a warm CDN. A cold cache would likely move both numbers, and
+  might not move them equally.
