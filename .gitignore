@@ -27,6 +27,10 @@ dev-reinstall.sh
 CLAUDE.md
 # Sous-produits vhs (voir demo/build_demos.sh) — les .mp4 intermédiaires
 demo/*.mp4
+# Sorties du banc d'essai (bench.sh) : CSV, logs et le venv upstream construit
+# pour la comparaison. Le script est versionné, ses résultats non.
+benchmark_runs/
+
 # Configuration et sorties des tests en conditions réelles. Le script lui-même
 # est versionné ; test_urls.env porte des URLs de compte et un ARL (= un jeton
 # de session Deezer), et realworld_runs/ des logs de session. Ni l'un ni l'autre

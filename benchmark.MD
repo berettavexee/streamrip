@@ -153,24 +153,27 @@ affect the comparison: upstream's own code never uses it when an ARL is present.
 
 ## Reproducing
 
-Install upstream from its own tree into a separate virtualenv:
+`./bench.sh` in this repository does all of the above:
 
 ```bash
-git archive upstream/dev | tar -x -C /tmp/bench/upstream
-cd /tmp/bench/upstream && python3.12 -m venv .venv && .venv/bin/pip install -e .
+git remote add upstream https://github.com/nathom/streamrip.git && git fetch upstream
+URL=https://www.deezer.com/album/302127 N=6 ./bench.sh
+URL=<playlist url> N=3 INSTRUMENT=1 ./bench.sh
 ```
 
-Upstream's shipped `config.toml` leaves `downloads_path` and
-`failed_downloads_path` empty, and its `db.Failed.__init__` asserts on a
-non-empty path, so both must be filled in or the run dies before it starts.
+It builds the upstream ref into its own cached virtualenv, generates one config
+per side from that side's own template, alternates the runs, checks each one for
+completeness, deletes the audio as it goes, and prints the summary. With
+`INSTRUMENT=1` it adds one `/usr/bin/time` run and one `strace -c -e trace=write`
+run per side, which is where the CPU, memory and syscall figures above come
+from. Results land in `benchmark_runs/` (gitignored).
 
-Timings come from wall clock around each invocation. The resource figures come
-from:
-
-```bash
-/usr/bin/time -f "%e wall  %U user  %S sys  %M KB RSS" <rip invocation>
-strace -f -c -e trace=write <rip invocation>
-```
+Two traps it handles, worth knowing if you reimplement it: upstream's shipped
+`config.toml` leaves `downloads_path` and `failed_downloads_path` empty while
+its `db.Failed.__init__` asserts on a non-empty path, so a run dies before
+downloading anything; and the generated configs carry the real ARL, so they are
+created with `mktemp` at mode 0600 outside the project tree and removed on exit,
+including on Ctrl-C.
 
 ## Limits
 
