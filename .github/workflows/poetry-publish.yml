@@ -16,8 +16,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v7
     - name: Build and publish to pypi
       uses: JRubics/poetry-publish@v1.17
       with:
         pypi_token: ${{ secrets.PYPI_TOKEN }}
+        # L'action embarque sa propre Poetry. Les métadonnées du projet sont au
+        # format PEP 621 ([project]), que seule Poetry 2.x sait lire : sans cette
+        # contrainte, une image livrant encore Poetry 1.x échouerait à la
+        # construction, et seulement au moment d'une publication.
+        poetry_version: ">=2.0.0"
