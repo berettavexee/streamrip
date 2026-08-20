@@ -145,8 +145,9 @@ rip --config-path <bench config> -ndb -f <fresh dir> url <URL>
 - **Every run is checked for completeness** — file count, total bytes, exit
   code — before its timing is kept. A run that failed or produced fewer files is
   not a faster run.
-- The user's real `~/.config/streamrip/config.toml` is never read or written by
-  the benchmark; the ARL is injected into throwaway configs at mode 0600.
+- The user's real `~/.config/streamrip/config.toml` is **read** — that is where
+  the ARL comes from — but never modified. The ARL is copied into throwaway
+  configs at mode 0600, outside the project tree, deleted on exit.
 
 `use_deezloader`, which upstream still has and this fork removed, does not
 affect the comparison: upstream's own code never uses it when an ARL is present.
