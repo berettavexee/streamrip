@@ -154,6 +154,30 @@ If you're new to Git, follow these steps to open your first Pull Request (PR):
 
 Please document any functions or obscure lines of code.
 
+### Testing
+
+The CI runs `poetry install` followed by `poetry run pytest --cov`; use that exact
+pair locally, since installing with `pip` leaves the virtualenv ahead of
+`poetry.lock` and hides bugs specific to the locked versions.
+
+`./run_realworld_tests.sh` runs `rip` against live Deezer/Last.fm URLs — tracks,
+album, playlist, loved tracks, artist top tracks, Last.fm, AIFF/OPUS conversion
+and `rip repair` — each case isolated in `realworld_runs/<timestamp>/` with its
+own DEBUG log, and validated on container/extension coherence and on tags. Copy
+`test_urls.env.example` to `test_urls.env` and fill in your own URLs; any case
+left blank is skipped.
+
+```bash
+cp test_urls.env.example test_urls.env && chmod 600 test_urls.env
+DRY_RUN=1 ./run_realworld_tests.sh      # resolve without downloading
+KEEP_AUDIO=0 KEEP_RUNS=4 ./run_realworld_tests.sh   # validate, then reclaim disk
+```
+
+`test_urls.env` and `realworld_runs/` are gitignored and must stay that way: the
+first holds account URLs and, optionally, a Deezer ARL — a session token
+equivalent to a password — and the second holds session logs. Never add either,
+not even with `git add -f`.
+
 ### The Wiki
 
 To help out `streamrip` users that may be having trouble, consider contributing some information to the wiki.
