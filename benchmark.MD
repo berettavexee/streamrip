@@ -64,13 +64,45 @@ Phase timing: resolved 1/1 pending item(s) 0.37s
 Phase timing: downloaded 1 media item(s) 15.89s
 ```
 
-So ~6 of the 6.4 s are inside the transfer phase — and it is not bandwidth
-bound, since the two move identical bytes at 24.5 MB/s against 17.9 MB/s. The
-mechanism the logs point at is upstream resolving each track's CDN URL *at the
-moment it starts downloading it* — its verbose log shows 14 separate
-`Fetching deezer url with token` lines — so every task stalls on a round trip
-the fork has already made in batch. That is inference from the measurements, not
-a proof: no socket-level instrumentation was done.
+So ~6 of the 6.4 s are inside the transfer phase, and it is not bandwidth bound:
+the two move identical bytes at 24.5 MB/s against 17.9 MB/s. Nor is the machine
+waiting on the network. On the playlist:
+
+| | wall | user CPU | sys CPU | total CPU | peak RSS |
+|---|---|---|---|---|---|
+| This fork | 67.2 s | 54.4 s | 17.6 s | **72.0 s** | **139 MB** |
+| Upstream | 102.7 s | 71.1 s | 43.8 s | **114.9 s** | **381 MB** |
+
+Upstream burns **42.9 s more CPU** for a 35.5 s wall gap. Both run a single
+asyncio event loop, so that extra CPU is not absorbed by spare cores — it is
+time no download is progressing.
+
+It comes from how each decrypts. Deezer encrypts only the first 2048 bytes of
+every 6144-byte segment, and segments are independent, so the stream can be
+decrypted as it arrives. Upstream does not: `DeezerDownloadable._download`
+accumulates the **entire track in a `bytearray`**, and only once the transfer is
+finished walks that buffer segment by segment, awaiting a write per segment.
+This fork keeps a small carry, decrypts whole segments as chunks land, and
+writes them in batches.
+
+Two consequences, both measured:
+
+- **Write granularity.** Over the same album — 14 tracks, 420 MB — upstream
+  issues **68,750 `write` syscalls against this fork's 2,662** (`strace -c`),
+  6 KB per write against 158 KB. Since `aiofiles` dispatches each write to a
+  thread pool, that is also 26× the thread-pool round trips. Time in `write`
+  alone: 3.05 s against 0.80 s.
+- **Memory.** Buffering whole tracks with six concurrent downloads puts peak RSS
+  at 381 MB against 139 MB. It also scales with track size rather than staying
+  flat.
+
+Isolated from the network, decrypting and writing one 25 MB track costs 0.92 s
+the upstream way against 0.44 s streaming — and upstream pays it *after* the
+transfer, where this fork overlaps it with the bytes still arriving.
+
+Metadata resolution is a smaller and separate effect: batched CDN URL resolution
+replaces one round trip per track with one per batch, which is what makes the
+margin widen from 27 % on 14 tracks to 36 % on 59.
 
 ## Method
 
@@ -128,3 +160,7 @@ non-empty path, so those two must be filled in or the run dies before it starts.
   and most of this fork's divergence is Deezer-specific anyway.
 - Downloads land on a warm CDN. A cold cache would likely move both numbers and
   might not move them equally.
+- The CPU, syscall and memory figures come from one instrumented run per side,
+  not from repeated trials. Their ratios are large enough to be read as
+  qualitative — 26× the syscalls, 2.7× the memory — but the exact numbers are
+  not averages.

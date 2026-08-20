@@ -19,9 +19,9 @@ A scriptable stream downloader for Qobuz, Tidal, Deezer and SoundCloud.
 ![downloading an album](https://github.com/berettavexee/streamrip/blob/dev/demo/download_album.png?raw=true)
 
 Measured against upstream on identical inputs: **1.37× faster** on a 14-track
-album and **1.57× faster** on a 59-track playlist, while recovering in FLAC one
-geoblocked track that upstream degrades to MP3. Method and caveats in
-[benchmark.MD](benchmark.MD).
+album, **1.57× faster** on a 59-track playlist, in **a third of the peak
+memory** — and it recovers in FLAC one geoblocked track that upstream degrades
+to MP3. Method and caveats in [benchmark.MD](benchmark.MD).
 
 ## Features
 
