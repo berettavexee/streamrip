@@ -25,7 +25,10 @@ _BASE = {
     "has_downloads_left": False,
     "media": {
         "transcodings": [
-            {"format": {"protocol": "hls", "mime_type": "audio/mpeg"}, "url": "https://hls.example.com/stream"},
+            {
+                "format": {"protocol": "hls", "mime_type": "audio/mpeg"},
+                "url": "https://hls.example.com/stream",
+            },
         ]
     },
 }
@@ -62,26 +65,48 @@ def test_get_soundcloud_id_hls_url():
 
 
 def test_get_soundcloud_id_no_hls_match():
-    resp = _sc({
-        "media": {
-            "transcodings": [
-                {"format": {"protocol": "progressive", "mime_type": "audio/mpeg"}, "url": "https://x.com"},
-            ]
+    resp = _sc(
+        {
+            "media": {
+                "transcodings": [
+                    {
+                        "format": {
+                            "protocol": "progressive",
+                            "mime_type": "audio/mpeg",
+                        },
+                        "url": "https://x.com",
+                    },
+                ]
+            }
         }
-    })
+    )
     assert get_soundcloud_id(resp) == f"42|{NON_STREAMABLE}"
 
 
 def test_get_soundcloud_id_picks_first_hls_match():
-    resp = _sc({
-        "media": {
-            "transcodings": [
-                {"format": {"protocol": "progressive", "mime_type": "audio/mpeg"}, "url": "bad"},
-                {"format": {"protocol": "hls", "mime_type": "audio/mpeg"}, "url": "https://first.com"},
-                {"format": {"protocol": "hls", "mime_type": "audio/mpeg"}, "url": "https://second.com"},
-            ]
+    resp = _sc(
+        {
+            "media": {
+                "transcodings": [
+                    {
+                        "format": {
+                            "protocol": "progressive",
+                            "mime_type": "audio/mpeg",
+                        },
+                        "url": "bad",
+                    },
+                    {
+                        "format": {"protocol": "hls", "mime_type": "audio/mpeg"},
+                        "url": "https://first.com",
+                    },
+                    {
+                        "format": {"protocol": "hls", "mime_type": "audio/mpeg"},
+                        "url": "https://second.com",
+                    },
+                ]
+            }
         }
-    })
+    )
     assert get_soundcloud_id(resp) == "42|https://first.com"
 
 
@@ -91,7 +116,10 @@ def test_get_soundcloud_id_picks_first_hls_match():
 
 
 def test_parse_soundcloud_id_splits_correctly():
-    assert parse_soundcloud_id("42|https://hls.example.com") == ("42", "https://hls.example.com")
+    assert parse_soundcloud_id("42|https://hls.example.com") == (
+        "42",
+        "https://hls.example.com",
+    )
 
 
 def test_parse_soundcloud_id_non_streamable():
@@ -163,8 +191,14 @@ def test_from_soundcloud_builds_track_list():
     track_meta = MagicMock()
 
     with (
-        patch("streamrip.metadata.playlist.AlbumMetadata.from_soundcloud", return_value=album_meta),
-        patch("streamrip.metadata.playlist.TrackMetadata.from_soundcloud", return_value=track_meta),
+        patch(
+            "streamrip.metadata.playlist.AlbumMetadata.from_soundcloud",
+            return_value=album_meta,
+        ),
+        patch(
+            "streamrip.metadata.playlist.TrackMetadata.from_soundcloud",
+            return_value=track_meta,
+        ),
     ):
         meta = PlaylistMetadata.from_soundcloud(resp)
 
@@ -195,8 +229,14 @@ def test_from_qobuz_builds_track_list():
     track_meta = MagicMock()
 
     with (
-        patch("streamrip.metadata.playlist.AlbumMetadata.from_qobuz", return_value=album_meta),
-        patch("streamrip.metadata.playlist.TrackMetadata.from_qobuz", return_value=track_meta),
+        patch(
+            "streamrip.metadata.playlist.AlbumMetadata.from_qobuz",
+            return_value=album_meta,
+        ),
+        patch(
+            "streamrip.metadata.playlist.TrackMetadata.from_qobuz",
+            return_value=track_meta,
+        ),
     ):
         meta = PlaylistMetadata.from_qobuz(resp)
 
@@ -209,8 +249,13 @@ def test_from_qobuz_skips_unavailable_tracks(caplog):
     resp = {"name": "PL", "tracks": {"items": [qobuz_track]}}
 
     with (
-        patch("streamrip.metadata.playlist.AlbumMetadata.from_qobuz", return_value=MagicMock()),
-        patch("streamrip.metadata.playlist.TrackMetadata.from_qobuz", return_value=None),
+        patch(
+            "streamrip.metadata.playlist.AlbumMetadata.from_qobuz",
+            return_value=MagicMock(),
+        ),
+        patch(
+            "streamrip.metadata.playlist.TrackMetadata.from_qobuz", return_value=None
+        ),
     ):
         meta = PlaylistMetadata.from_qobuz(resp)
 

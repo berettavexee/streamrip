@@ -127,7 +127,9 @@ async def download_embed_cover(
     for_playlist: bool,
 ) -> str | None:
     """Download and return the path of the cover to embed, discarding the hi-res path."""
-    embed_path, _ = await download_artwork(session, folder, covers, config, for_playlist)
+    embed_path, _ = await download_artwork(
+        session, folder, covers, config, for_playlist
+    )
     return embed_path
 
 

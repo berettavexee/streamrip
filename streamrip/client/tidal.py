@@ -29,9 +29,9 @@ STREAM_URL_REGEX = re.compile(
 )
 
 QUALITY_MAP = {
-    0: "LOW",           # AAC 96kbps
-    1: "HIGH",          # AAC 320kbps
-    2: "LOSSLESS",      # 16/44.1 FLAC
+    0: "LOW",  # AAC 96kbps
+    1: "HIGH",  # AAC 320kbps
+    2: "LOSSLESS",  # 16/44.1 FLAC
     3: "HI_RES_LOSSLESS",  # 24-bit FLAC (replaces legacy MQA)
 }
 
@@ -133,19 +133,27 @@ class TidalClient(Client):
             if self.config.fetch_lyrics:
                 lyrics_result, contributors_result = results[0], results[1]
                 if isinstance(lyrics_result, Exception):
-                    logger.warning("Failed to get lyrics for %s: %s", item_id, lyrics_result)
+                    logger.warning(
+                        "Failed to get lyrics for %s: %s", item_id, lyrics_result
+                    )
                 else:
                     if use_mp3:
                         item["lyrics"] = lyrics_result.get("lyrics") or ""  # type: ignore[union-attr]
                     else:
                         item["lyrics"] = (
-                            lyrics_result.get("subtitles") or lyrics_result.get("lyrics") or ""  # type: ignore[union-attr]
+                            lyrics_result.get("subtitles")
+                            or lyrics_result.get("lyrics")
+                            or ""  # type: ignore[union-attr]
                         )
             else:
                 contributors_result = results[0]
 
             if isinstance(contributors_result, Exception):
-                logger.debug("Could not fetch contributors for %s: %s", item_id, contributors_result)
+                logger.debug(
+                    "Could not fetch contributors for %s: %s",
+                    item_id,
+                    contributors_result,
+                )
                 item["contributors"] = []
             else:
                 item["contributors"] = contributors_result.get("items", [])  # type: ignore[union-attr]
@@ -226,7 +234,9 @@ class TidalClient(Client):
         try:
             manifest_b64 = resp["manifest"]
         except KeyError:
-            raise Exception(resp.get("userMessage", "Missing manifest in Tidal response"))
+            raise Exception(
+                resp.get("userMessage", "Missing manifest in Tidal response")
+            )
 
         manifest_mime = resp.get("manifestMimeType", "application/vnd.tidal.bts")
 
@@ -248,7 +258,9 @@ class TidalClient(Client):
         logger.debug(manifest)
         urls = manifest.get("urls") or []
         if not urls:
-            raise NonStreamableError(f"Tidal track {track_id}: manifest contains no stream URLs")
+            raise NonStreamableError(
+                f"Tidal track {track_id}: manifest contains no stream URLs"
+            )
         return TidalDownloadable(
             self.session,
             url=urls[0],
@@ -309,7 +321,9 @@ class TidalClient(Client):
             # r=0 → 1 segment, r=N → N+1 segments, r=-1 → handled as 1
             count = max(repeat + 1, 1)
             for _ in range(count):
-                segment_urls.append(media_template.replace("$Number$", str(segment_number)))
+                segment_urls.append(
+                    media_template.replace("$Number$", str(segment_number))
+                )
                 segment_number += 1
 
         return {
@@ -339,7 +353,9 @@ class TidalClient(Client):
         manifest = json.loads(base64.b64decode(resp["manifest"]).decode("utf-8"))
         urls = manifest.get("urls") or []
         if not urls:
-            raise NonStreamableError(f"Tidal video {video_id}: manifest contains no stream URLs")
+            raise NonStreamableError(
+                f"Tidal video {video_id}: manifest contains no stream URLs"
+            )
         async with self.session.get(urls[0]) as stream_resp:
             available_urls = await stream_resp.json()
         available_urls.encoding = "utf-8"

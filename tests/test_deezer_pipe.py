@@ -19,6 +19,7 @@ from streamrip.client.deezer_pipe import (
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+
 def _make_jwt(exp_unix: float | None) -> str:
     """Build a minimal fake JWT with the given exp claim."""
     header = base64.urlsafe_b64encode(b'{"alg":"RS256"}').rstrip(b"=").decode()
@@ -40,6 +41,7 @@ def _client(arl: str = "testarl") -> tuple[DeezerPipeClient, MagicMock]:
 
 
 # ── _jwt_exp_as_monotonic ──────────────────────────────────────────────────────
+
 
 class TestJwtExpAsMonotonic:
     def test_valid_future_exp(self):
@@ -70,6 +72,7 @@ class TestJwtExpAsMonotonic:
 
 
 # ── DeezerPipeClient._refresh_jwt ─────────────────────────────────────────────
+
 
 class TestRefreshJwt:
     def test_stores_jwt_and_expiry_on_success(self):
@@ -142,6 +145,7 @@ class TestRefreshJwt:
 
 # ── DeezerPipeClient._get_jwt ──────────────────────────────────────────────────
 
+
 class TestGetJwt:
     def _fresh_client_with_jwt(self) -> DeezerPipeClient:
         """Return a client that already holds a fresh JWT (no network call needed)."""
@@ -208,6 +212,7 @@ class TestGetJwt:
 
 # ── DeezerPipeClient.query ─────────────────────────────────────────────────────
 
+
 class TestQuery:
     def _client_with_fresh_jwt(self) -> tuple[DeezerPipeClient, MagicMock]:
         client, session = _client()
@@ -222,6 +227,7 @@ class TestQuery:
         mock_resp.status = status
         if status >= 400:
             import aiohttp
+
             mock_resp.raise_for_status = MagicMock(
                 side_effect=aiohttp.ClientResponseError(
                     request_info=MagicMock(), history=(), status=status
@@ -236,7 +242,7 @@ class TestQuery:
         client, session = self._client_with_fresh_jwt()
         self._mock_post(session, 200, {"data": {"track": {"id": "123"}}})
 
-        result = asyncio.run(client.query("query Q { track(trackId: \"1\") { id } }"))
+        result = asyncio.run(client.query('query Q { track(trackId: "1") { id } }'))
 
         assert result == {"data": {"track": {"id": "123"}}}
         call = session.post.call_args
@@ -247,7 +253,11 @@ class TestQuery:
         client, session = self._client_with_fresh_jwt()
         self._mock_post(session, 200, {"data": {}})
 
-        asyncio.run(client.query("query Q($id: String!) { track(trackId: $id) { id } }", {"id": "42"}))
+        asyncio.run(
+            client.query(
+                "query Q($id: String!) { track(trackId: $id) { id } }", {"id": "42"}
+            )
+        )
 
         body = session.post.call_args.kwargs["json"]
         assert body["variables"] == {"id": "42"}
@@ -333,6 +343,7 @@ class TestQuery:
 
 # ── DeezerClient integration ───────────────────────────────────────────────────
 
+
 class TestDeezerClientPipeIntegration:
     def _make_deezer_client(self):
         # Use the packaged default config so the fixture stays hermetic and does
@@ -343,6 +354,7 @@ class TestDeezerClientPipeIntegration:
         cfg = Config.defaults()
 
         from streamrip.client.deezer import DeezerClient
+
         return DeezerClient(cfg)
 
     def test_pipe_is_none_before_login(self):
@@ -366,9 +378,13 @@ class TestDeezerClientPipeIntegration:
         client.client.current_user = {"id": 42}
 
         with (
-            patch.object(DeezerClient, "get_session", new=AsyncMock(return_value=mock_session)),
+            patch.object(
+                DeezerClient, "get_session", new=AsyncMock(return_value=mock_session)
+            ),
             patch.object(client.client, "login_via_arl", return_value=True),
-            patch("streamrip.client.deezer.DeezerPipeClient", return_value=mock_pipe) as mock_pipe_cls,
+            patch(
+                "streamrip.client.deezer.DeezerPipeClient", return_value=mock_pipe
+            ) as mock_pipe_cls,
         ):
             asyncio.run(client.login())
 

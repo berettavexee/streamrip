@@ -58,7 +58,9 @@ class Artist(Media):
         )
         resolved = [a for a in resolved_or_none if a is not None]
         filtered_albums = self._apply_filters(resolved, filters)
-        batches = self.batch([a.rip(stats) for a in filtered_albums], RESOLVE_CHUNK_SIZE)
+        batches = self.batch(
+            [a.rip(stats) for a in filtered_albums], RESOLVE_CHUNK_SIZE
+        )
         for batch in batches:
             await asyncio.gather(*batch)
 
@@ -108,7 +110,11 @@ class Artist(Media):
         groups: dict[str, list[Album]] = {}
         for a in albums:
             match = cls._essence_re.match(a.meta.album)
-            title = match.group(1).strip().lower() if match else a.meta.album.strip().lower()
+            title = (
+                match.group(1).strip().lower()
+                if match
+                else a.meta.album.strip().lower()
+            )
             items = groups.get(title, [])
             items.append(a)
             groups[title] = items

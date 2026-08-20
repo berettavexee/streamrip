@@ -30,6 +30,7 @@ def _no_logging_during_invoke():
     yield
     logging.disable(logging.NOTSET)
 
+
 FAILED_ROWS = [
     ("deezer", "track", "1"),
     ("deezer", "track", "2"),
@@ -123,7 +124,11 @@ def test_repair_clears_stale_downloads_rows_before_retrying(cfg, main):
     """An id marked both failed and downloaded would be skipped by resolve()."""
     _, _, downloads_db = _run(cfg, main, FAILED_ROWS, downloaded_ids=set())
 
-    assert [c.kwargs["id"] for c in downloads_db.remove.call_args_list] == ["1", "2", "3"]
+    assert [c.kwargs["id"] for c in downloads_db.remove.call_args_list] == [
+        "1",
+        "2",
+        "3",
+    ]
 
 
 def test_repair_does_nothing_when_nothing_failed(cfg, main):
@@ -150,7 +155,9 @@ def test_repair_flat_leaves_the_folder_setting_alone(cfg, main):
 
 def test_repair_aborts_when_confirmation_is_declined(cfg, main):
     with patch("streamrip.rip.cli.Confirm.ask", return_value=False):
-        result, failed_db, _ = _run(cfg, main, FAILED_ROWS, downloaded_ids=set(), args=())
+        result, failed_db, _ = _run(
+            cfg, main, FAILED_ROWS, downloaded_ids=set(), args=()
+        )
 
     assert "Repair aborted" in result.printed
     main.add_all_by_id.assert_not_awaited()

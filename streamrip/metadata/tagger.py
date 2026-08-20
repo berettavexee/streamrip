@@ -170,11 +170,16 @@ class Container(Enum):
                 text = f"{meta.discnumber}/{meta.album.disctotal}"
             elif k == "replaygain_track_gain":
                 if meta.replaygain_track_gain is not None:
-                    out.append((
-                        "TXXX:replaygain_track_gain",
-                        id3.TXXX(encoding=3, desc="replaygain_track_gain",
-                                 text=[meta.replaygain_track_gain]),
-                    ))
+                    out.append(
+                        (
+                            "TXXX:replaygain_track_gain",
+                            id3.TXXX(
+                                encoding=3,
+                                desc="replaygain_track_gain",
+                                text=[meta.replaygain_track_gain],
+                            ),
+                        )
+                    )
                 continue
             else:
                 text = self._attr_from_meta(meta, k)  # type: ignore[assignment]

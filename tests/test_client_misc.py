@@ -13,6 +13,7 @@ from streamrip.exceptions import (
 
 # ── Client.get_track_for_playlist default ────────────────────────────────────
 
+
 class TestClientGetTrackForPlaylist:
     @pytest.mark.asyncio
     async def test_default_delegates_to_get_metadata(self):
@@ -25,11 +26,17 @@ class TestClientGetTrackForPlaylist:
             max_quality = 2
             logged_in = False
 
-            async def login(self): pass
+            async def login(self):
+                pass
+
             async def get_metadata(self, item, media_type):
                 return {"item": item, "media_type": media_type}
-            async def search(self, media_type, query, limit=500): return []
-            async def get_downloadable(self, item, quality) -> Downloadable: pass
+
+            async def search(self, media_type, query, limit=500):
+                return []
+
+            async def get_downloadable(self, item, quality) -> Downloadable:
+                pass
 
         concrete = ConcreteClient()
         concrete._login_lock = asyncio.Lock()
@@ -39,9 +46,11 @@ class TestClientGetTrackForPlaylist:
 
 # ── DeezerClient.login error paths ───────────────────────────────────────────
 
+
 class TestDeezerClientLoginErrors:
     def _client(self):
         from streamrip.client.deezer import DeezerClient
+
         config = Config.defaults()
         config.session.deezer.arl = ""
         return DeezerClient(config)
@@ -50,30 +59,38 @@ class TestDeezerClientLoginErrors:
     async def test_missing_arl_raises(self):
         client = self._client()
         client.session = MagicMock()
-        with patch.object(client, "get_session", new=AsyncMock(return_value=MagicMock())):
+        with patch.object(
+            client, "get_session", new=AsyncMock(return_value=MagicMock())
+        ):
             with pytest.raises(MissingCredentialsError):
                 await client.login()
 
     @pytest.mark.asyncio
     async def test_failed_login_raises_auth_error(self):
         from streamrip.client.deezer import DeezerClient
+
         config = Config.defaults()
         config.session.deezer.arl = "fake-bad-arl"
         client = DeezerClient(config)
         client.client.login_via_arl = MagicMock(return_value=False)
-        with patch.object(client, "get_session", new=AsyncMock(return_value=MagicMock())):
+        with patch.object(
+            client, "get_session", new=AsyncMock(return_value=MagicMock())
+        ):
             with pytest.raises(AuthenticationError):
                 await client.login()
 
     @pytest.mark.asyncio
     async def test_successful_login_sets_logged_in(self):
         from streamrip.client.deezer import DeezerClient
+
         config = Config.defaults()
         config.session.deezer.arl = "valid-arl"
         client = DeezerClient(config)
         client.client.login_via_arl = MagicMock(return_value=True)
         client.client.current_user = {"id": 42}
-        with patch.object(client, "get_session", new=AsyncMock(return_value=MagicMock())):
+        with patch.object(
+            client, "get_session", new=AsyncMock(return_value=MagicMock())
+        ):
             await client.login()
         assert client.logged_in is True
         assert client.logged_in_user_id == 42
@@ -81,9 +98,11 @@ class TestDeezerClientLoginErrors:
 
 # ── DeezerClient.get_metadata unknown type ───────────────────────────────────
 
+
 class TestDeezerClientGetMetadata:
     def _logged_in_client(self):
         from streamrip.client.deezer import DeezerClient
+
         config = Config.defaults()
         client = DeezerClient(config)
         client.logged_in = True
@@ -98,10 +117,12 @@ class TestDeezerClientGetMetadata:
 
 # ── DeezerClient.get_album cache ─────────────────────────────────────────────
 
+
 class TestDeezerClientAlbumCache:
     @pytest.mark.asyncio
     async def test_cache_hit_returns_without_network(self):
         from streamrip.client.deezer import DeezerClient
+
         config = Config.defaults()
         client = DeezerClient(config)
         client._albums.set("999", {"id": "999", "title": "Cached Album"})
@@ -112,10 +133,12 @@ class TestDeezerClientAlbumCache:
 
 # ── DeezerClient.get_track_for_playlist ──────────────────────────────────────
 
+
 class TestDeezerGetTrackForPlaylist:
     @pytest.mark.asyncio
     async def test_calls_get_track_without_album_fetch(self):
         from streamrip.client.deezer import DeezerClient
+
         config = Config.defaults()
         client = DeezerClient(config)
         client.get_track = AsyncMock(return_value={"id": "42"})
@@ -127,9 +150,11 @@ class TestDeezerGetTrackForPlaylist:
 
 # ── Client constructors (soundcloud, qobuz, tidal) ───────────────────────────
 
+
 class TestClientConstructors:
     def test_soundcloud_client_init(self):
         from streamrip.client.soundcloud import SoundcloudClient
+
         config = Config.defaults()
         config.session.downloads.requests_per_minute = 0
         client = SoundcloudClient(config)
@@ -138,6 +163,7 @@ class TestClientConstructors:
 
     def test_qobuz_client_init(self):
         from streamrip.client.qobuz import QobuzClient
+
         config = Config.defaults()
         config.session.downloads.requests_per_minute = 0
         client = QobuzClient(config)
@@ -147,6 +173,7 @@ class TestClientConstructors:
 
     def test_tidal_client_init(self):
         from streamrip.client.tidal import TidalClient
+
         config = Config.defaults()
         config.session.downloads.requests_per_minute = 0
         client = TidalClient(config)
@@ -155,6 +182,7 @@ class TestClientConstructors:
 
     def test_deezer_client_init(self):
         from streamrip.client.deezer import DeezerClient
+
         config = Config.defaults()
         client = DeezerClient(config)
         assert client.logged_in is False
@@ -164,11 +192,13 @@ class TestClientConstructors:
 
 # ── Client.get_rate_limiter ───────────────────────────────────────────────────
 
+
 class TestGetRateLimiter:
     def test_zero_returns_nullcontext(self):
         import contextlib
 
         from streamrip.client.client import Client
+
         result = Client.get_rate_limiter(0)
         assert isinstance(result, contextlib.nullcontext)
 
@@ -176,5 +206,6 @@ class TestGetRateLimiter:
         import aiolimiter
 
         from streamrip.client.client import Client
+
         result = Client.get_rate_limiter(60)
         assert isinstance(result, aiolimiter.AsyncLimiter)

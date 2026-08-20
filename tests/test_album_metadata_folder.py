@@ -1,4 +1,3 @@
-
 from streamrip.metadata.album import AlbumInfo, AlbumMetadata
 from streamrip.metadata.covers import Covers
 
@@ -43,19 +42,25 @@ class TestFormatFolderPath:
         assert "2024" in result
 
     def test_effective_quality_equal_to_album_quality_no_override(self):
-        meta = _make_album(quality=2, container="FLAC", bit_depth=16, sampling_rate=44100)
+        meta = _make_album(
+            quality=2, container="FLAC", bit_depth=16, sampling_rate=44100
+        )
         result = meta.format_folder_path(FORMATTER, effective_quality=2)
         assert "FLAC" in result
 
     def test_effective_quality_lower_overrides_container(self):
         # Album is FLAC 24-bit but user configured MP3 (quality 1)
-        meta = _make_album(quality=4, container="FLAC", bit_depth=24, sampling_rate=192000)
+        meta = _make_album(
+            quality=4, container="FLAC", bit_depth=24, sampling_rate=192000
+        )
         result = meta.format_folder_path(FORMATTER, effective_quality=1)
         assert "MP3" in result
         assert "FLAC" not in result
 
     def test_effective_quality_2_gives_flac_16(self):
-        meta = _make_album(quality=4, container="FLAC", bit_depth=24, sampling_rate=192000)
+        meta = _make_album(
+            quality=4, container="FLAC", bit_depth=24, sampling_rate=192000
+        )
         full_formatter = "{albumartist} - {year} - {title} [{container}] [{bit_depth}B-{sampling_rate}kHz]"
         result = meta.format_folder_path(full_formatter, effective_quality=2)
         assert "FLAC" in result
@@ -63,7 +68,9 @@ class TestFormatFolderPath:
         assert "44100" in result
 
     def test_effective_quality_3_gives_flac_24_96(self):
-        meta = _make_album(quality=4, container="FLAC", bit_depth=24, sampling_rate=192000)
+        meta = _make_album(
+            quality=4, container="FLAC", bit_depth=24, sampling_rate=192000
+        )
         full_formatter = "{albumartist} - {year} - {title} [{container}] [{bit_depth}B-{sampling_rate}kHz]"
         result = meta.format_folder_path(full_formatter, effective_quality=3)
         assert "FLAC" in result
@@ -91,7 +98,9 @@ class TestFormatFolderPath:
 
     def test_mp3_container_no_unknown_tokens(self):
         # Quality 0/1 → MP3, bit_depth=None, sampling_rate=None
-        meta = _make_album(quality=2, container="FLAC", bit_depth=16, sampling_rate=44100)
+        meta = _make_album(
+            quality=2, container="FLAC", bit_depth=16, sampling_rate=44100
+        )
         result = meta.format_folder_path(FORMATTER, effective_quality=1)
         assert "Unknown" not in result
         assert "MP3" in result

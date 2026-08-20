@@ -45,7 +45,9 @@ class TestTrackRipStats:
         stats = DownloadStats()
 
         with (
-            patch.object(Track, "preprocess", new=AsyncMock(side_effect=RuntimeError("boom"))),
+            patch.object(
+                Track, "preprocess", new=AsyncMock(side_effect=RuntimeError("boom"))
+            ),
             patch.object(Track, "download", new=AsyncMock()),
             patch.object(Track, "postprocess", new=AsyncMock()),
         ):
@@ -71,7 +73,9 @@ class TestTrackRipStats:
         track = _make_track()
 
         with (
-            patch.object(Track, "preprocess", new=AsyncMock(side_effect=ValueError("oops"))),
+            patch.object(
+                Track, "preprocess", new=AsyncMock(side_effect=ValueError("oops"))
+            ),
             patch.object(Track, "download", new=AsyncMock()),
             patch.object(Track, "postprocess", new=AsyncMock()),
         ):
@@ -86,7 +90,9 @@ class TestTrackRipStats:
         with (
             patch.object(Track, "preprocess", new=AsyncMock()),
             patch.object(Track, "download", new=AsyncMock()),
-            patch.object(Track, "postprocess", new=AsyncMock(side_effect=OSError("tag fail"))),
+            patch.object(
+                Track, "postprocess", new=AsyncMock(side_effect=OSError("tag fail"))
+            ),
         ):
             with pytest.raises(OSError):
                 await track.rip(stats)

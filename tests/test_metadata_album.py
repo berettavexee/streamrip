@@ -111,8 +111,12 @@ def _deezer_track(**overrides):
 # Patch all Covers.from_* so tests don't depend on Covers internals
 _PATCH_COVERS = {
     "qobuz": patch("streamrip.metadata.album.Covers.from_qobuz", return_value=_COVERS),
-    "deezer": patch("streamrip.metadata.album.Covers.from_deezer", return_value=_COVERS),
-    "soundcloud": patch("streamrip.metadata.album.Covers.from_soundcloud", return_value=_COVERS),
+    "deezer": patch(
+        "streamrip.metadata.album.Covers.from_deezer", return_value=_COVERS
+    ),
+    "soundcloud": patch(
+        "streamrip.metadata.album.Covers.from_soundcloud", return_value=_COVERS
+    ),
     "tidal": patch("streamrip.metadata.album.Covers.from_tidal", return_value=_COVERS),
 }
 
@@ -133,9 +137,14 @@ def test_albuminfo_defaults():
 
 def test_albuminfo_explicit_fields():
     info = AlbumInfo(
-        id="x", quality=3, container="FLAC",
-        label="Warp", explicit=True, sampling_rate=96000,
-        bit_depth=24, booklets=[{"url": "http://booklet.pdf"}],
+        id="x",
+        quality=3,
+        container="FLAC",
+        label="Warp",
+        explicit=True,
+        sampling_rate=96000,
+        bit_depth=24,
+        booklets=[{"url": "http://booklet.pdf"}],
     )
     assert info.label == "Warp"
     assert info.explicit is True
@@ -215,14 +224,25 @@ def test_get_copyright_case_insensitive():
 # ---------------------------------------------------------------------------
 
 
-def _album_meta(quality=3, bit_depth=24, sampling_rate=96, container="FLAC",
-                albumcomposer=None):
-    info = AlbumInfo(id="1", quality=quality, container=container,
-                     bit_depth=bit_depth, sampling_rate=sampling_rate)
+def _album_meta(
+    quality=3, bit_depth=24, sampling_rate=96, container="FLAC", albumcomposer=None
+):
+    info = AlbumInfo(
+        id="1",
+        quality=quality,
+        container=container,
+        bit_depth=bit_depth,
+        sampling_rate=sampling_rate,
+    )
     return AlbumMetadata(
-        info=info, album="Discovery", albumartist="Daft Punk",
-        year="2001", genre=["Electronic"], covers=_COVERS,
-        tracktotal=14, albumcomposer=albumcomposer,
+        info=info,
+        album="Discovery",
+        albumartist="Daft Punk",
+        year="2001",
+        genre=["Electronic"],
+        covers=_COVERS,
+        tracktotal=14,
+        albumcomposer=albumcomposer,
     )
 
 
@@ -387,11 +407,13 @@ def test_from_deezer_basic():
 
 
 def test_from_deezer_contributors_joined():
-    resp = _deezer(contributors=[
-        {"type": "artist", "name": "A"},
-        {"type": "composer", "name": "B"},
-        {"type": "artist", "name": "C"},
-    ])
+    resp = _deezer(
+        contributors=[
+            {"type": "artist", "name": "A"},
+            {"type": "composer", "name": "B"},
+            {"type": "artist", "name": "C"},
+        ]
+    )
     with _PATCH_COVERS["deezer"]:
         meta = AlbumMetadata.from_deezer(resp)
     assert meta.albumartist == "A, C"
@@ -501,9 +523,13 @@ def test_from_soundcloud_no_genre():
 
 
 def test_from_soundcloud_explicit():
-    resp = _soundcloud(publisher_metadata={
-        "artist": "A", "album_title": "B", "explicit": True,
-    })
+    resp = _soundcloud(
+        publisher_metadata={
+            "artist": "A",
+            "album_title": "B",
+            "explicit": True,
+        }
+    )
     with _PATCH_COVERS["soundcloud"]:
         meta = AlbumMetadata.from_soundcloud(resp)
     assert meta.info.explicit is True
@@ -609,9 +635,12 @@ def test_from_tidal_disctotal():
 
 def test_from_tidal_playlist_track_not_streamable():
     with _PATCH_COVERS["tidal"]:
-        assert AlbumMetadata.from_tidal_playlist_track_resp(
-            _tidal_track(allowStreaming=False)
-        ) is None
+        assert (
+            AlbumMetadata.from_tidal_playlist_track_resp(
+                _tidal_track(allowStreaming=False)
+            )
+            is None
+        )
 
 
 def test_from_tidal_playlist_track_basic():

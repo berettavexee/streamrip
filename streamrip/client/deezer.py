@@ -30,8 +30,8 @@ logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 # The public REST API and GW API do not expose these values; they are fixed
 # constants for Deezer's quality tier 2 (FLAC, CD quality).
 _DEEZER_BIT_DEPTH: int = 16
-_DEEZER_SAMPLING_RATE_KHZ: float = 44.1   # kHz — unit used by TrackMetadata.from_deezer
-_DEEZER_SAMPLING_RATE_HZ: int = 44100     # Hz  — unit used by AlbumMetadata.from_deezer
+_DEEZER_SAMPLING_RATE_KHZ: float = 44.1  # kHz — unit used by TrackMetadata.from_deezer
+_DEEZER_SAMPLING_RATE_HZ: int = 44100  # Hz  — unit used by AlbumMetadata.from_deezer
 
 
 def _gw_int(val: Any, default: int) -> int:
@@ -52,15 +52,20 @@ class _HttpsUpgradeSession(requests.Session):
       without going through request().
     """
 
-    def request(self, method: str, url: str | bytes, **kwargs: Any) -> requests.Response:
+    def request(
+        self, method: str, url: str | bytes, **kwargs: Any
+    ) -> requests.Response:
         if isinstance(url, str) and url.startswith("http://"):
             url = "https://" + url[7:]
         return super().request(method, url, **kwargs)
 
-    def send(self, request: requests.PreparedRequest, **kwargs: Any) -> requests.Response:
+    def send(
+        self, request: requests.PreparedRequest, **kwargs: Any
+    ) -> requests.Response:
         if isinstance(request.url, str) and request.url.startswith("http://"):
             request.url = "https://" + request.url[7:]
         return super().send(request, **kwargs)
+
 
 K = TypeVar("K")
 V = TypeVar("V")
@@ -181,7 +186,7 @@ class DeezerClient(Client):
     _QUALITY_MAP: ClassVar[list[tuple[int, str]]] = [
         (9, "MP3_128"),  # quality 0
         (3, "MP3_320"),  # quality 1
-        (1, "FLAC"),     # quality 2
+        (1, "FLAC"),  # quality 2
     ]
 
     def __init__(self, config: Config):
@@ -410,13 +415,17 @@ class DeezerClient(Client):
         contributors_list: list[dict] = []
         for role, names in sng_contribs.items():
             rest_type = _role_map.get(role, role)
-            for name in (names if isinstance(names, list) else [names]):
+            for name in names if isinstance(names, list) else [names]:
                 contributors_list.append({"name": name, "type": rest_type})
 
         raw_bpm = gw.get("BPM")
         try:
             bpm_val = float(raw_bpm) if raw_bpm else None
-            bpm: float | None = bpm_val if (bpm_val is not None and 0 < bpm_val < float("inf")) else None
+            bpm: float | None = (
+                bpm_val
+                if (bpm_val is not None and 0 < bpm_val < float("inf"))
+                else None
+            )
         except (TypeError, ValueError):
             bpm = None
 
@@ -497,7 +506,12 @@ class DeezerClient(Client):
                     try:
                         item["album"] = await self.get_album(str(album_id))
                     except Exception as e:
-                        logger.error("Error fetching album %s for track %s: %s", album_id, item_id, e)
+                        logger.error(
+                            "Error fetching album %s for track %s: %s",
+                            album_id,
+                            item_id,
+                            e,
+                        )
             return item
 
         # Slow path: no cached GW data or GW data lacks ISRC → REST call required.
@@ -653,7 +667,9 @@ class DeezerClient(Client):
 
         match = re.search(rf"/{media_type}/(\d+)", final_url)
         if match and (new_id := match.group(1)) != item_id:
-            logger.debug("Resolved redirect for %s %s -> %s", media_type, item_id, new_id)
+            logger.debug(
+                "Resolved redirect for %s %s -> %s", media_type, item_id, new_id
+            )
             return new_id
 
         return None
@@ -670,9 +686,9 @@ class DeezerClient(Client):
             Dict with "title", "tracks" (list of {"id": ...}), and "track_total".
         """
         if item_id.startswith("favorites:"):
-            return await self.get_user_favorites(item_id[len("favorites:"):])
+            return await self.get_user_favorites(item_id[len("favorites:") :])
         if item_id.startswith("artist_top:"):
-            return await self.get_artist_top_tracks(item_id[len("artist_top:"):])
+            return await self.get_artist_top_tracks(item_id[len("artist_top:") :])
 
         try:
             pl_metadata, pl_tracks = await asyncio.gather(
@@ -735,7 +751,9 @@ class DeezerClient(Client):
         # Batch-prefetch GW track data in parallel and populate the cache.
         chunk_size = 50
         sng_ids = [int(entry["SNG_ID"]) for entry in all_entries]
-        chunks = [sng_ids[i : i + chunk_size] for i in range(0, len(sng_ids), chunk_size)]
+        chunks = [
+            sng_ids[i : i + chunk_size] for i in range(0, len(sng_ids), chunk_size)
+        ]
         results = await asyncio.gather(
             *[self._gw(self.client.gw.get_tracks, chunk) for chunk in chunks]
         )
@@ -874,7 +892,10 @@ class DeezerClient(Client):
         _, format_str = self._QUALITY_MAP[final_quality]
         logger.debug(
             "Deezer track %s resolved at quality %d (%s) [served id %s]",
-            item_id, final_quality, format_str, served_id,
+            item_id,
+            final_quality,
+            format_str,
+            served_id,
         )
         return DeezerDownloadable(self.session, dl_info)
 
@@ -941,7 +962,9 @@ class DeezerClient(Client):
                 )
             except deezer.WrongGeolocation:
                 if not is_retry and fallback_id:
-                    logger.debug("Geoblocked; retrying with fallback ID %s", fallback_id)
+                    logger.debug(
+                        "Geoblocked; retrying with fallback ID %s", fallback_id
+                    )
                     fallback_info = await self._get_gw_track(fallback_id)
                     return await self._resolve_quality(
                         fallback_info, quality, fallback_id, is_retry=True
@@ -1037,21 +1060,31 @@ class DeezerClient(Client):
             except deezer.WrongLicense:
                 # Format not licensed for this account — every chunk would fail the
                 # same way, so stop; per-track get_track_url calls handle fallback.
-                logger.debug("Batch URL prefetch: %s not licensed for this account", fmt)
+                logger.debug(
+                    "Batch URL prefetch: %s not licensed for this account", fmt
+                )
                 return
             except Exception as e:
                 # Transient/per-chunk failure: skip this chunk but still try the rest.
                 # Tracks left unresolved here fall back to individual get_track_url.
-                logger.debug("Batch URL prefetch failed for %s chunk at %d: %s", fmt, offset, e)
+                logger.debug(
+                    "Batch URL prefetch failed for %s chunk at %d: %s", fmt, offset, e
+                )
                 continue
             if not isinstance(results, list):
-                logger.debug("Batch URL prefetch: unexpected result type for %s chunk at %d", fmt, offset)
+                logger.debug(
+                    "Batch URL prefetch: unexpected result type for %s chunk at %d",
+                    fmt,
+                    offset,
+                )
                 continue
             if len(results) != len(chunk_tokens):
                 logger.debug(
                     "Batch URL prefetch for %s: %d results for %d tokens "
                     "(errored tracks yield two entries) — matching by URL, not position",
-                    fmt, len(results), len(chunk_tokens),
+                    fmt,
+                    len(results),
+                    len(chunk_tokens),
                 )
             wanted = set(chunk_ids)
             for result in results:

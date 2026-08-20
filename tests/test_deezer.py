@@ -64,6 +64,7 @@ def mock_deezer_client():
 
 # ===== _fetch_lyrics =====
 
+
 def test_fetch_lyrics_disabled_skips_gw_call(mock_deezer_client):
     """_fetch_lyrics returns None immediately when fetch_lyrics=False, without calling GW."""
     mock_deezer_client.config.fetch_lyrics = False
@@ -75,13 +76,16 @@ def test_fetch_lyrics_disabled_skips_gw_call(mock_deezer_client):
 def test_fetch_lyrics_enabled_calls_gw(mock_deezer_client):
     """_fetch_lyrics calls song.getLyrics and returns LYRICS_TEXT when fetch_lyrics=True."""
     mock_deezer_client.config.fetch_lyrics = True
-    mock_deezer_client.client.gw.get_track_lyrics.return_value = {"LYRICS_TEXT": "La la la"}
+    mock_deezer_client.client.gw.get_track_lyrics.return_value = {
+        "LYRICS_TEXT": "La la la"
+    }
     result = arun(mock_deezer_client._fetch_lyrics("123"))
     assert result == "La la la"
     mock_deezer_client.client.gw.get_track_lyrics.assert_called_once()
 
 
 # ===== _TaskCache =====
+
 
 def test_task_cache_set_if_absent_stores_new():
     """set_if_absent stores a value when the key is not yet cached."""
@@ -100,6 +104,7 @@ def test_task_cache_set_if_absent_does_not_overwrite():
 
 # ===== get_downloadable — guard =====
 
+
 def test_deezer_item_id_none(mock_deezer_client):
     """get_downloadable raises NonStreamableError immediately when item_id is None."""
     with pytest.raises(NonStreamableError):
@@ -107,6 +112,7 @@ def test_deezer_item_id_none(mock_deezer_client):
 
 
 # ===== get_downloadable — quality fallback =====
+
 
 def test_deezer_fallback_logic_with_mock_data(mock_deezer_client):
     """WrongLicense on FLAC triggers fallback to MP3_320."""
@@ -210,6 +216,7 @@ def test_deezer_wrong_license_all_qualities_follows_fallback(mock_deezer_client)
     the requested ID yields nothing. Deezer's replacement release may well be
     licensed, so it is worth the one extra round-trip.
     """
+
     def gw_get_track_side_effect(track_id):
         if track_id == "123":
             return {"TRACK_TOKEN": "token_123", "FALLBACK": {"SNG_ID": "456"}}
@@ -231,8 +238,10 @@ def test_deezer_wrong_license_all_qualities_follows_fallback(mock_deezer_client)
 
 # ===== get_downloadable — geoblocking =====
 
+
 def test_deezer_geoblocked_with_fallback(mock_deezer_client):
     """WrongGeolocation retries the download using the FALLBACK track ID."""
+
     def gw_get_track_side_effect(track_id):
         if track_id == "123":
             return {
@@ -286,6 +295,7 @@ def test_deezer_geoblocked_no_fallback(mock_deezer_client):
 
 # ===== get_downloadable — URL exhaustion and delisted-track recovery =====
 
+
 def test_deezer_no_url_at_any_quality_fails_immediately(mock_deezer_client):
     """get_track_url returning None everywhere, with no FALLBACK, raises."""
     mock_deezer_client.client.gw.get_track.return_value = {
@@ -322,6 +332,7 @@ def test_deezer_null_urls_follow_fallback(mock_deezer_client):
     no URL for it at any quality, while FALLBACK names the release that
     superseded it (a remaster), which streams normally.
     """
+
     def gw_get_track_side_effect(track_id):
         if track_id == "123":
             return {
@@ -388,6 +399,7 @@ def test_deezer_never_builds_a_legacy_cdn_url(mock_deezer_client):
 
 # ===== get_album =====
 
+
 def test_deezer_album_cache(mock_deezer_client):
     """Repeated get_album calls for the same ID hit the API exactly once."""
     mock_deezer_client.client.api.get_album.return_value = {
@@ -430,6 +442,7 @@ def test_deezer_album_cache_concurrent(mock_deezer_client):
 
 def test_deezer_get_album_redirect(mock_deezer_client):
     """DataException on get_album triggers redirect resolution; original ID is cached."""
+
     def api_get_album_side_effect(item_id):
         if item_id == "old_id":
             raise DataException
@@ -441,7 +454,9 @@ def test_deezer_get_album_redirect(mock_deezer_client):
         return {"data": []}
 
     mock_deezer_client.client.api.get_album.side_effect = api_get_album_side_effect
-    mock_deezer_client.client.api.get_album_tracks.side_effect = api_get_album_tracks_side_effect
+    mock_deezer_client.client.api.get_album_tracks.side_effect = (
+        api_get_album_tracks_side_effect
+    )
 
     with patch.object(
         mock_deezer_client,
@@ -457,6 +472,7 @@ def test_deezer_get_album_redirect(mock_deezer_client):
 
 
 # ===== get_track =====
+
 
 def test_deezer_get_track(mock_deezer_client):
     """get_track returns a track dict with full album metadata embedded."""
@@ -519,7 +535,9 @@ def test_deezer_gw_track_cache_reuse(mock_deezer_client):
         "id": "200",
         "title": "Test Album",
     }
-    mock_deezer_client.client.api.get_album_tracks.return_value = {"data": [{"id": "100"}]}
+    mock_deezer_client.client.api.get_album_tracks.return_value = {
+        "data": [{"id": "100"}]
+    }
     gw_data = {
         "FILESIZE_FLAC": 25_000_000,
         "FILESIZE_MP3_320": 5_000_000,
@@ -539,6 +557,7 @@ def test_deezer_gw_track_cache_reuse(mock_deezer_client):
 
 
 # ===== get_playlist =====
+
 
 def test_deezer_get_playlist(mock_deezer_client):
     """get_playlist returns a normalized structure from the GW API response."""
@@ -580,6 +599,7 @@ def test_deezer_get_playlist_favorites_routing(mock_deezer_client):
 
 
 # ===== get_user_favorites =====
+
 
 def test_deezer_get_user_favorites_own_profile(mock_deezer_client):
     """Own favorites are fetched via paginated get_user_favorite_ids, not get_my_favorite_tracks.
@@ -699,11 +719,12 @@ def test_deezer_get_user_favorites_pagination(mock_deezer_client):
     assert result["track_total"] == server_page + 6
     calls = mock_deezer_client.client.gw.get_user_favorite_ids.call_args_list
     assert calls[0].kwargs["start"] == 0
-    assert calls[1].kwargs["start"] == server_page        # advanced by actual count
-    assert calls[2].kwargs["start"] == server_page + 6   # advanced again by actual count
+    assert calls[1].kwargs["start"] == server_page  # advanced by actual count
+    assert calls[2].kwargs["start"] == server_page + 6  # advanced again by actual count
 
 
 # ===== get_metadata =====
+
 
 def test_deezer_get_metadata_dispatch(mock_deezer_client):
     """get_metadata dispatches to the correct handler for each media type."""
@@ -715,7 +736,9 @@ def test_deezer_get_metadata_dispatch(mock_deezer_client):
     }
     for media_type, method_name in handlers.items():
         expected = {"id": "1", "type": media_type}
-        with patch.object(mock_deezer_client, method_name, return_value=expected) as mock_handler:
+        with patch.object(
+            mock_deezer_client, method_name, return_value=expected
+        ) as mock_handler:
             result = arun(mock_deezer_client.get_metadata("1", media_type))
             mock_handler.assert_called_once_with("1")
             assert result == expected
@@ -728,6 +751,7 @@ def test_deezer_get_metadata_invalid_type(mock_deezer_client):
 
 
 # ===== search =====
+
 
 def test_deezer_search_track(mock_deezer_client):
     """search returns a list containing the API response when results are found."""
@@ -766,6 +790,7 @@ def _setup_head_mock(mock_client, final_url):
 
 # ===== get_track — error paths =====
 
+
 def test_get_track_api_failure(mock_deezer_client):
     """get_track wraps API errors in NonStreamableError."""
     mock_deezer_client.client.api.get_track.side_effect = Exception("API down")
@@ -792,7 +817,10 @@ def test_get_track_gw_fetch_error_raises(mock_deezer_client):
         "title": "Test Track",
         "album": {"id": 200},
     }
-    mock_deezer_client.client.api.get_album.return_value = {"id": "200", "title": "Album"}
+    mock_deezer_client.client.api.get_album.return_value = {
+        "id": "200",
+        "title": "Album",
+    }
     mock_deezer_client.client.api.get_album_tracks.return_value = {"data": []}
     mock_deezer_client.client.gw.get_track.side_effect = Exception("GW down")
 
@@ -802,11 +830,14 @@ def test_get_track_gw_fetch_error_raises(mock_deezer_client):
 
 # ===== get_album — task exception =====
 
+
 def test_get_album_task_exception_clears_task(mock_deezer_client):
     """A failed get_album task is evicted so it can be retried."""
     mock_deezer_client.client.api.get_album.side_effect = DataException
 
-    with patch.object(mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value=None)):
+    with patch.object(
+        mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value=None)
+    ):
         with pytest.raises(DataException):
             arun(mock_deezer_client.get_album("bad_album"))
 
@@ -814,6 +845,7 @@ def test_get_album_task_exception_clears_task(mock_deezer_client):
 
 
 # ===== _resolve_redirect =====
+
 
 def test_resolve_redirect_success(mock_deezer_client):
     """_resolve_redirect returns the new ID when the server redirects."""
@@ -849,6 +881,7 @@ def test_resolve_redirect_no_regex_match_returns_none(mock_deezer_client):
 
 # ===== get_playlist — GWAPIError =====
 
+
 def test_get_playlist_gw_error_redirect(mock_deezer_client):
     """GWAPIError on get_playlist triggers redirect resolution."""
     call_count = [0]
@@ -862,7 +895,9 @@ def test_get_playlist_gw_error_redirect(mock_deezer_client):
     mock_deezer_client.client.gw.get_playlist.side_effect = gw_get_playlist
     mock_deezer_client.client.gw.get_playlist_tracks.return_value = [{"SNG_ID": "1"}]
 
-    with patch.object(mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value="new_id")):
+    with patch.object(
+        mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value="new_id")
+    ):
         result = arun(mock_deezer_client.get_playlist("old_id"))
 
     assert result["title"] == "Redirected Playlist"
@@ -872,15 +907,19 @@ def test_get_playlist_gw_error_no_redirect_raises(mock_deezer_client):
     """GWAPIError re-raises when no redirect is available."""
     mock_deezer_client.client.gw.get_playlist.side_effect = GWAPIError("not found")
 
-    with patch.object(mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value=None)):
+    with patch.object(
+        mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value=None)
+    ):
         with pytest.raises(GWAPIError):
             arun(mock_deezer_client.get_playlist("bad_id"))
 
 
 # ===== get_artist =====
 
+
 def test_get_artist_redirect(mock_deezer_client):
     """DataException on get_artist triggers redirect resolution."""
+
     def api_get_artist(item_id):
         if item_id == "old_id":
             raise DataException
@@ -889,7 +928,9 @@ def test_get_artist_redirect(mock_deezer_client):
     mock_deezer_client.client.api.get_artist.side_effect = api_get_artist
     mock_deezer_client.client.api.get_artist_albums.return_value = {"data": []}
 
-    with patch.object(mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value="new_id")):
+    with patch.object(
+        mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value="new_id")
+    ):
         result = arun(mock_deezer_client.get_artist("old_id"))
 
     assert result["name"] == "Artist X"
@@ -899,12 +940,15 @@ def test_get_artist_no_redirect_raises(mock_deezer_client):
     """DataException re-raises when no redirect is available for the artist."""
     mock_deezer_client.client.api.get_artist.side_effect = DataException
 
-    with patch.object(mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value=None)):
+    with patch.object(
+        mock_deezer_client, "_resolve_redirect", new=AsyncMock(return_value=None)
+    ):
         with pytest.raises(DataException):
             arun(mock_deezer_client.get_artist("bad_id"))
 
 
 # ===== search — featured / invalid type =====
+
 
 def test_deezer_search_featured_with_query(mock_deezer_client):
     """search('featured', 'releases') calls get_editorial_releases."""
@@ -942,6 +986,7 @@ def test_deezer_search_invalid_media_type(mock_deezer_client):
 
 
 # ===== get_downloadable — additional error paths =====
+
 
 def test_get_downloadable_gw_fetch_fails(mock_deezer_client):
     """NonStreamableError when GW track info can't be fetched (cache miss)."""
@@ -983,6 +1028,7 @@ def test_get_downloadable_missing_cdn_fields(mock_deezer_client):
 
 # ===== _HttpsUpgradeSession =====
 
+
 def test_https_upgrade_session_rewrites_http():
     """_HttpsUpgradeSession rewrites http:// to https:// before prepare_request."""
     session = _HttpsUpgradeSession()
@@ -1016,6 +1062,7 @@ def test_https_upgrade_session_installed_on_gw():
 
 # ===== User-Agent =====
 
+
 def test_deezer_user_agent_reaches_gw_and_api_headers():
     """The UA must land in http_headers, which is what deezer-py puts on the wire.
 
@@ -1046,6 +1093,7 @@ def test_deezer_user_agent_matches_the_download_session():
 
 
 # ===== _gw_to_track_dict =====
+
 
 def _make_gw_track(**overrides) -> dict:
     base = {
@@ -1115,12 +1163,16 @@ def test_gw_to_track_dict_lyrics_forwarded(mock_deezer_client):
 
 # ===== get_track — GW fast path =====
 
+
 def test_get_track_fast_path_skips_rest_call(mock_deezer_client):
     """When GW data is cached with ISRC, get_track uses it without calling REST GET /track."""
     gw = _make_gw_track()
     mock_deezer_client._gw_tracks.set("42", gw)
 
-    mock_deezer_client.client.api.get_album.return_value = {"id": "99", "title": "Album"}
+    mock_deezer_client.client.api.get_album.return_value = {
+        "id": "99",
+        "title": "Album",
+    }
     mock_deezer_client.client.api.get_album_tracks.return_value = {"data": []}
 
     result = arun(mock_deezer_client.get_track("42"))
@@ -1133,7 +1185,10 @@ def test_get_track_fast_path_fetches_album(mock_deezer_client):
     """Fast path resolves album via get_album (which may hit cache)."""
     gw = _make_gw_track()
     mock_deezer_client._gw_tracks.set("42", gw)
-    mock_deezer_client.client.api.get_album.return_value = {"id": "99", "title": "Test Album"}
+    mock_deezer_client.client.api.get_album.return_value = {
+        "id": "99",
+        "title": "Test Album",
+    }
     mock_deezer_client.client.api.get_album_tracks.return_value = {"data": []}
 
     result = arun(mock_deezer_client.get_track("42", fetch_album=True))
@@ -1159,7 +1214,10 @@ def test_get_track_slow_path_when_no_gw_cache(mock_deezer_client):
         "title": "Slow Track",
         "album": {"id": 200},
     }
-    mock_deezer_client.client.api.get_album.return_value = {"id": "200", "title": "Slow Album"}
+    mock_deezer_client.client.api.get_album.return_value = {
+        "id": "200",
+        "title": "Slow Album",
+    }
     mock_deezer_client.client.api.get_album_tracks.return_value = {"data": []}
     mock_deezer_client.client.gw.get_track.return_value = {"SNG_CONTRIBUTORS": {}}
 
@@ -1179,7 +1237,10 @@ def test_get_track_slow_path_when_gw_cache_lacks_isrc(mock_deezer_client):
         "title": "Full Track",
         "album": {"id": 200},
     }
-    mock_deezer_client.client.api.get_album.return_value = {"id": "200", "title": "Album"}
+    mock_deezer_client.client.api.get_album.return_value = {
+        "id": "200",
+        "title": "Album",
+    }
     mock_deezer_client.client.api.get_album_tracks.return_value = {"data": []}
     mock_deezer_client.client.gw.get_track.return_value = {"SNG_CONTRIBUTORS": {}}
 
@@ -1190,6 +1251,7 @@ def test_get_track_slow_path_when_gw_cache_lacks_isrc(mock_deezer_client):
 
 
 # ===== batch URL resolution =====
+
 
 def _cdn_url(track_id: str, ext: str = "flac") -> str:
     """A realistic Deezer CDN URL: the served track's ID is embedded in the path."""
@@ -1209,7 +1271,9 @@ def test_batch_url_single_call_for_multiple_tracks(mock_deezer_client):
     for tid, info in track_infos.items():
         mock_deezer_client._gw_tracks.set_if_absent(tid, info)
     mock_deezer_client.client.get_tracks_url.return_value = [
-        _cdn_url("1"), _cdn_url("2"), _cdn_url("3"),
+        _cdn_url("1"),
+        _cdn_url("2"),
+        _cdn_url("3"),
     ]
 
     for tid in ["1", "2", "3"]:
@@ -1255,14 +1319,18 @@ def test_batch_url_unrecognised_url_layout_is_discarded(mock_deezer_client):
     mock_deezer_client._gw_tracks.set_if_absent(
         "1", {"TRACK_TOKEN": "tok1", "FILESIZE_FLAC": 5000}
     )
-    mock_deezer_client.client.get_tracks_url.return_value = ["https://cdn/unknown-layout.flac"]
+    mock_deezer_client.client.get_tracks_url.return_value = [
+        "https://cdn/unknown-layout.flac"
+    ]
 
     arun(mock_deezer_client._batch_resolve_urls("FLAC"))
 
     assert mock_deezer_client._url_results == {}
 
 
-def test_batch_url_transient_chunk_failure_still_resolves_later_chunks(mock_deezer_client):
+def test_batch_url_transient_chunk_failure_still_resolves_later_chunks(
+    mock_deezer_client,
+):
     """A transient failure on one chunk must not abandon the remaining chunks."""
     for tid in ("1", "2", "3", "4"):
         mock_deezer_client._gw_tracks.set_if_absent(tid, {"TRACK_TOKEN": f"tok{tid}"})
@@ -1343,6 +1411,7 @@ def test_batch_url_geoblocked_track_falls_back_to_individual(mock_deezer_client)
 
 # ===== _gw_to_track_dict — audio params =====
 
+
 def test_gw_to_track_dict_audio_params(mock_deezer_client):
     """_gw_to_track_dict includes bit_depth and sampling_rate derived from Deezer constants."""
     from streamrip.client.deezer import _DEEZER_BIT_DEPTH, _DEEZER_SAMPLING_RATE_KHZ
@@ -1396,6 +1465,7 @@ def test_gw_to_track_dict_album_stub_overwritten_on_fetch_album(mock_deezer_clie
 
 # ===== _fetch_album — audio params =====
 
+
 def test_fetch_album_injects_audio_params(mock_deezer_client):
     """_fetch_album adds bit_depth and sampling_rate so AlbumMetadata.from_deezer reads them."""
     from streamrip.client.deezer import _DEEZER_BIT_DEPTH, _DEEZER_SAMPLING_RATE_HZ
@@ -1415,12 +1485,15 @@ def test_fetch_album_injects_audio_params(mock_deezer_client):
 
 # ===== Integration test =====
 
+
 @pytest.mark.skipif(not _get_arl(), reason="Deezer ARL not found in env or config.")
 def test_deezer_fallback_actually_occurred(deezer_client):
     """Integration: track 77874822 has no FLAC — verify fallback to MP3_320."""
     downloadable = arun(deezer_client.get_downloadable("77874822", quality=2))
 
-    assert downloadable.quality == 1, "Should have fallen back to MP3_320 when FLAC unavailable"
+    assert downloadable.quality == 1, (
+        "Should have fallen back to MP3_320 when FLAC unavailable"
+    )
     assert downloadable.url.startswith("https://")
     assert downloadable._size > 0, "Downloadable should have a valid file size"
     assert downloadable.extension == "mp3", "MP3_320 should have .mp3 extension"

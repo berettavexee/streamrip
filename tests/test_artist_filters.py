@@ -3,7 +3,13 @@ from unittest.mock import MagicMock
 from streamrip.media.artist import Artist
 
 
-def _mock_album(title: str, albumartist: str = "Artist", bit_depth=24, sampling_rate=96, explicit=False):
+def _mock_album(
+    title: str,
+    albumartist: str = "Artist",
+    bit_depth=24,
+    sampling_rate=96,
+    explicit=False,
+):
     a = MagicMock()
     a.meta.album = title
     a.meta.albumartist = albumartist
@@ -103,7 +109,9 @@ class TestFilterRepeats:
 
     def test_bracket_variant_deduplicated(self):
         a1 = _mock_album("Wish You Were Here", bit_depth=16, sampling_rate=44100)
-        a2 = _mock_album("Wish You Were Here (2011 Remaster)", bit_depth=24, sampling_rate=96)
+        a2 = _mock_album(
+            "Wish You Were Here (2011 Remaster)", bit_depth=24, sampling_rate=96
+        )
         result = Artist._filter_repeats([a1, a2])
         assert len(result) == 1
         assert result[0].meta.info.bit_depth == 24
@@ -117,8 +125,14 @@ class TestFilterRepeats:
 
 
 class TestApplyFilters:
-    def _make_filter_conf(self, repeats=False, extras=False, features=False,
-                          non_studio_albums=False, non_remaster=False):
+    def _make_filter_conf(
+        self,
+        repeats=False,
+        extras=False,
+        features=False,
+        non_studio_albums=False,
+        non_remaster=False,
+    ):
         f = MagicMock()
         f.repeats = repeats
         f.extras = extras

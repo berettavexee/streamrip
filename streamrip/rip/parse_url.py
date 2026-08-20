@@ -100,7 +100,9 @@ class GenericURL(URL):
     ) -> Pending:
         source, media_type, item_id = self.match.groups()
         if client.source != source:
-            raise ValueError(f"Client source {client.source!r} does not match URL source {source!r}")
+            raise ValueError(
+                f"Client source {client.source!r} does not match URL source {source!r}"
+            )
         return _pending_from_type(media_type, item_id, client, config, db)
 
 
@@ -153,9 +155,7 @@ class QobuzInterpreterURL(URL):
 
 
 class DeezerArtistTopTrackURL(URL):
-    _re = re.compile(
-        r"https?://(?:www\.)?deezer\.com/[a-z]{2}/artist/(\d+)/top_track"
-    )
+    _re = re.compile(r"https?://(?:www\.)?deezer\.com/[a-z]{2}/artist/(\d+)/top_track")
 
     @classmethod
     def from_str(cls, url: str) -> URL | None:

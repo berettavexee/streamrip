@@ -190,9 +190,7 @@ async def test_ppt_resolve_skips_if_downloaded():
 
 async def test_ppt_resolve_returns_none_on_non_streamable():
     ppt = _ppt()
-    ppt.client.get_track_for_playlist = AsyncMock(
-        side_effect=NonStreamableError("geo")
-    )
+    ppt.client.get_track_for_playlist = AsyncMock(side_effect=NonStreamableError("geo"))
     result = await ppt.resolve()
     assert result is None
 
@@ -201,9 +199,7 @@ async def test_ppt_resolve_records_failure_on_non_streamable():
     """Nothing else records this track: no file, no downloads row. Without a
     failed row it disappears from the playlist with nothing left to retry."""
     ppt = _ppt()
-    ppt.client.get_track_for_playlist = AsyncMock(
-        side_effect=NonStreamableError("geo")
-    )
+    ppt.client.get_track_for_playlist = AsyncMock(side_effect=NonStreamableError("geo"))
     await ppt.resolve()
     ppt.db.set_failed.assert_called_once_with("deezer", "track", "42")
 
@@ -216,7 +212,9 @@ async def test_ppt_resolve_does_not_record_failure_when_already_downloaded():
 
 async def test_ppt_resolve_returns_none_when_album_is_none():
     ppt = _ppt()
-    with patch("streamrip.media.playlist.AlbumMetadata.from_track_resp", return_value=None):
+    with patch(
+        "streamrip.media.playlist.AlbumMetadata.from_track_resp", return_value=None
+    ):
         result = await ppt.resolve()
     assert result is None
     ppt.db.set_failed.assert_called_once()
@@ -225,7 +223,10 @@ async def test_ppt_resolve_returns_none_when_album_is_none():
 async def test_ppt_resolve_returns_none_when_track_meta_is_none():
     ppt = _ppt()
     with (
-        patch("streamrip.media.playlist.AlbumMetadata.from_track_resp", return_value=MagicMock()),
+        patch(
+            "streamrip.media.playlist.AlbumMetadata.from_track_resp",
+            return_value=MagicMock(),
+        ),
         patch("streamrip.media.playlist.TrackMetadata.from_resp", return_value=None),
     ):
         result = await ppt.resolve()
@@ -238,8 +239,13 @@ async def test_ppt_resolve_returns_none_on_download_non_streamable():
     album_meta = MagicMock()
     track_meta = MagicMock()
     with (
-        patch("streamrip.media.playlist.AlbumMetadata.from_track_resp", return_value=album_meta),
-        patch("streamrip.media.playlist.TrackMetadata.from_resp", return_value=track_meta),
+        patch(
+            "streamrip.media.playlist.AlbumMetadata.from_track_resp",
+            return_value=album_meta,
+        ),
+        patch(
+            "streamrip.media.playlist.TrackMetadata.from_resp", return_value=track_meta
+        ),
         patch(
             "streamrip.media.playlist.download_embed_cover",
             new=AsyncMock(side_effect=NonStreamableError("no download")),
@@ -260,9 +266,17 @@ async def test_ppt_resolve_returns_track():
     album_meta = MagicMock()
     track_meta = MagicMock()
     with (
-        patch("streamrip.media.playlist.AlbumMetadata.from_track_resp", return_value=album_meta),
-        patch("streamrip.media.playlist.TrackMetadata.from_resp", return_value=track_meta),
-        patch("streamrip.media.playlist.download_embed_cover", new=AsyncMock(return_value="/cover.jpg")),
+        patch(
+            "streamrip.media.playlist.AlbumMetadata.from_track_resp",
+            return_value=album_meta,
+        ),
+        patch(
+            "streamrip.media.playlist.TrackMetadata.from_resp", return_value=track_meta
+        ),
+        patch(
+            "streamrip.media.playlist.download_embed_cover",
+            new=AsyncMock(return_value="/cover.jpg"),
+        ),
         patch("streamrip.media.playlist.Track") as mock_track,
     ):
         result = await ppt.resolve()
@@ -281,6 +295,7 @@ async def test_ppt_resolve_uses_fallback_metadata_on_geoblock():
         d = MagicMock()
         d.id = "999"  # differs from requested "42"
         return d
+
     client.get_downloadable = AsyncMock(side_effect=_served_fallback)
 
     orig_album, orig_meta = MagicMock(name="orig_album"), MagicMock(name="orig_meta")
@@ -288,44 +303,72 @@ async def test_ppt_resolve_uses_fallback_metadata_on_geoblock():
     album_by_resp = {"orig": orig_album, "fb": fb_album}
 
     # First get_track_for_playlist call = original ("42"), second = fallback ("999")
-    client.get_track_for_playlist = AsyncMock(side_effect=[{"tag": "orig"}, {"tag": "fb"}])
+    client.get_track_for_playlist = AsyncMock(
+        side_effect=[{"tag": "orig"}, {"tag": "fb"}]
+    )
 
     ppt = PendingPlaylistTrack(
-        id="42", client=client, config=_config(),
-        folder="/dl", playlist_name="PL", position=1, db=_db(),
+        id="42",
+        client=client,
+        config=_config(),
+        folder="/dl",
+        playlist_name="PL",
+        position=1,
+        db=_db(),
     )
 
     with (
-        patch("streamrip.media.playlist.AlbumMetadata.from_track_resp",
-              side_effect=lambda resp, _src: album_by_resp[resp["tag"]]),
-        patch("streamrip.media.playlist.TrackMetadata.from_resp",
-              side_effect=lambda album, _src, resp: fb_meta if album is fb_album else orig_meta),
-        patch("streamrip.media.playlist.download_embed_cover",
-              new=AsyncMock(side_effect=["/orig_cover.jpg", "/fb_cover.jpg"])) as mock_cover,
+        patch(
+            "streamrip.media.playlist.AlbumMetadata.from_track_resp",
+            side_effect=lambda resp, _src: album_by_resp[resp["tag"]],
+        ),
+        patch(
+            "streamrip.media.playlist.TrackMetadata.from_resp",
+            side_effect=lambda album, _src, resp: (
+                fb_meta if album is fb_album else orig_meta
+            ),
+        ),
+        patch(
+            "streamrip.media.playlist.download_embed_cover",
+            new=AsyncMock(side_effect=["/orig_cover.jpg", "/fb_cover.jpg"]),
+        ) as mock_cover,
         patch("streamrip.media.playlist.Track") as mock_track,
     ):
         await ppt.resolve()
 
     # The Track was built with the fallback metadata and fallback cover.
     args, _ = mock_track.call_args
-    assert args[0] is fb_meta                 # meta
-    assert args[4] == "/fb_cover.jpg"         # embedded_cover_path
+    assert args[0] is fb_meta  # meta
+    assert args[4] == "/fb_cover.jpg"  # embedded_cover_path
     # Fallback metadata was fetched for the served id.
     client.get_track_for_playlist.assert_any_await("999")
-    assert mock_cover.await_count == 2        # original + fallback cover
+    assert mock_cover.await_count == 2  # original + fallback cover
 
 
 async def test_ppt_resolve_renumbers_track():
     cfg = _config(renumber=True)
     ppt = PendingPlaylistTrack(
-        id="1", client=_client(), config=cfg,
-        folder="/dl", playlist_name="PL", position=7, db=_db()
+        id="1",
+        client=_client(),
+        config=cfg,
+        folder="/dl",
+        playlist_name="PL",
+        position=7,
+        db=_db(),
     )
     track_meta = MagicMock()
     with (
-        patch("streamrip.media.playlist.AlbumMetadata.from_track_resp", return_value=MagicMock()),
-        patch("streamrip.media.playlist.TrackMetadata.from_resp", return_value=track_meta),
-        patch("streamrip.media.playlist.download_embed_cover", new=AsyncMock(return_value=None)),
+        patch(
+            "streamrip.media.playlist.AlbumMetadata.from_track_resp",
+            return_value=MagicMock(),
+        ),
+        patch(
+            "streamrip.media.playlist.TrackMetadata.from_resp", return_value=track_meta
+        ),
+        patch(
+            "streamrip.media.playlist.download_embed_cover",
+            new=AsyncMock(return_value=None),
+        ),
         patch("streamrip.media.playlist.Track"),
     ):
         await ppt.resolve()
@@ -336,14 +379,27 @@ async def test_ppt_resolve_renumbers_track():
 async def test_ppt_resolve_sets_playlist_to_album():
     cfg = _config(set_to_album=True)
     ppt = PendingPlaylistTrack(
-        id="1", client=_client(), config=cfg,
-        folder="/dl", playlist_name="Best Of", position=1, db=_db()
+        id="1",
+        client=_client(),
+        config=cfg,
+        folder="/dl",
+        playlist_name="Best Of",
+        position=1,
+        db=_db(),
     )
     album_meta = MagicMock()
     with (
-        patch("streamrip.media.playlist.AlbumMetadata.from_track_resp", return_value=album_meta),
-        patch("streamrip.media.playlist.TrackMetadata.from_resp", return_value=MagicMock()),
-        patch("streamrip.media.playlist.download_embed_cover", new=AsyncMock(return_value=None)),
+        patch(
+            "streamrip.media.playlist.AlbumMetadata.from_track_resp",
+            return_value=album_meta,
+        ),
+        patch(
+            "streamrip.media.playlist.TrackMetadata.from_resp", return_value=MagicMock()
+        ),
+        patch(
+            "streamrip.media.playlist.download_embed_cover",
+            new=AsyncMock(return_value=None),
+        ),
         patch("streamrip.media.playlist.Track"),
     ):
         await ppt.resolve()
@@ -364,7 +420,10 @@ async def test_pending_playlist_resolve_returns_none_on_non_streamable():
 
 async def test_pending_playlist_resolve_returns_none_on_meta_error():
     pp = PendingPlaylist(id="1", client=_client(), config=_config(), db=_db())
-    with patch("streamrip.media.playlist.PlaylistMetadata.from_resp", side_effect=ValueError("bad")):
+    with patch(
+        "streamrip.media.playlist.PlaylistMetadata.from_resp",
+        side_effect=ValueError("bad"),
+    ):
         assert await pp.resolve() is None
 
 
@@ -476,7 +535,9 @@ async def test_make_query_found_on_primary():
 
     with patch("streamrip.media.playlist.SearchResults.from_pages") as mock_sr:
         mock_sr.return_value.results = [result_id]
-        track_id, from_fallback = await pl._make_query("Song", "Artist", None, s, lambda: None)
+        track_id, from_fallback = await pl._make_query(
+            "Song", "Artist", None, s, lambda: None
+        )
 
     assert track_id == "track-42"
     assert from_fallback is False
@@ -488,7 +549,9 @@ async def test_make_query_not_found_no_fallback():
     pl.client.search = AsyncMock(return_value=[])
     s = PendingLastfmPlaylist.Status(0, 0, 1)
 
-    track_id, _from_fallback = await pl._make_query("Unknown Song", "Artist", None, s, lambda: None)
+    track_id, _from_fallback = await pl._make_query(
+        "Unknown Song", "Artist", None, s, lambda: None
+    )
 
     assert track_id is None
     assert s.failed == 1
@@ -511,7 +574,9 @@ async def test_make_query_found_on_fallback():
 
     with patch("streamrip.media.playlist.SearchResults.from_pages") as mock_sr:
         mock_sr.return_value.results = [result_id]
-        track_id, from_fallback = await pl._make_query("Song", "Artist", None, s, lambda: None)
+        track_id, from_fallback = await pl._make_query(
+            "Song", "Artist", None, s, lambda: None
+        )
 
     assert track_id == "fb-99"
     assert from_fallback is True
@@ -526,7 +591,9 @@ async def test_make_query_not_found_with_fallback():
     pl.client.search = AsyncMock(return_value=[])
 
     s = PendingLastfmPlaylist.Status(0, 0, 1)
-    track_id, _from_fallback = await pl._make_query("Unknown", "Whoever", None, s, lambda: None)
+    track_id, _from_fallback = await pl._make_query(
+        "Unknown", "Whoever", None, s, lambda: None
+    )
 
     assert track_id is None
     assert s.failed == 1
@@ -613,7 +680,10 @@ async def test_lastfm_resolve_writes_unmatched_file():
     pl = _lastfm_playlist()
 
     async def fake_parse(_url):
-        return "Playlist", [("Found Song", "Artist A", None), ("Lost Song", "Artist B", None)]
+        return "Playlist", [
+            ("Found Song", "Artist A", None),
+            ("Lost Song", "Artist B", None),
+        ]
 
     async def fake_query(title, artist, duration, s, cb):
         cb()
@@ -628,6 +698,7 @@ async def test_lastfm_resolve_writes_unmatched_file():
         fn(*args, **kwargs)
 
     from unittest.mock import mock_open
+
     m = mock_open()
 
     with (
@@ -648,9 +719,7 @@ async def test_lastfm_resolve_writes_unmatched_file():
     open_path = m.call_args[0][0]
     assert open_path.endswith("unmatched.txt")
     # Verify the content written contains the unmatched track
-    written_content = "".join(
-        call.args[0] for call in m().write.call_args_list
-    )
+    written_content = "".join(call.args[0] for call in m().write.call_args_list)
     assert "Lost Song" in written_content
     assert "Artist B" in written_content
     assert "Found Song" not in written_content
@@ -708,7 +777,9 @@ async def test_parse_lastfm_single_page(mocker):
     mock_session.__aexit__ = AsyncMock(return_value=False)
     mock_session.get = MagicMock(return_value=mock_resp)
 
-    with patch("streamrip.media.playlist.aiohttp.ClientSession", return_value=mock_session):
+    with patch(
+        "streamrip.media.playlist.aiohttp.ClientSession", return_value=mock_session
+    ):
         with patch("streamrip.media.playlist.aiohttp.TCPConnector"):
             title, pairs = await pl._parse_lastfm_playlist("https://last.fm/x")
 
@@ -731,7 +802,9 @@ async def test_parse_lastfm_raises_when_title_missing(mocker):
     mock_session.__aexit__ = AsyncMock(return_value=False)
     mock_session.get = MagicMock(return_value=mock_resp)
 
-    with patch("streamrip.media.playlist.aiohttp.ClientSession", return_value=mock_session):
+    with patch(
+        "streamrip.media.playlist.aiohttp.ClientSession", return_value=mock_session
+    ):
         with patch("streamrip.media.playlist.aiohttp.TCPConnector"):
             with pytest.raises(Exception, match="Could not find playlist title"):
                 await pl._parse_lastfm_playlist("https://last.fm/x")
@@ -760,7 +833,9 @@ async def test_parse_lastfm_raises_when_track_count_missing():
     mock_session.__aexit__ = AsyncMock(return_value=False)
     mock_session.get = MagicMock(return_value=mock_resp)
 
-    with patch("streamrip.media.playlist.aiohttp.ClientSession", return_value=mock_session):
+    with patch(
+        "streamrip.media.playlist.aiohttp.ClientSession", return_value=mock_session
+    ):
         with patch("streamrip.media.playlist.aiohttp.TCPConnector"):
             with pytest.raises(Exception, match="Could not find track count"):
                 await pl._parse_lastfm_playlist("https://last.fm/x")
@@ -804,7 +879,9 @@ async def test_parse_lastfm_multi_page():
     mock_session.__aexit__ = AsyncMock(return_value=False)
     mock_session.get = MagicMock(return_value=mock_resp)
 
-    with patch("streamrip.media.playlist.aiohttp.ClientSession", return_value=mock_session):
+    with patch(
+        "streamrip.media.playlist.aiohttp.ClientSession", return_value=mock_session
+    ):
         with patch("streamrip.media.playlist.aiohttp.TCPConnector"):
             title, pairs = await pl._parse_lastfm_playlist("https://last.fm/x")
 
@@ -827,8 +904,10 @@ def _mock_session_with_status(status: int):
 
 async def test_parse_lastfm_raises_on_404():
     pl = _lastfm_playlist()
-    with patch("streamrip.media.playlist.aiohttp.ClientSession",
-               return_value=_mock_session_with_status(404)):
+    with patch(
+        "streamrip.media.playlist.aiohttp.ClientSession",
+        return_value=_mock_session_with_status(404),
+    ):
         with patch("streamrip.media.playlist.aiohttp.TCPConnector"):
             with pytest.raises(Exception, match="HTTP 404"):
                 await pl._parse_lastfm_playlist("https://last.fm/x")
@@ -836,8 +915,10 @@ async def test_parse_lastfm_raises_on_404():
 
 async def test_parse_lastfm_raises_on_5xx():
     pl = _lastfm_playlist()
-    with patch("streamrip.media.playlist.aiohttp.ClientSession",
-               return_value=_mock_session_with_status(503)):
+    with patch(
+        "streamrip.media.playlist.aiohttp.ClientSession",
+        return_value=_mock_session_with_status(503),
+    ):
         with patch("streamrip.media.playlist.aiohttp.TCPConnector"):
             with pytest.raises(Exception, match="HTTP 503"):
                 await pl._parse_lastfm_playlist("https://last.fm/x")
@@ -878,7 +959,13 @@ _LASTFM_LOVED_RESPONSE_P1 = {
             {"name": "Song A", "artist": {"name": "Artist A"}},
             {"name": "Song B", "artist": {"name": "Artist B"}},
         ],
-        "@attr": {"user": "bob", "page": "1", "totalPages": "2", "perPage": "2", "total": "3"},
+        "@attr": {
+            "user": "bob",
+            "page": "1",
+            "totalPages": "2",
+            "perPage": "2",
+            "total": "3",
+        },
     }
 }
 _LASTFM_LOVED_RESPONSE_P2 = {
@@ -886,7 +973,13 @@ _LASTFM_LOVED_RESPONSE_P2 = {
         "track": [
             {"name": "Song C", "artist": {"name": "Artist C"}},
         ],
-        "@attr": {"user": "bob", "page": "2", "totalPages": "2", "perPage": "2", "total": "3"},
+        "@attr": {
+            "user": "bob",
+            "page": "2",
+            "totalPages": "2",
+            "perPage": "2",
+            "total": "3",
+        },
     }
 }
 
@@ -922,7 +1015,10 @@ def _mock_loved_session(pages):
             "_parse_lastfm_user_top_tracks",
         ),
         ("https://www.last.fm/de/user/bob/loved", "_parse_lastfm_loved_tracks"),
-        ("https://www.last.fm/ja/music/Nirvana/+tracks", "_parse_lastfm_artist_top_tracks"),
+        (
+            "https://www.last.fm/ja/music/Nirvana/+tracks",
+            "_parse_lastfm_artist_top_tracks",
+        ),
     ],
 )
 async def test_parse_lastfm_dispatch_accepts_locale_prefix(url, parser):
@@ -1006,13 +1102,21 @@ async def test_parse_lastfm_loved_tracks_single_page():
             "track": [
                 {"name": "Song A", "artist": {"name": "Artist A"}},
             ],
-            "@attr": {"user": "bob", "page": "1", "totalPages": "1", "perPage": "50", "total": "1"},
+            "@attr": {
+                "user": "bob",
+                "page": "1",
+                "totalPages": "1",
+                "perPage": "50",
+                "total": "1",
+            },
         }
     }
 
     with (
-        patch("streamrip.media.playlist.aiohttp.ClientSession",
-              return_value=_mock_loved_session([single_page])),
+        patch(
+            "streamrip.media.playlist.aiohttp.ClientSession",
+            return_value=_mock_loved_session([single_page]),
+        ),
         patch("streamrip.media.playlist.aiohttp.TCPConnector"),
     ):
         title, tracks = await pl._parse_lastfm_loved_tracks(
@@ -1029,10 +1133,12 @@ async def test_parse_lastfm_loved_tracks_multi_page():
     pl.config.session.lastfm.max_tracks = 0  # no limit
 
     with (
-        patch("streamrip.media.playlist.aiohttp.ClientSession",
-              return_value=_mock_loved_session(
-                  [_LASTFM_LOVED_RESPONSE_P1, _LASTFM_LOVED_RESPONSE_P2]
-              )),
+        patch(
+            "streamrip.media.playlist.aiohttp.ClientSession",
+            return_value=_mock_loved_session(
+                [_LASTFM_LOVED_RESPONSE_P1, _LASTFM_LOVED_RESPONSE_P2]
+            ),
+        ),
         patch("streamrip.media.playlist.aiohttp.TCPConnector"),
     ):
         title, tracks = await pl._parse_lastfm_loved_tracks(
@@ -1053,10 +1159,12 @@ async def test_parse_lastfm_loved_tracks_respects_max_tracks():
     pl.config.session.lastfm.max_tracks = 1
 
     with (
-        patch("streamrip.media.playlist.aiohttp.ClientSession",
-              return_value=_mock_loved_session(
-                  [_LASTFM_LOVED_RESPONSE_P1, _LASTFM_LOVED_RESPONSE_P2]
-              )),
+        patch(
+            "streamrip.media.playlist.aiohttp.ClientSession",
+            return_value=_mock_loved_session(
+                [_LASTFM_LOVED_RESPONSE_P1, _LASTFM_LOVED_RESPONSE_P2]
+            ),
+        ),
         patch("streamrip.media.playlist.aiohttp.TCPConnector"),
     ):
         _title, tracks = await pl._parse_lastfm_loved_tracks(
@@ -1097,6 +1205,7 @@ async def test_resolve_returns_none_and_logs_error_when_api_key_missing(url, cap
         db=_db(),
     )
     import logging
+
     with caplog.at_level(logging.ERROR, logger="streamrip"):
         result = await pl.resolve()
 
@@ -1150,7 +1259,9 @@ async def test_make_query_pages_returned_but_no_results():
 
     with patch("streamrip.media.playlist.SearchResults.from_pages") as mock_sr:
         mock_sr.return_value.results = []
-        track_id, _from_fallback = await pl._make_query("Song", "Artist", None, s, lambda: None)
+        track_id, _from_fallback = await pl._make_query(
+            "Song", "Artist", None, s, lambda: None
+        )
 
     assert track_id is None
     assert s.failed == 1
@@ -1175,7 +1286,9 @@ async def test_make_query_score_below_threshold(caplog):
         mock_sr.return_value.results = [result]
         with patch("streamrip.media.playlist.score_similarity", return_value=0.20):
             with caplog.at_level(logging.WARNING, logger="streamrip"):
-                track_id, _from_fallback = await pl._make_query("Song", "Artist", None, s, lambda: None)
+                track_id, _from_fallback = await pl._make_query(
+                    "Song", "Artist", None, s, lambda: None
+                )
 
     assert track_id is None
     assert s.failed == 1
@@ -1241,8 +1354,10 @@ async def test_parse_lastfm_user_top_tracks_single_page():
     pl.config.session.lastfm.max_tracks = 50
 
     with (
-        patch("streamrip.media.playlist.aiohttp.ClientSession",
-              return_value=_mock_loved_session([_LASTFM_USER_TOP_RESPONSE])),
+        patch(
+            "streamrip.media.playlist.aiohttp.ClientSession",
+            return_value=_mock_loved_session([_LASTFM_USER_TOP_RESPONSE]),
+        ),
         patch("streamrip.media.playlist.aiohttp.TCPConnector"),
     ):
         title, tracks = await pl._parse_lastfm_user_top_tracks(
@@ -1262,8 +1377,10 @@ async def test_parse_lastfm_user_top_tracks_date_preset():
     pl.config.session.lastfm.max_tracks = 50
 
     with (
-        patch("streamrip.media.playlist.aiohttp.ClientSession",
-              return_value=_mock_loved_session([_LASTFM_USER_TOP_RESPONSE])),
+        patch(
+            "streamrip.media.playlist.aiohttp.ClientSession",
+            return_value=_mock_loved_session([_LASTFM_USER_TOP_RESPONSE]),
+        ),
         patch("streamrip.media.playlist.aiohttp.TCPConnector"),
     ):
         title, _tracks = await pl._parse_lastfm_user_top_tracks(
@@ -1279,8 +1396,10 @@ async def test_parse_lastfm_user_top_tracks_respects_max_tracks():
     pl.config.session.lastfm.max_tracks = 1
 
     with (
-        patch("streamrip.media.playlist.aiohttp.ClientSession",
-              return_value=_mock_loved_session([_LASTFM_USER_TOP_RESPONSE])),
+        patch(
+            "streamrip.media.playlist.aiohttp.ClientSession",
+            return_value=_mock_loved_session([_LASTFM_USER_TOP_RESPONSE]),
+        ),
         patch("streamrip.media.playlist.aiohttp.TCPConnector"),
     ):
         _title, tracks = await pl._parse_lastfm_user_top_tracks(
@@ -1296,7 +1415,9 @@ async def test_parse_lastfm_user_top_tracks_invalid_url():
     pl.config.session.lastfm.api_key = "key"
 
     with pytest.raises(Exception, match="Could not parse user library URL"):
-        await pl._parse_lastfm_user_top_tracks("https://www.last.fm/music/Artist/+tracks")
+        await pl._parse_lastfm_user_top_tracks(
+            "https://www.last.fm/music/Artist/+tracks"
+        )
 
 
 _LASTFM_USER_TOP_P1 = {
@@ -1324,8 +1445,12 @@ async def test_parse_lastfm_user_top_tracks_multi_page_and_bad_duration():
     pl.config.session.lastfm.max_tracks = 0  # no limit
 
     with (
-        patch("streamrip.media.playlist.aiohttp.ClientSession",
-              return_value=_mock_loved_session([_LASTFM_USER_TOP_P1, _LASTFM_USER_TOP_P2])),
+        patch(
+            "streamrip.media.playlist.aiohttp.ClientSession",
+            return_value=_mock_loved_session(
+                [_LASTFM_USER_TOP_P1, _LASTFM_USER_TOP_P2]
+            ),
+        ),
         patch("streamrip.media.playlist.aiohttp.TCPConnector"),
     ):
         _title, tracks = await pl._parse_lastfm_user_top_tracks(
@@ -1333,7 +1458,7 @@ async def test_parse_lastfm_user_top_tracks_multi_page_and_bad_duration():
         )
 
     assert len(tracks) == 2
-    assert tracks[0] == ("Song A", "Artist A", None)   # "bad_dur" → None
+    assert tracks[0] == ("Song A", "Artist A", None)  # "bad_dur" → None
     assert tracks[1] == ("Song B", "Artist B", 200)
 
 
@@ -1371,8 +1496,10 @@ async def test_parse_lastfm_artist_top_tracks_single_page():
     pl.config.session.lastfm.max_tracks = 50
 
     with (
-        patch("streamrip.media.playlist.aiohttp.ClientSession",
-              return_value=_mock_loved_session([_LASTFM_ARTIST_TOP_RESPONSE])),
+        patch(
+            "streamrip.media.playlist.aiohttp.ClientSession",
+            return_value=_mock_loved_session([_LASTFM_ARTIST_TOP_RESPONSE]),
+        ),
         patch("streamrip.media.playlist.aiohttp.TCPConnector"),
     ):
         title, tracks = await pl._parse_lastfm_artist_top_tracks(
@@ -1389,7 +1516,9 @@ async def test_parse_lastfm_artist_top_tracks_invalid_url():
     pl.config.session.lastfm.api_key = "key"
 
     with pytest.raises(Exception, match="Could not parse artist tracks URL"):
-        await pl._parse_lastfm_artist_top_tracks("https://www.last.fm/user/alice/library/tracks")
+        await pl._parse_lastfm_artist_top_tracks(
+            "https://www.last.fm/user/alice/library/tracks"
+        )
 
 
 _LASTFM_ARTIST_MULTI_TRACKS = {
@@ -1410,8 +1539,10 @@ async def test_parse_lastfm_artist_top_tracks_max_tracks_inner_break():
     pl.config.session.lastfm.max_tracks = 1
 
     with (
-        patch("streamrip.media.playlist.aiohttp.ClientSession",
-              return_value=_mock_loved_session([_LASTFM_ARTIST_MULTI_TRACKS])),
+        patch(
+            "streamrip.media.playlist.aiohttp.ClientSession",
+            return_value=_mock_loved_session([_LASTFM_ARTIST_MULTI_TRACKS]),
+        ),
         patch("streamrip.media.playlist.aiohttp.TCPConnector"),
     ):
         _title, tracks = await pl._parse_lastfm_artist_top_tracks(
@@ -1446,8 +1577,12 @@ async def test_parse_lastfm_artist_top_tracks_multi_page_and_bad_duration():
     pl.config.session.lastfm.max_tracks = 0  # no limit
 
     with (
-        patch("streamrip.media.playlist.aiohttp.ClientSession",
-              return_value=_mock_loved_session([_LASTFM_ARTIST_TOP_P1, _LASTFM_ARTIST_TOP_P2])),
+        patch(
+            "streamrip.media.playlist.aiohttp.ClientSession",
+            return_value=_mock_loved_session(
+                [_LASTFM_ARTIST_TOP_P1, _LASTFM_ARTIST_TOP_P2]
+            ),
+        ),
         patch("streamrip.media.playlist.aiohttp.TCPConnector"),
     ):
         _title, tracks = await pl._parse_lastfm_artist_top_tracks(
@@ -1466,8 +1601,10 @@ async def test_parse_lastfm_artist_top_tracks_date_preset_warning(caplog):
     pl.config.session.lastfm.max_tracks = 50
 
     with (
-        patch("streamrip.media.playlist.aiohttp.ClientSession",
-              return_value=_mock_loved_session([_LASTFM_ARTIST_TOP_RESPONSE])),
+        patch(
+            "streamrip.media.playlist.aiohttp.ClientSession",
+            return_value=_mock_loved_session([_LASTFM_ARTIST_TOP_RESPONSE]),
+        ),
         patch("streamrip.media.playlist.aiohttp.TCPConnector"),
     ):
         with caplog.at_level(logging.WARNING, logger="streamrip"):
@@ -1505,7 +1642,9 @@ async def test_parse_lastfm_html_warns_when_no_tracks(caplog):
     mock_session.__aexit__ = AsyncMock(return_value=False)
     mock_session.get = MagicMock(return_value=mock_resp)
 
-    with patch("streamrip.media.playlist.aiohttp.ClientSession", return_value=mock_session):
+    with patch(
+        "streamrip.media.playlist.aiohttp.ClientSession", return_value=mock_session
+    ):
         with patch("streamrip.media.playlist.aiohttp.TCPConnector"):
             with caplog.at_level(logging.WARNING, logger="streamrip"):
                 title, pairs = await pl._parse_lastfm_playlist("https://last.fm/x")

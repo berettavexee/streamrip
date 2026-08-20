@@ -10,7 +10,7 @@ logger = logging.getLogger("streamrip")
 # or catastrophic failures without producing false positives on legitimately
 # compressed audio.
 _MIN_KBPS: dict[int, int] = {
-    0: 50,   # MP3 128 kbps requested
+    0: 50,  # MP3 128 kbps requested
     1: 100,  # MP3 320 kbps requested
     2: 100,  # FLAC 16-bit (compression reduces bitrate well below uncompressed)
     3: 200,  # Hi-Res FLAC (24-bit / high sample rate)

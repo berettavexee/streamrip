@@ -5,6 +5,7 @@ from streamrip.metadata.label import LabelMetadata
 
 # ---- ArtistMetadata ----
 
+
 class TestArtistMetadataFromResp:
     def test_from_qobuz(self):
         resp = {"name": "Pink Floyd", "albums": {"items": [{"id": "1"}, {"id": "2"}]}}
@@ -35,6 +36,7 @@ class TestArtistMetadataFromResp:
 
 
 # ---- LabelMetadata ----
+
 
 class TestLabelMetadataFromResp:
     def test_from_qobuz(self):

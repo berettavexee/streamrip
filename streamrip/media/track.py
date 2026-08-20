@@ -228,9 +228,7 @@ class Track(Media):
                 self.meta.artist,
                 reason,
             )
-            self.db.set_failed(
-                self.downloadable.source, "track", self.meta.info.id
-            )
+            self.db.set_failed(self.downloadable.source, "track", self.meta.info.id)
             raise NonStreamableError(
                 f"Integrity check failed for '{self.meta.title}': {reason}"
             )
@@ -439,8 +437,11 @@ class PendingSingle(Pending):
 
         embedded_cover_path, downloadable = await asyncio.gather(
             download_embed_cover(
-                self.client.session, folder, album.covers,
-                self.config.session.artwork, for_playlist=False,
+                self.client.session,
+                folder,
+                album.covers,
+                self.config.session.artwork,
+                for_playlist=False,
             ),
             self.client.get_downloadable(self.id, quality),
         )
@@ -462,4 +463,6 @@ class PendingSingle(Pending):
             parent = os.path.join(parent, self.client.source.capitalize())
         configured_quality = c.get_source(self.client.source).quality
         effective_quality = min(configured_quality, meta.info.quality)
-        return os.path.join(parent, meta.format_folder_path(formatter, effective_quality))
+        return os.path.join(
+            parent, meta.format_folder_path(formatter, effective_quality)
+        )

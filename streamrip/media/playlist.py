@@ -77,8 +77,11 @@ class PendingPlaylistTrack(Pending):
         try:
             embedded_cover_path, downloadable = await asyncio.gather(
                 download_embed_cover(
-                    self.client.session, self.folder, album.covers,
-                    self.config.session.artwork, for_playlist=True,
+                    self.client.session,
+                    self.folder,
+                    album.covers,
+                    self.config.session.artwork,
+                    for_playlist=True,
                 ),
                 self.client.get_downloadable(self.id, quality),
             )
@@ -141,19 +144,25 @@ class PendingPlaylistTrack(Pending):
             if fb_meta is None:
                 return None
             cover = await download_embed_cover(
-                self.client.session, self.folder, fb_album.covers,
-                self.config.session.artwork, for_playlist=True,
+                self.client.session,
+                self.folder,
+                fb_album.covers,
+                self.config.session.artwork,
+                for_playlist=True,
             )
             logger.debug(
                 "Track %s served from fallback %s; using it for metadata and cover",
-                self.id, served_id,
+                self.id,
+                served_id,
             )
             return fb_album, fb_meta, cover
         except Exception as e:
             logger.warning(
                 "Could not fetch fallback metadata for track %s "
                 "(served %s): %s — keeping original metadata",
-                self.id, served_id, e,
+                self.id,
+                served_id,
+                e,
             )
             return None
 
@@ -255,7 +264,9 @@ class PendingPlaylist(Pending):
         if max_tracks > 0 and len(ids) > max_tracks:
             logger.info(
                 "Limiting '%s' to the first %d of %d tracks (--max-tracks).",
-                name, max_tracks, len(ids),
+                name,
+                max_tracks,
+                len(ids),
             )
             ids = ids[:max_tracks]
 
@@ -281,23 +292,17 @@ class PendingPlaylist(Pending):
 # not a playlist. Non-capturing, so the group numbers below stay put.
 _LASTFM_LOCALE = r"https://www\.last\.fm/(?:[a-z]{2}/)?"
 
-_LASTFM_USER_LIBRARY_RE = re.compile(
-    _LASTFM_LOCALE + r"user/(\w+)/library/tracks"
-)
-_LASTFM_LOVED_TRACKS_RE = re.compile(
-    _LASTFM_LOCALE + r"user/(\w+)/loved"
-)
-_LASTFM_ARTIST_TRACKS_RE = re.compile(
-    _LASTFM_LOCALE + r"music/([^/]+)/\+tracks"
-)
-_LASTFM_ARTIST_PAGE_RE = re.compile(
-    _LASTFM_LOCALE + r"music/([^/]+)/?$"
-)
+_LASTFM_USER_LIBRARY_RE = re.compile(_LASTFM_LOCALE + r"user/(\w+)/library/tracks")
+_LASTFM_LOVED_TRACKS_RE = re.compile(_LASTFM_LOCALE + r"user/(\w+)/loved")
+_LASTFM_ARTIST_TRACKS_RE = re.compile(_LASTFM_LOCALE + r"music/([^/]+)/\+tracks")
+_LASTFM_ARTIST_PAGE_RE = re.compile(_LASTFM_LOCALE + r"music/([^/]+)/?$")
 _LASTFM_API = "https://ws.audioscrobbler.com/2.0/"
 
 
 class _LastfmConfigError(Exception):
     """Raised when required Last.fm configuration (e.g. api_key) is missing."""
+
+
 _LASTFM_PERIOD_MAP = {
     "LAST_7_DAYS": "7day",
     "LAST_30_DAYS": "1month",
@@ -339,7 +344,11 @@ class PendingLastfmPlaylist(Pending):
             logger.error("%s", e)
             return None
         except Exception as e:
-            logger.error("Error occurred while fetching Last.fm playlist %s: %s", self.lastfm_url, e)
+            logger.error(
+                "Error occurred while fetching Last.fm playlist %s: %s",
+                self.lastfm_url,
+                e,
+            )
             return None
 
         requests = []
@@ -374,7 +383,9 @@ class PendingLastfmPlaylist(Pending):
                     )
 
                 for title, artist, duration in titles_artists:
-                    requests.append(self._make_query(title, artist, duration, s, callback))
+                    requests.append(
+                        self._make_query(title, artist, duration, s, callback)
+                    )
                 results: list[tuple[str | None, bool]] = await asyncio.gather(*requests)
         else:
 
@@ -466,11 +477,18 @@ class PendingLastfmPlaylist(Pending):
         min_score = self.config.session.lastfm.min_score
 
         def _best_id(pages: list[dict], source: str) -> str | None:
-            results: list[TrackSummary] = SearchResults.from_pages(source, "track", pages).results  # type: ignore[assignment]
+            results: list[TrackSummary] = SearchResults.from_pages(
+                source, "track", pages
+            ).results  # type: ignore[assignment]
             if not results:
                 return None
             scored = [
-                (score_similarity(title, [artist], r.name, r.artist, duration, r.duration), r)
+                (
+                    score_similarity(
+                        title, [artist], r.name, r.artist, duration, r.duration
+                    ),
+                    r,
+                )
                 for r in results
             ]
             best_score, best = max(scored, key=lambda x: x[0])
@@ -481,13 +499,25 @@ class PendingLastfmPlaylist(Pending):
             )
             logger.debug(
                 "Best match for '%s' by '%s' on %s: '%s' by '%s' (score=%.2f%s)",
-                title, artist, source, best.name, best.artist, best_score, dur_info,
+                title,
+                artist,
+                source,
+                best.name,
+                best.artist,
+                best_score,
+                dur_info,
             )
             if best_score < min_score:
                 logger.warning(
                     "Rejecting match for '%s' by '%s' on %s: "
                     "'%s' by '%s' scored %.2f (min_score=%.2f)",
-                    title, artist, source, best.name, best.artist, best_score, min_score,
+                    title,
+                    artist,
+                    source,
+                    best.name,
+                    best.artist,
+                    best_score,
+                    min_score,
                 )
                 return None
             return best.id
@@ -504,7 +534,9 @@ class PendingLastfmPlaylist(Pending):
             if self.fallback_client is None:
                 logger.debug(
                     "No result found for '%s' by '%s' on %s",
-                    title, artist, self.client.source,
+                    title,
+                    artist,
+                    self.client.source,
                 )
                 search_status.failed += 1
                 return None, False
@@ -515,14 +547,19 @@ class PendingLastfmPlaylist(Pending):
                 if best is not None:
                     logger.debug(
                         "Found result for '%s' by '%s' on fallback source %s",
-                        title, artist, self.fallback_client.source,
+                        title,
+                        artist,
+                        self.fallback_client.source,
                     )
                     search_status.found += 1
                     return best, True
 
             logger.debug(
                 "No result found for '%s' by '%s' on primary source %s or fallback source %s",
-                title, artist, self.client.source, self.fallback_client.source,
+                title,
+                artist,
+                self.client.source,
+                self.fallback_client.source,
             )
             search_status.failed += 1
         return None, False
@@ -644,19 +681,24 @@ class PendingLastfmPlaylist(Pending):
         """
         max_tracks = self.config.session.lastfm.max_tracks
         verify_ssl = getattr(self.config.session.downloads, "verify_ssl", True)
-        connector = aiohttp.TCPConnector(**get_aiohttp_connector_kwargs(verify_ssl=verify_ssl))
+        connector = aiohttp.TCPConnector(
+            **get_aiohttp_connector_kwargs(verify_ssl=verify_ssl)
+        )
         tracks: list[tuple[str, str, int | None]] = []
         page = 1
 
         async with aiohttp.ClientSession(connector=connector) as session:
             while True:
-                data = await self._fetch_lastfm_api(session, {
-                    "method": method,
-                    "format": "json",
-                    "limit": page_size,
-                    "page": page,
-                    **params,
-                })
+                data = await self._fetch_lastfm_api(
+                    session,
+                    {
+                        "method": method,
+                        "format": "json",
+                        "limit": page_size,
+                        "page": page,
+                        **params,
+                    },
+                )
                 root = data[root_key]
                 total_pages = int(root["@attr"]["totalPages"])
                 for track in root.get("track", []):
@@ -669,7 +711,9 @@ class PendingLastfmPlaylist(Pending):
                     tracks.append((track["name"], track["artist"]["name"], dur))
                     if max_tracks > 0 and len(tracks) >= max_tracks:
                         break
-                if page >= total_pages or (max_tracks > 0 and len(tracks) >= max_tracks):
+                if page >= total_pages or (
+                    max_tracks > 0 and len(tracks) >= max_tracks
+                ):
                     break
                 page += 1
 
@@ -708,7 +752,9 @@ class PendingLastfmPlaylist(Pending):
         limit_str = str(max_tracks) if max_tracks > 0 else "all"
         logger.info(
             "Last.fm user library: %s — period: %s — limit: %s tracks",
-            username, label, limit_str,
+            username,
+            label,
+            limit_str,
         )
 
         tracks = await self._fetch_lastfm_paginated(
@@ -720,7 +766,9 @@ class PendingLastfmPlaylist(Pending):
 
         logger.debug(
             "Fetched %d tracks for user '%s' (%s) from Last.fm API",
-            len(tracks), username, period,
+            len(tracks),
+            username,
+            period,
         )
         return playlist_title, tracks
 
@@ -756,7 +804,8 @@ class PendingLastfmPlaylist(Pending):
         limit_str = str(max_tracks) if max_tracks > 0 else "all"
         logger.info(
             "Last.fm loved tracks: %s — limit: %s tracks",
-            username, limit_str,
+            username,
+            limit_str,
         )
 
         tracks = await self._fetch_lastfm_paginated(
@@ -769,7 +818,8 @@ class PendingLastfmPlaylist(Pending):
 
         logger.debug(
             "Fetched %d loved tracks for user '%s' from Last.fm API",
-            len(tracks), username,
+            len(tracks),
+            username,
         )
         return playlist_title, tracks
 
@@ -823,7 +873,8 @@ class PendingLastfmPlaylist(Pending):
 
         logger.debug(
             "Fetched %d tracks for artist '%s' from Last.fm API",
-            len(tracks), artist_name,
+            len(tracks),
+            artist_name,
         )
         return playlist_title, tracks
 
@@ -854,7 +905,9 @@ class PendingLastfmPlaylist(Pending):
             info: list[tuple[str, str, int | None]] = []
             titles = title_tags.findall(page_text)  # [2:]
             for i in range(0, len(titles) - 1, 2):
-                info.append((html.unescape(titles[i]), html.unescape(titles[i + 1]), None))
+                info.append(
+                    (html.unescape(titles[i]), html.unescape(titles[i + 1]), None)
+                )
             return info
 
         async def fetch(session: aiohttp.ClientSession, url, **kwargs):
@@ -862,9 +915,7 @@ class PendingLastfmPlaylist(Pending):
                 if resp.status == 404:
                     raise Exception(f"Last.fm playlist not found (HTTP 404): {url}")
                 if resp.status != 200:
-                    raise Exception(
-                        f"Last.fm returned HTTP {resp.status} for {url}"
-                    )
+                    raise Exception(f"Last.fm returned HTTP {resp.status} for {url}")
                 return await resp.text("utf-8")
 
         # Create new session so we're not bound by rate limit
@@ -883,7 +934,9 @@ class PendingLastfmPlaylist(Pending):
 
             playlist_title: str = html.unescape(playlist_title_match.group(1))
 
-            title_artist_pairs: list[tuple[str, str, int | None]] = find_title_artist_pairs(page)
+            title_artist_pairs: list[tuple[str, str, int | None]] = (
+                find_title_artist_pairs(page)
+            )
 
             total_tracks_match = re_total_tracks.search(page)
             if total_tracks_match is None:
@@ -897,7 +950,8 @@ class PendingLastfmPlaylist(Pending):
                 logger.warning(
                     "Last.fm playlist '%s' was parsed successfully but contains no tracks "
                     "(total declared: %d). The page structure may have changed.",
-                    playlist_title, total_tracks,
+                    playlist_title,
+                    total_tracks,
                 )
 
             remaining_tracks = total_tracks - 50  # already got 50 from 1st page
@@ -916,4 +970,3 @@ class PendingLastfmPlaylist(Pending):
             title_artist_pairs.extend(find_title_artist_pairs(page))
 
         return playlist_title, title_artist_pairs
-

@@ -55,7 +55,9 @@ class PendingUserFavorites(Pending):
         try:
             ids = await self.client.get_user_favorite_ids(self.media_type)
         except Exception as e:
-            logger.error("Failed to fetch %s favorites from %s: %s", self.media_type, source, e)
+            logger.error(
+                "Failed to fetch %s favorites from %s: %s", self.media_type, source, e
+            )
             return None
 
         if not ids:
@@ -68,7 +70,9 @@ class PendingUserFavorites(Pending):
             raise NotImplementedError(f"No Pending type for {self.media_type!r}")
 
         pending = [cls(item_id, self.client, self.config, self.db) for item_id in ids]
-        logger.info("Found %d favorited %s on %s", len(pending), self.media_type, source)
+        logger.info(
+            "Found %d favorited %s on %s", len(pending), self.media_type, source
+        )
         return UserFavorites(pending_items=pending, media_type=self.media_type)
 
 
@@ -93,6 +97,7 @@ class UserFavorites(Media):
         Args:
             stats: Optional accumulator for download metrics.
         """
+
         async def _rip(item: Pending):
             try:
                 media = await item.resolve()

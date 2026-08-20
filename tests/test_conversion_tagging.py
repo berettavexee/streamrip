@@ -67,9 +67,19 @@ def tagged_flac(tmp_path, meta) -> str:
     path = str(tmp_path / "source.flac")
     subprocess.run(
         [
-            "ffmpeg", "-loglevel", "error", "-y",
-            "-f", "lavfi", "-i", "sine=frequency=440:duration=6",
-            "-sample_fmt", "s16", "-c:a", "flac", path,
+            "ffmpeg",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=6",
+            "-sample_fmt",
+            "s16",
+            "-c:a",
+            "flac",
+            path,
         ],
         check=True,
     )

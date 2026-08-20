@@ -16,6 +16,7 @@ from streamrip.exceptions import NonStreamableError
 
 # ── generate_temp_path ───────────────────────────────────────────────────────
 
+
 class TestGenerateTempPath:
     def test_returns_string(self):
         path = generate_temp_path("https://example.com/track.mp3")
@@ -38,6 +39,7 @@ class TestGenerateTempPath:
 
 # ── BasicDownloadable ────────────────────────────────────────────────────────
 
+
 class TestBasicDownloadable:
     def _make(self, url="https://ex.com/a.flac", ext="flac", source="qobuz"):
         return BasicDownloadable(MagicMock(), url, ext, source)
@@ -55,6 +57,7 @@ class TestBasicDownloadable:
 
 
 # ── DeezerDownloadable ───────────────────────────────────────────────────────
+
 
 def _deezer_info(quality=2, quality_to_size=None, url=None):
     if quality_to_size is None:
@@ -115,7 +118,9 @@ class TestDeezerDownloadable:
 
     def test_legacy_mobile_url_without_extension_uses_quality(self):
         # The legacy /mobile/ CDN URL carries no extension; fall back to quality.
-        info = _deezer_info(quality=2, url="https://e-cdns-proxy-a.dzcdn.net/mobile/1/abc")
+        info = _deezer_info(
+            quality=2, url="https://e-cdns-proxy-a.dzcdn.net/mobile/1/abc"
+        )
         d = DeezerDownloadable(MagicMock(), info)
         assert d.extension == "flac"
 
@@ -128,7 +133,9 @@ class TestDeezerDownloadable:
         assert d.quality == 2
 
     def test_size_set_from_quality_to_size(self):
-        info = _deezer_info(quality=2, quality_to_size=[3_000_000, 8_000_000, 20_000_000])
+        info = _deezer_info(
+            quality=2, quality_to_size=[3_000_000, 8_000_000, 20_000_000]
+        )
         d = DeezerDownloadable(MagicMock(), info)
         assert d._size == 20_000_000
 
@@ -269,6 +276,7 @@ class TestDeezerStreamingDecrypt:
             async def _agen():
                 for c in chunks:
                     yield c, True
+
             return _agen()
 
         resp = MagicMock()
@@ -286,10 +294,10 @@ class TestDeezerStreamingDecrypt:
     @pytest.mark.parametrize(
         "size",
         [
-            4 * 6144,         # exact multiple, no trailing segment
+            4 * 6144,  # exact multiple, no trailing segment
             3 * 6144 + 3000,  # trailing segment >= 2048 (first block encrypted)
             4 * 6144 + 1000,  # trailing segment < 2048 (entirely plaintext)
-            4 * 6144 + 100,   # tiny trailing segment
+            4 * 6144 + 100,  # tiny trailing segment
             5 * 6144 + 2048,  # trailing segment exactly 2048
         ],
     )
@@ -322,17 +330,24 @@ class TestDeezerStreamingDecrypt:
 
 # ── TidalDownloadable ────────────────────────────────────────────────────────
 
+
 class TestTidalDownloadable:
     def test_flac_codec_gives_flac_extension(self):
-        d = TidalDownloadable(MagicMock(), "https://tidal.com/track.flac", "flac", None, None)
+        d = TidalDownloadable(
+            MagicMock(), "https://tidal.com/track.flac", "flac", None, None
+        )
         assert d.extension == "flac"
 
     def test_mqa_codec_gives_flac_extension(self):
-        d = TidalDownloadable(MagicMock(), "https://tidal.com/track.mqa", "MQA", None, None)
+        d = TidalDownloadable(
+            MagicMock(), "https://tidal.com/track.mqa", "MQA", None, None
+        )
         assert d.extension == "flac"
 
     def test_aac_codec_gives_m4a_extension(self):
-        d = TidalDownloadable(MagicMock(), "https://tidal.com/track.m4a", "AAC", None, None)
+        d = TidalDownloadable(
+            MagicMock(), "https://tidal.com/track.m4a", "AAC", None, None
+        )
         assert d.extension == "m4a"
 
     def test_url_none_with_restrictions_raises(self):
@@ -355,28 +370,39 @@ class TestTidalDownloadable:
         assert d.enc_key == "abc123="
 
     def test_no_enc_key_stored_as_none(self):
-        d = TidalDownloadable(MagicMock(), "https://tidal.com/t.flac", "FLAC", None, None)
+        d = TidalDownloadable(
+            MagicMock(), "https://tidal.com/t.flac", "FLAC", None, None
+        )
         assert d.enc_key is None
 
 
 # ── SoundcloudDownloadable ───────────────────────────────────────────────────
 
+
 class TestSoundcloudDownloadable:
     def test_mp3_type(self):
-        d = SoundcloudDownloadable(MagicMock(), {"type": "mp3", "url": "https://sc.com/t.mp3"})
+        d = SoundcloudDownloadable(
+            MagicMock(), {"type": "mp3", "url": "https://sc.com/t.mp3"}
+        )
         assert d.extension == "mp3"
         assert d.file_type == "mp3"
 
     def test_original_type_gives_flac(self):
-        d = SoundcloudDownloadable(MagicMock(), {"type": "original", "url": "https://sc.com/t.flac"})
+        d = SoundcloudDownloadable(
+            MagicMock(), {"type": "original", "url": "https://sc.com/t.flac"}
+        )
         assert d.extension == "flac"
 
     def test_invalid_type_raises(self):
         with pytest.raises(Exception, match="Invalid file type"):
-            SoundcloudDownloadable(MagicMock(), {"type": "wav", "url": "https://sc.com/t.wav"})
+            SoundcloudDownloadable(
+                MagicMock(), {"type": "wav", "url": "https://sc.com/t.wav"}
+            )
 
     def test_source_is_soundcloud(self):
-        d = SoundcloudDownloadable(MagicMock(), {"type": "mp3", "url": "https://sc.com/t.mp3"})
+        d = SoundcloudDownloadable(
+            MagicMock(), {"type": "mp3", "url": "https://sc.com/t.mp3"}
+        )
         assert d.source == "soundcloud"
 
     def test_url_stored(self):

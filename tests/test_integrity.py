@@ -34,8 +34,9 @@ def test_empty_file_fails():
 
 
 def test_stat_error_fails():
-    with patch("streamrip.utils.integrity.os.path.getsize",
-               side_effect=OSError("no such file")):
+    with patch(
+        "streamrip.utils.integrity.os.path.getsize", side_effect=OSError("no such file")
+    ):
         ok, reason = check_integrity("/fake/track.flac", quality=2)
     assert not ok
     assert "cannot stat" in reason
@@ -44,7 +45,10 @@ def test_stat_error_fails():
 def test_mutagen_error_fails():
     with (
         patch("streamrip.utils.integrity.os.path.getsize", return_value=5_000_000),
-        patch("streamrip.utils.integrity.mutagen.File", side_effect=Exception("bad header")),
+        patch(
+            "streamrip.utils.integrity.mutagen.File",
+            side_effect=Exception("bad header"),
+        ),
     ):
         ok, reason = check_integrity("/fake/track.flac", quality=2)
     assert not ok

@@ -181,7 +181,11 @@ class DeezerDownloadable(Downloadable):
             resp.raise_for_status()
             content_length = resp.headers.get("Content-Length")
             self._size = int(content_length) if content_length is not None else None
-            if self._size is not None and self._size < 20000 and not self.url.endswith(".jpg"):
+            if (
+                self._size is not None
+                and self._size < 20000
+                and not self.url.endswith(".jpg")
+            ):
                 try:
                     info = await resp.json()
                     try:
@@ -237,7 +241,9 @@ class DeezerDownloadable(Downloadable):
                         if carry:
                             if len(carry) >= 2048:
                                 await audio.write(
-                                    self._decrypt_chunk(blowfish_key, bytes(carry[:2048]))
+                                    self._decrypt_chunk(
+                                        blowfish_key, bytes(carry[:2048])
+                                    )
                                     + bytes(carry[2048:])
                                 )
                             else:
@@ -476,7 +482,7 @@ async def concat_audio_files(paths: list[str], out: str, ext: str, max_files_ope
     outpaths = [
         os.path.join(
             tempdir,
-            f"__streamrip_ffmpeg_{hash(paths[i*max_files_open])}.{ext}",
+            f"__streamrip_ffmpeg_{hash(paths[i * max_files_open])}.{ext}",
         )
         for i in range(num_batches)
     ]
@@ -499,7 +505,9 @@ async def concat_audio_files(paths: list[str], out: str, ext: str, max_files_ope
             "warning",
             outpaths[i],
         )
-        fut = asyncio.create_subprocess_exec(*command, stdin=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE)
+        fut = asyncio.create_subprocess_exec(
+            *command, stdin=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE
+        )
         proc_futures.append(fut)
 
     # Create all processes concurrently

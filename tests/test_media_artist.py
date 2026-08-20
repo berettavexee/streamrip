@@ -11,8 +11,14 @@ from streamrip.media.media import DownloadStats
 # ---------------------------------------------------------------------------
 
 
-def _mock_album(title="Album", albumartist="Artist", bit_depth=24, sampling_rate=96,
-                explicit=False, n_tracks=2):
+def _mock_album(
+    title="Album",
+    albumartist="Artist",
+    bit_depth=24,
+    sampling_rate=96,
+    explicit=False,
+    n_tracks=2,
+):
     a = MagicMock()
     a.meta.album = title
     a.meta.albumartist = albumartist
@@ -24,8 +30,13 @@ def _mock_album(title="Album", albumartist="Artist", bit_depth=24, sampling_rate
     return a
 
 
-def _filter_conf(repeats=False, extras=False, features=False,
-                 non_studio_albums=False, non_remaster=False):
+def _filter_conf(
+    repeats=False,
+    extras=False,
+    features=False,
+    non_studio_albums=False,
+    non_remaster=False,
+):
     f = MagicMock()
     f.repeats = repeats
     f.extras = extras
@@ -214,7 +225,9 @@ def test_apply_filters_non_studio_albums():
     artist = _artist(name="Artist")
     studio = _mock_album("Studio Album", albumartist="Artist")
     various = _mock_album("Compilation", albumartist="Various Artists")
-    result = artist._apply_filters([studio, various], _filter_conf(non_studio_albums=True))
+    result = artist._apply_filters(
+        [studio, various], _filter_conf(non_studio_albums=True)
+    )
     assert studio in result
     assert various not in result
 
@@ -223,7 +236,9 @@ def test_apply_filters_non_remaster():
     artist = _artist()
     remaster = _mock_album("Album (Remastered 2021)")
     original = _mock_album("Album")
-    result = artist._apply_filters([remaster, original], _filter_conf(non_remaster=True))
+    result = artist._apply_filters(
+        [remaster, original], _filter_conf(non_remaster=True)
+    )
     assert remaster in result
     assert original not in result
 

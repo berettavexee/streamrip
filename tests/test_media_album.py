@@ -128,7 +128,10 @@ async def test_pending_album_resolve_returns_album():
     with (
         patch("streamrip.media.album.AlbumMetadata.from_album_resp", return_value=meta),
         patch("streamrip.media.album.get_album_track_ids", return_value=["t1", "t2"]),
-        patch("streamrip.media.album.download_artwork", new=AsyncMock(return_value=("/cover.jpg", None))),
+        patch(
+            "streamrip.media.album.download_artwork",
+            new=AsyncMock(return_value=("/cover.jpg", None)),
+        ),
         patch("streamrip.media.album.os.makedirs"),
         patch("streamrip.media.album.PendingTrack") as mock_pt,
         patch("streamrip.media.album.clean_filepath", side_effect=lambda p, _: p),
@@ -149,7 +152,10 @@ async def test_pending_album_resolve_passes_embed_cover_to_tracks():
     with (
         patch("streamrip.media.album.AlbumMetadata.from_album_resp", return_value=meta),
         patch("streamrip.media.album.get_album_track_ids", return_value=["t1"]),
-        patch("streamrip.media.album.download_artwork", new=AsyncMock(return_value=("/embed.jpg", None))),
+        patch(
+            "streamrip.media.album.download_artwork",
+            new=AsyncMock(return_value=("/embed.jpg", None)),
+        ),
         patch("streamrip.media.album.os.makedirs"),
         patch("streamrip.media.album.PendingTrack") as mock_pt,
         patch("streamrip.media.album.clean_filepath", side_effect=lambda p, _: p),
@@ -177,7 +183,10 @@ async def test_pending_album_resolve_returns_none_on_non_streamable():
 async def test_pending_album_resolve_returns_none_on_metadata_exception():
     pa = _pending_album()
 
-    with patch("streamrip.media.album.AlbumMetadata.from_album_resp", side_effect=ValueError("bad resp")):
+    with patch(
+        "streamrip.media.album.AlbumMetadata.from_album_resp",
+        side_effect=ValueError("bad resp"),
+    ):
         result = await pa.resolve()
 
     assert result is None
@@ -186,7 +195,9 @@ async def test_pending_album_resolve_returns_none_on_metadata_exception():
 async def test_pending_album_resolve_returns_none_when_meta_is_none():
     pa = _pending_album()
 
-    with patch("streamrip.media.album.AlbumMetadata.from_album_resp", return_value=None):
+    with patch(
+        "streamrip.media.album.AlbumMetadata.from_album_resp", return_value=None
+    ):
         result = await pa.resolve()
 
     assert result is None

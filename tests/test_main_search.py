@@ -68,7 +68,9 @@ class TestSearchOutputFile:
         payload = [{"id": "1", "title": "Song"}]
         out = tmp_path / "results.json"
         with patch("streamrip.rip.main.SearchResults") as sr:
-            sr.from_pages.return_value = _search_results(results=[MagicMock()], as_list=payload)
+            sr.from_pages.return_value = _search_results(
+                results=[MagicMock()], as_list=payload
+            )
             await main.search_output_file("deezer", "album", "query", str(out), 25)
         client.search.assert_awaited_once_with("album", "query", limit=25)
         assert json.loads(out.read_text()) == payload

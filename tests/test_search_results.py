@@ -83,10 +83,12 @@ def test_artist_from_item_artist_string_fallback():
 
 
 def test_artist_from_item_publisher_metadata_fallback():
-    a = ArtistSummary.from_item({
-        "id": "4",
-        "publisher_metadata": {"artist": "Floating Points"},
-    })
+    a = ArtistSummary.from_item(
+        {
+            "id": "4",
+            "publisher_metadata": {"artist": "Floating Points"},
+        }
+    )
     assert a.name == "Floating Points"
 
 
@@ -136,8 +138,9 @@ def test_track_from_item_strips_name():
 
 
 def test_track_from_item_performer_artist():
-    t = TrackSummary.from_item({"id": "1", "title": "S",
-                                 "performer": {"name": "The Artist"}})
+    t = TrackSummary.from_item(
+        {"id": "1", "title": "S", "performer": {"name": "The Artist"}}
+    )
     assert t.artist == "The Artist"
 
 
@@ -147,16 +150,18 @@ def test_track_from_item_artist_string():
 
 
 def test_track_from_item_artist_dict():
-    t = TrackSummary.from_item({"id": "1", "title": "S",
-                                 "artist": {"name": "Band"}})
+    t = TrackSummary.from_item({"id": "1", "title": "S", "artist": {"name": "Band"}})
     assert t.artist == "Band"
 
 
 def test_track_from_item_publisher_metadata_artist():
-    t = TrackSummary.from_item({
-        "id": "1", "title": "S",
-        "publisher_metadata": {"artist": "SC Artist"},
-    })
+    t = TrackSummary.from_item(
+        {
+            "id": "1",
+            "title": "S",
+            "publisher_metadata": {"artist": "SC Artist"},
+        }
+    )
     assert t.artist == "SC Artist"
 
 
@@ -166,26 +171,35 @@ def test_track_from_item_artist_unknown():
 
 
 def test_track_from_item_date_release_date():
-    t = TrackSummary.from_item({"id": "1", "title": "S", "artist": "A",
-                                 "release_date": "2021-01-01"})
+    t = TrackSummary.from_item(
+        {"id": "1", "title": "S", "artist": "A", "release_date": "2021-01-01"}
+    )
     assert t.date_released == "2021-01-01"
 
 
 def test_track_from_item_date_stream_start():
-    t = TrackSummary.from_item({"id": "1", "title": "S", "artist": "A",
-                                 "streamStartDate": "2022-05-10"})
+    t = TrackSummary.from_item(
+        {"id": "1", "title": "S", "artist": "A", "streamStartDate": "2022-05-10"}
+    )
     assert t.date_released == "2022-05-10"
 
 
 def test_track_from_item_date_album_original():
-    t = TrackSummary.from_item({"id": "1", "title": "S", "artist": "A",
-                                 "album": {"release_date_original": "2019-03-01"}})
+    t = TrackSummary.from_item(
+        {
+            "id": "1",
+            "title": "S",
+            "artist": "A",
+            "album": {"release_date_original": "2019-03-01"},
+        }
+    )
     assert t.date_released == "2019-03-01"
 
 
 def test_track_from_item_date_display_date():
-    t = TrackSummary.from_item({"id": "1", "title": "S", "artist": "A",
-                                 "display_date": "2018"})
+    t = TrackSummary.from_item(
+        {"id": "1", "title": "S", "artist": "A", "display_date": "2018"}
+    )
     assert t.date_released == "2018"
 
 
@@ -217,33 +231,40 @@ def test_album_preview():
 
 
 def test_album_from_item_title_only():
-    a = AlbumSummary.from_item({"id": "1", "title": "Discovery",
-                                  "artist": {"name": "Daft Punk"}})
+    a = AlbumSummary.from_item(
+        {"id": "1", "title": "Discovery", "artist": {"name": "Daft Punk"}}
+    )
     assert a.name == "Discovery"
 
 
 def test_album_from_item_title_with_version():
-    a = AlbumSummary.from_item({"id": "1", "title": "Discovery",
-                                  "version": "Remastered",
-                                  "artist": {"name": "Daft Punk"}})
+    a = AlbumSummary.from_item(
+        {
+            "id": "1",
+            "title": "Discovery",
+            "version": "Remastered",
+            "artist": {"name": "Daft Punk"},
+        }
+    )
     assert a.name == "Discovery (Remastered)"
 
 
 def test_album_from_item_artist_performer():
-    a = AlbumSummary.from_item({"id": "1", "title": "A",
-                                  "performer": {"name": "Performer"}})
+    a = AlbumSummary.from_item(
+        {"id": "1", "title": "A", "performer": {"name": "Performer"}}
+    )
     assert a.artist == "Performer"
 
 
 def test_album_from_item_artist_dict():
-    a = AlbumSummary.from_item({"id": "1", "title": "A",
-                                  "artist": {"name": "Band"}})
+    a = AlbumSummary.from_item({"id": "1", "title": "A", "artist": {"name": "Band"}})
     assert a.artist == "Band"
 
 
 def test_album_from_item_artist_publisher_metadata():
-    a = AlbumSummary.from_item({"id": "1", "title": "A",
-                                  "publisher_metadata": {"artist": "SC"}})
+    a = AlbumSummary.from_item(
+        {"id": "1", "title": "A", "publisher_metadata": {"artist": "SC"}}
+    )
     assert a.artist == "SC"
 
 
@@ -263,32 +284,29 @@ def test_album_from_item_num_tracks_number_of_tracks():
 
 
 def test_album_from_item_num_tracks_from_list():
-    a = AlbumSummary.from_item({"id": "1", "title": "A",
-                                  "tracks": [{}, {}, {}]})
+    a = AlbumSummary.from_item({"id": "1", "title": "A", "tracks": [{}, {}, {}]})
     assert a.num_tracks == "3"
 
 
 def test_album_from_item_num_tracks_from_items():
-    a = AlbumSummary.from_item({"id": "1", "title": "A",
-                                  "items": [{}, {}]})
+    a = AlbumSummary.from_item({"id": "1", "title": "A", "items": [{}, {}]})
     assert a.num_tracks == "2"
 
 
 def test_album_from_item_date_release_date_original():
-    a = AlbumSummary.from_item({"id": "1", "title": "A",
-                                  "release_date_original": "2020-01-01"})
+    a = AlbumSummary.from_item(
+        {"id": "1", "title": "A", "release_date_original": "2020-01-01"}
+    )
     assert a.date_released == "2020-01-01"
 
 
 def test_album_from_item_date_release_date():
-    a = AlbumSummary.from_item({"id": "1", "title": "A",
-                                  "release_date": "2019-01-01"})
+    a = AlbumSummary.from_item({"id": "1", "title": "A", "release_date": "2019-01-01"})
     assert a.date_released == "2019-01-01"
 
 
 def test_album_from_item_date_tidal():
-    a = AlbumSummary.from_item({"id": "1", "title": "A",
-                                  "releaseDate": "2018-06-01"})
+    a = AlbumSummary.from_item({"id": "1", "title": "A", "releaseDate": "2018-06-01"})
     assert a.date_released == "2018-06-01"
 
 
@@ -344,8 +362,10 @@ def test_playlist_summarize():
 
 def test_playlist_preview():
     pl = PlaylistSummary("1", "Hits", "User", 20, "Great desc")
-    with patch("streamrip.metadata.search_results.os.get_terminal_size",
-               return_value=_terminal(80)):
+    with patch(
+        "streamrip.metadata.search_results.os.get_terminal_size",
+        return_value=_terminal(80),
+    ):
         p = pl.preview()
     assert "20" in p
     assert "Great desc" in p
@@ -353,40 +373,48 @@ def test_playlist_preview():
 
 
 def test_playlist_from_item_id_uuid_fallback():
-    pl = PlaylistSummary.from_item({"uuid": "abc-123", "title": "PL",
-                                    "user": {"username": "u"}})
+    pl = PlaylistSummary.from_item(
+        {"uuid": "abc-123", "title": "PL", "user": {"username": "u"}}
+    )
     assert pl.id == "abc-123"
 
 
 def test_playlist_from_item_name_title_fallback():
-    pl = PlaylistSummary.from_item({"id": "1", "title": "My PL",
-                                    "user": {"username": "u"}})
+    pl = PlaylistSummary.from_item(
+        {"id": "1", "title": "My PL", "user": {"username": "u"}}
+    )
     assert pl.name == "My PL"
 
 
 def test_playlist_from_item_creator_publisher_metadata():
-    pl = PlaylistSummary.from_item({
-        "id": "1", "name": "PL",
-        "publisher_metadata": {"artist": "SC Artist"},
-    })
+    pl = PlaylistSummary.from_item(
+        {
+            "id": "1",
+            "name": "PL",
+            "publisher_metadata": {"artist": "SC Artist"},
+        }
+    )
     assert pl.creator == "SC Artist"
 
 
 def test_playlist_from_item_creator_owner():
-    pl = PlaylistSummary.from_item({"id": "1", "name": "PL",
-                                    "owner": {"name": "Qobuz User"}})
+    pl = PlaylistSummary.from_item(
+        {"id": "1", "name": "PL", "owner": {"name": "Qobuz User"}}
+    )
     assert pl.creator == "Qobuz User"
 
 
 def test_playlist_from_item_creator_user_username():
-    pl = PlaylistSummary.from_item({"id": "1", "name": "PL",
-                                    "user": {"username": "sc_user"}})
+    pl = PlaylistSummary.from_item(
+        {"id": "1", "name": "PL", "user": {"username": "sc_user"}}
+    )
     assert pl.creator == "sc_user"
 
 
 def test_playlist_from_item_creator_user_name():
-    pl = PlaylistSummary.from_item({"id": "1", "name": "PL",
-                                    "user": {"name": "tidal_user"}})
+    pl = PlaylistSummary.from_item(
+        {"id": "1", "name": "PL", "user": {"name": "tidal_user"}}
+    )
     assert pl.creator == "tidal_user"
 
 
@@ -396,26 +424,22 @@ def test_playlist_from_item_creator_unknown():
 
 
 def test_playlist_from_item_num_tracks_count():
-    pl = PlaylistSummary.from_item({"id": "1", "name": "PL",
-                                    "tracks_count": 15})
+    pl = PlaylistSummary.from_item({"id": "1", "name": "PL", "tracks_count": 15})
     assert pl.num_tracks == 15
 
 
 def test_playlist_from_item_num_tracks_nb_tracks():
-    pl = PlaylistSummary.from_item({"id": "1", "name": "PL",
-                                    "nb_tracks": 12})
+    pl = PlaylistSummary.from_item({"id": "1", "name": "PL", "nb_tracks": 12})
     assert pl.num_tracks == 12
 
 
 def test_playlist_from_item_num_tracks_number_of_tracks():
-    pl = PlaylistSummary.from_item({"id": "1", "name": "PL",
-                                    "numberOfTracks": 30})
+    pl = PlaylistSummary.from_item({"id": "1", "name": "PL", "numberOfTracks": 30})
     assert pl.num_tracks == 30
 
 
 def test_playlist_from_item_num_tracks_list():
-    pl = PlaylistSummary.from_item({"id": "1", "name": "PL",
-                                    "tracks": [{}, {}, {}]})
+    pl = PlaylistSummary.from_item({"id": "1", "name": "PL", "tracks": [{}, {}, {}]})
     assert pl.num_tracks == 3
 
 
@@ -488,8 +512,7 @@ def test_from_pages_invalid_media_type():
 
 def test_from_pages_invalid_source():
     with pytest.raises(NotImplementedError):
-        SearchResults.from_pages("napster", "track",
-                                  [{"data": [_TRACK_ITEM]}])
+        SearchResults.from_pages("napster", "track", [{"data": [_TRACK_ITEM]}])
 
 
 # ---------------------------------------------------------------------------
@@ -499,11 +522,13 @@ def test_from_pages_invalid_source():
 
 @pytest.fixture
 def search_results():
-    return SearchResults([
-        TrackSummary("1", "Song A", "Artist", "2020"),
-        TrackSummary("2", "Song B", "Artist", "2021"),
-        TrackSummary("3", "Song C", "Artist", "2022"),
-    ])
+    return SearchResults(
+        [
+            TrackSummary("1", "Song A", "Artist", "2020"),
+            TrackSummary("2", "Song B", "Artist", "2021"),
+            TrackSummary("3", "Song C", "Artist", "2022"),
+        ]
+    )
 
 
 def test_summaries(search_results):

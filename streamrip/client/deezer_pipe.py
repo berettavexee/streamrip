@@ -113,7 +113,10 @@ class DeezerPipeClient:
         exp = _jwt_exp_as_monotonic(jwt)
         if exp is None:
             exp = time.monotonic() + _FALLBACK_TTL
-            logger.debug("Deezer Pipe: JWT exp not decodable, using %.0fs fallback TTL", _FALLBACK_TTL)
+            logger.debug(
+                "Deezer Pipe: JWT exp not decodable, using %.0fs fallback TTL",
+                _FALLBACK_TTL,
+            )
 
         self._jwt = jwt
         self._jwt_expires_at = exp

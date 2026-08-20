@@ -147,7 +147,9 @@ class PendingAlbum(Pending):
             )
             for id in tracklist
         ]
-        logger.debug("Resolved %d pending tracks for album '%s'", len(pending_tracks), meta.album)
+        logger.debug(
+            "Resolved %d pending tracks for album '%s'", len(pending_tracks), meta.album
+        )
         return Album(meta, pending_tracks, self.config, album_folder, self.db)
 
     def _album_folder(self, parent: str, meta: AlbumMetadata) -> str:

@@ -76,7 +76,11 @@ def score_similarity(
     else:
         base = composite
 
-    if query_duration and result_duration and duration_close(query_duration, result_duration):
+    if (
+        query_duration
+        and result_duration
+        and duration_close(query_duration, result_duration)
+    ):
         return min(base * 1.08, 1.0)
     return base
 

@@ -33,7 +33,7 @@ def full_meta():
         ["Rock", "Electronic"],
         Covers(),
         10,  # tracktotal
-        2,   # disctotal
+        2,  # disctotal
     )
     return TrackMetadata(
         info=TrackInfo(id="t1", quality=2, bit_depth=16, sampling_rate=44100),

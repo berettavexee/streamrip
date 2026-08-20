@@ -44,7 +44,10 @@ def _config(
     return cfg
 
 
-def _covers(original_url="https://example.com/orig.jpg", large_url="https://example.com/large.jpg"):
+def _covers(
+    original_url="https://example.com/orig.jpg",
+    large_url="https://example.com/large.jpg",
+):
     c = Covers()
     if original_url:
         c.set_cover_url("original", original_url)
@@ -135,7 +138,11 @@ def test_downscale_image_portrait(tmp_path):
 
 async def test_download_artwork_disabled_config(tmp_path):
     result = await download_artwork(
-        MagicMock(), str(tmp_path), _covers(), _config(save_artwork=False, embed=False), False
+        MagicMock(),
+        str(tmp_path),
+        _covers(),
+        _config(save_artwork=False, embed=False),
+        False,
     )
     assert result == (None, None)
 
@@ -171,7 +178,11 @@ async def test_download_artwork_already_cached_returns_early(tmp_path):
 async def test_download_artwork_for_playlist_disables_save(mock_downloadable, tmp_path):
     """for_playlist=True forces save_artwork=False."""
     embed_path, saved_path = await download_artwork(
-        MagicMock(), str(tmp_path), _covers(), _config(save_artwork=True, embed=True), for_playlist=True
+        MagicMock(),
+        str(tmp_path),
+        _covers(),
+        _config(save_artwork=True, embed=True),
+        for_playlist=True,
     )
     assert saved_path is None
     assert embed_path is not None
@@ -198,7 +209,11 @@ async def test_download_artwork_only_embed(mock_downloadable, tmp_path):
 async def test_download_artwork_embed_creates_tempdir(mock_downloadable, tmp_path):
     """Embedding artwork creates an __artwork subdirectory and registers it."""
     await download_artwork(
-        MagicMock(), str(tmp_path), _covers(), _config(save_artwork=False, embed=True), False
+        MagicMock(),
+        str(tmp_path),
+        _covers(),
+        _config(save_artwork=False, embed=True),
+        False,
     )
     expected_dir = os.path.join(str(tmp_path), "__artwork")
     assert (tmp_path / "__artwork").is_dir()
@@ -238,15 +253,21 @@ async def test_download_artwork_downscale_saved(mock_downloadable, tmp_path, moc
 
 async def test_download_artwork_downscale_embed(mock_downloadable, tmp_path, mocker):
     mock_ds = mocker.patch("streamrip.media.artwork.downscale_image")
-    config = _config(save_artwork=False, embed=True, embed_size="large", embed_max_width=300)
+    config = _config(
+        save_artwork=False, embed=True, embed_size="large", embed_max_width=300
+    )
 
-    embed_path, _ = await download_artwork(MagicMock(), str(tmp_path), _covers(), config, False)
+    embed_path, _ = await download_artwork(
+        MagicMock(), str(tmp_path), _covers(), config, False
+    )
 
     assert embed_path is not None
     mock_ds.assert_called_once_with(embed_path, 300)
 
 
-async def test_download_artwork_no_downscale_when_zero(mock_downloadable, tmp_path, mocker):
+async def test_download_artwork_no_downscale_when_zero(
+    mock_downloadable, tmp_path, mocker
+):
     mock_ds = mocker.patch("streamrip.media.artwork.downscale_image")
     config = _config(saved_max_width=0, embed_max_width=0)
 
@@ -262,13 +283,21 @@ async def test_download_artwork_no_downscale_when_zero(mock_downloadable, tmp_pa
 
 async def test_download_embed_cover_returns_embed_path(mock_downloadable, tmp_path):
     result = await download_embed_cover(
-        MagicMock(), str(tmp_path), _covers(), _config(save_artwork=False, embed=True), False
+        MagicMock(),
+        str(tmp_path),
+        _covers(),
+        _config(save_artwork=False, embed=True),
+        False,
     )
     assert result is not None
 
 
 async def test_download_embed_cover_returns_none_when_disabled(tmp_path):
     result = await download_embed_cover(
-        MagicMock(), str(tmp_path), _covers(), _config(save_artwork=False, embed=False), False
+        MagicMock(),
+        str(tmp_path),
+        _covers(),
+        _config(save_artwork=False, embed=False),
+        False,
     )
     assert result is None

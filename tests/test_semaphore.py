@@ -87,6 +87,7 @@ def test_raises_on_conflicting_max_connections():
 
 def test_semaphore_usable_as_async_context_manager():
     """The returned Semaphore can actually be used as an async context manager."""
+
     async def _use():
         sem = global_download_semaphore(_config(concurrency=True, max_connections=2))
         async with sem:

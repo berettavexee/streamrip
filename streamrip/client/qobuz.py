@@ -207,7 +207,9 @@ class QobuzClient(Client):
             logger.debug("Logged in to Qobuz")
 
             if not resp["user"]["credential"]["parameters"]:
-                raise IneligibleError("Free accounts are not eligible to download tracks.")
+                raise IneligibleError(
+                    "Free accounts are not eligible to download tracks."
+                )
 
             uat = resp["user_auth_token"]
             self.session.headers.update({"X-User-Auth-Token": uat})
@@ -291,7 +293,9 @@ class QobuzClient(Client):
         items = label_resp["albums"]["items"]
         for status, resp in results:
             if status != 200:
-                raise NonStreamableError(f"Error fetching Qobuz label page. Status: {status}")
+                raise NonStreamableError(
+                    f"Error fetching Qobuz label page. Status: {status}"
+                )
             items.extend(resp["albums"]["items"])
 
         return label_resp
@@ -355,7 +359,9 @@ class QobuzClient(Client):
             raise NonStreamableError(f"Invalid Qobuz quality {quality} (must be 1-4)")
         status, resp_json = await self._request_file_url(item, quality, self.secret)
         if status != 200:
-            raise NonStreamableError(f"Error fetching Qobuz download URL. Status: {status}")
+            raise NonStreamableError(
+                f"Error fetching Qobuz download URL. Status: {status}"
+            )
         stream_url = resp_json.get("url")
 
         if stream_url is None:
@@ -422,7 +428,9 @@ class QobuzClient(Client):
 
         for status, resp in await asyncio.gather(*requests):
             if status != 200:
-                raise NonStreamableError(f"Qobuz API error on {epoint} (paginate). Status: {status}")
+                raise NonStreamableError(
+                    f"Qobuz API error on {epoint} (paginate). Status: {status}"
+                )
             pages.append(resp)
 
         return pages

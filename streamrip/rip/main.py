@@ -112,7 +112,9 @@ class Main:
             p = parse_url(url)
             if p is None:
                 logger.warning("Unrecognised URL, skipping: %s", url)
-                console.print(f"[red]Unrecognised URL, skipping: [cyan]{url}[/cyan][/red]")
+                console.print(
+                    f"[red]Unrecognised URL, skipping: [cyan]{url}[/cyan][/red]"
+                )
             else:
                 url_pairs.append((url, p))
 
@@ -129,13 +131,18 @@ class Main:
 
         t0 = time.monotonic()
         results = await asyncio.gather(
-            *[p.into_pending(clients[p.source], self.config, self.database) for _, p in url_pairs],
+            *[
+                p.into_pending(clients[p.source], self.config, self.database)
+                for _, p in url_pairs
+            ],
             return_exceptions=True,
         )
         for (url, _), result in zip(url_pairs, results):
             if isinstance(result, Exception):
                 logger.warning("Skipping %s: %s", url, result)
-                console.print(f"[red]Error processing [cyan]{url}[/cyan]: {result}[/red]")
+                console.print(
+                    f"[red]Error processing [cyan]{url}[/cyan]: {result}[/red]"
+                )
             else:
                 self.pending.append(result)
         logger.debug(
@@ -219,7 +226,9 @@ class Main:
         console.print(self._format_summary(stats, elapsed, dry_run=dry_run))
 
     @staticmethod
-    def _format_summary(stats: DownloadStats, elapsed: float, dry_run: bool = False) -> str:
+    def _format_summary(
+        stats: DownloadStats, elapsed: float, dry_run: bool = False
+    ) -> str:
         """Build a Rich-markup summary line for the end of a rip session.
 
         Args:

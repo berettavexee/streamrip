@@ -51,13 +51,17 @@ class TestDownloadStats:
 
 class TestFormatSummary:
     def test_zero_errors_not_shown(self):
-        s = DownloadStats(tracks_downloaded=5, tracks_failed=0, bytes_downloaded=1_000_000)
+        s = DownloadStats(
+            tracks_downloaded=5, tracks_failed=0, bytes_downloaded=1_000_000
+        )
         result = Main._format_summary(s, 30.0)
         assert "error" not in result.lower()
         assert "5 tracks" in result
 
     def test_errors_shown_when_nonzero(self):
-        s = DownloadStats(tracks_downloaded=3, tracks_failed=2, bytes_downloaded=500_000)
+        s = DownloadStats(
+            tracks_downloaded=3, tracks_failed=2, bytes_downloaded=500_000
+        )
         result = Main._format_summary(s, 10.0)
         assert "2 errors" in result
 

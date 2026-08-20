@@ -110,6 +110,7 @@ class TestErrorHandling:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 @contextmanager
 def _patched_main():
     """Yield a Main instance with all client constructors mocked out."""
@@ -144,6 +145,7 @@ def _mock_url(source: str = "deezer", pending=None, raises=None):
 # Main.add — URL robustness
 # ---------------------------------------------------------------------------
 
+
 class TestMainAdd:
     @pytest.mark.asyncio
     async def test_add_unrecognised_url_skips_silently(self):
@@ -177,6 +179,7 @@ class TestMainAdd:
 # Main.add_all — URL robustness
 # ---------------------------------------------------------------------------
 
+
 class TestMainAddAll:
     @pytest.mark.asyncio
     async def test_add_all_invalid_url_skipped(self):
@@ -189,7 +192,9 @@ class TestMainAddAll:
 
         with _patched_main() as main:
             with patch("streamrip.rip.main.parse_url", side_effect=_parse):
-                await main.add_all(["https://bad.example.com", "https://www.deezer.com/fr/album/1"])
+                await main.add_all(
+                    ["https://bad.example.com", "https://www.deezer.com/fr/album/1"]
+                )
 
         assert main.pending == [mock_pending]
 
@@ -198,7 +203,9 @@ class TestMainAddAll:
         """All invalid URLs → pending stays empty, no exception."""
         with _patched_main() as main:
             with patch("streamrip.rip.main.parse_url", return_value=None):
-                await main.add_all(["https://bad1.example.com", "https://bad2.example.com"])
+                await main.add_all(
+                    ["https://bad1.example.com", "https://bad2.example.com"]
+                )
         assert main.pending == []
 
     @pytest.mark.asyncio
@@ -219,10 +226,12 @@ class TestMainAddAll:
 
         with _patched_main() as main:
             with patch("streamrip.rip.main.parse_url", side_effect=_parse):
-                await main.add_all([
-                    "https://www.deezer.com/fr/album/1",
-                    "https://www.deezer.com/fr/album/2",
-                ])
+                await main.add_all(
+                    [
+                        "https://www.deezer.com/fr/album/1",
+                        "https://www.deezer.com/fr/album/2",
+                    ]
+                )
 
         assert main.pending == [mock_pending]
 
@@ -241,7 +250,12 @@ class TestMainAddAll:
 
         with _patched_main() as main:
             with patch("streamrip.rip.main.parse_url", side_effect=_parse):
-                await main.add_all(["https://www.deezer.com/fr/album/1", "https://www.deezer.com/fr/album/2"])
+                await main.add_all(
+                    [
+                        "https://www.deezer.com/fr/album/1",
+                        "https://www.deezer.com/fr/album/2",
+                    ]
+                )
 
         assert main.pending == items
 
@@ -249,6 +263,7 @@ class TestMainAddAll:
 # ---------------------------------------------------------------------------
 # Main.resolve — robustness
 # ---------------------------------------------------------------------------
+
 
 class TestMainResolve:
     @pytest.mark.asyncio

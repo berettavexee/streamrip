@@ -45,9 +45,9 @@ from util import arun
 # Known stable IDs
 # ---------------------------------------------------------------------------
 
-TRACK_ID = "77874822"       # Pink Floyd — Comfortably Numb
-ALBUM_ID = "302127"         # Pink Floyd — The Wall
-ARTIST_ID = "130204"        # Pink Floyd
+TRACK_ID = "77874822"  # Pink Floyd — Comfortably Numb
+ALBUM_ID = "302127"  # Pink Floyd — The Wall
+ARTIST_ID = "130204"  # Pink Floyd
 PLAYLIST_ID = "1116189381"  # Deezer Top France (public chart)
 FAVORITES_USER_ID = "1231003"  # authenticated account used for cassette recording
 
@@ -190,7 +190,10 @@ def test_vcr_get_track_contributors(deezer_vcr_client, mocker):
         deezer_vcr_client.client.gw,
         "get_track",
         return_value={
-            "SNG_CONTRIBUTORS": {"composer": ["Roger Waters"], "author": ["Roger Waters"]},
+            "SNG_CONTRIBUTORS": {
+                "composer": ["Roger Waters"],
+                "author": ["Roger Waters"],
+            },
             "GAIN": "-9.0",
         },
     )

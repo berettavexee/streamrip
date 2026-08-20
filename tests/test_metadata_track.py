@@ -87,7 +87,14 @@ def test_trackinfo_defaults():
 
 
 def test_trackinfo_explicit_fields():
-    ti = TrackInfo(id="x", quality=3, bit_depth=24, explicit=True, sampling_rate=96000, work="Suite")
+    ti = TrackInfo(
+        id="x",
+        quality=3,
+        bit_depth=24,
+        explicit=True,
+        sampling_rate=96000,
+        work="Suite",
+    )
     assert ti.bit_depth == 24
     assert ti.explicit is True
     assert ti.sampling_rate == 96000
@@ -180,11 +187,13 @@ def test_from_deezer_basic():
 
 
 def test_from_deezer_contributors_joined():
-    resp = _deezer_resp(contributors=[
-        {"type": "artist", "name": "A"},
-        {"type": "composer", "name": "B"},
-        {"type": "artist", "name": "C"},
-    ])
+    resp = _deezer_resp(
+        contributors=[
+            {"type": "artist", "name": "A"},
+            {"type": "composer", "name": "B"},
+            {"type": "artist", "name": "C"},
+        ]
+    )
     meta = TrackMetadata.from_deezer(_album(), resp)
     assert meta.artist == "A, C"
 
@@ -363,7 +372,9 @@ def test_from_tidal_quality_hi_res():
 
 
 def test_from_tidal_quality_hi_res_lossless():
-    meta = TrackMetadata.from_tidal(_album(), _tidal_resp(audioQuality="HI_RES_LOSSLESS"))
+    meta = TrackMetadata.from_tidal(
+        _album(), _tidal_resp(audioQuality="HI_RES_LOSSLESS")
+    )
     assert meta.info.quality == 3
     assert meta.info.bit_depth == 24
 
@@ -386,11 +397,13 @@ def test_from_tidal_explicit():
 
 
 def test_from_tidal_composers_from_contributors():
-    resp = _tidal_resp(contributors=[
-        {"name": "Bach", "role": "Composer"},
-        {"name": "Smith", "role": "Producer"},
-        {"name": "Handel", "role": "Composer"},
-    ])
+    resp = _tidal_resp(
+        contributors=[
+            {"name": "Bach", "role": "Composer"},
+            {"name": "Smith", "role": "Producer"},
+            {"name": "Handel", "role": "Composer"},
+        ]
+    )
     meta = TrackMetadata.from_tidal(_album(), resp)
     assert meta.composer == "Bach, Handel"
 

@@ -125,7 +125,9 @@ class SoundcloudClient(Client):
         if download_info == self.ORIGINAL_DOWNLOAD:
             resp_json, status = await self._api_request(f"tracks/{item_id}/download")
             if status != 200:
-                raise NonStreamableError(f"SoundCloud original download unavailable for track {item_id} (status {status})")
+                raise NonStreamableError(
+                    f"SoundCloud original download unavailable for track {item_id} (status {status})"
+                )
             return SoundcloudDownloadable(
                 self.session,
                 {"url": resp_json["redirectUri"], "type": "original"},
@@ -156,7 +158,9 @@ class SoundcloudClient(Client):
         """
         resp, status = await self._api_request("resolve", params={"url": url})
         if status != 200:
-            raise NonStreamableError(f"SoundCloud URL resolution failed with status {status}")
+            raise NonStreamableError(
+                f"SoundCloud URL resolution failed with status {status}"
+            )
         if resp["kind"] == "track":
             resp["id"] = self._get_custom_id(resp)
 
@@ -165,13 +169,17 @@ class SoundcloudClient(Client):
     async def _get_track(self, item_id: str):
         resp, status = await self._api_request(f"tracks/{item_id}")
         if status != 200:
-            raise NonStreamableError(f"SoundCloud track {item_id} not found (status {status})")
+            raise NonStreamableError(
+                f"SoundCloud track {item_id} not found (status {status})"
+            )
         return resp
 
     async def _get_playlist(self, item_id: str):
         original_resp, status = await self._api_request(f"playlists/{item_id}")
         if status != 200:
-            raise NonStreamableError(f"SoundCloud playlist {item_id} not found (status {status})")
+            raise NonStreamableError(
+                f"SoundCloud playlist {item_id} not found (status {status})"
+            )
 
         unresolved_tracks = [
             track["id"] for track in original_resp["tracks"] if "media" not in track
@@ -194,7 +202,9 @@ class SoundcloudClient(Client):
 
         failed = [status for _, status in responses if status != 200]
         if failed:
-            raise NonStreamableError(f"SoundCloud batch track fetch failed (statuses: {failed})")
+            raise NonStreamableError(
+                f"SoundCloud batch track fetch failed (statuses: {failed})"
+            )
 
         remaining_tracks = list(itertools.chain(*[resp for resp, _ in responses]))
 
@@ -278,10 +288,12 @@ class SoundcloudClient(Client):
         async with self.session.get(STOCK_URL) as resp:
             page_text = await resp.text(encoding="utf-8")
 
-        script_matches = list(re.finditer(
-            r"<script\s+crossorigin\s+src=\"([^\"]+)\"",
-            page_text,
-        ))
+        script_matches = list(
+            re.finditer(
+                r"<script\s+crossorigin\s+src=\"([^\"]+)\"",
+                page_text,
+            )
+        )
         if not script_matches:
             raise Exception("Could not find client ID script tag in %s" % STOCK_URL)
         client_id_url_match = script_matches[-1]

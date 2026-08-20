@@ -109,8 +109,18 @@ def coro(f):
 )
 @click.pass_context
 def rip(
-    ctx, config_path, folder, no_db, quality, codec, max_tracks, no_progress,
-    no_ssl_verify, verbose, log_file, dry_run,
+    ctx,
+    config_path,
+    folder,
+    no_db,
+    quality,
+    codec,
+    max_tracks,
+    no_progress,
+    no_ssl_verify,
+    verbose,
+    log_file,
+    dry_run,
 ):
     """Streamrip: the all in one music downloader."""
     global logger
@@ -199,7 +209,9 @@ def rip(
         c.session.conversion.enabled = True
         valid_codecs = ("ALAC", "FLAC", "AIFF", "OGG", "MP3", "AAC", "OPUS")
         if codec.upper() not in valid_codecs:
-            raise click.BadParameter(f"codec must be one of {valid_codecs}", param_hint="'--codec'")
+            raise click.BadParameter(
+                f"codec must be one of {valid_codecs}", param_hint="'--codec'"
+            )
         c.session.conversion.codec = codec.upper()
 
     if max_tracks is not None:
@@ -272,11 +284,13 @@ async def url(ctx, urls):
 
             if version_coro is not None:
                 latest_version, notes = await version_coro
+
                 def _ver(v):
                     try:
                         return tuple(map(int, v.split(".")))
                     except (ValueError, AttributeError):
                         return (0, 0, 0)
+
                 if _ver(latest_version) > _ver(__version__):
                     console.print(
                         f"\n[green]A new version of streamrip [cyan]v{latest_version}[/cyan]"
@@ -330,7 +344,7 @@ async def file(ctx, path):
                     s = set(items)
                     if len(s) < len(items):
                         console.print(
-                            f"Found [orange]{len(items)-len(s)}[/orange] repeated URLs!"
+                            f"Found [orange]{len(items) - len(s)}[/orange] repeated URLs!"
                         )
                         items = list(s)
                     console.print(
@@ -507,7 +521,9 @@ async def repair(ctx, yes, flat):
         # download never reaches. An item in the downloads table now is one that
         # just succeeded.
         repaired = [
-            item_id for _, _, item_id in failed_items if downloads_db.contains(id=item_id)
+            item_id
+            for _, _, item_id in failed_items
+            if downloads_db.contains(id=item_id)
         ]
         for item_id in repaired:
             failed_db.remove(id=item_id)

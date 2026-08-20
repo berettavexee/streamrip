@@ -150,7 +150,9 @@ async def test_download_success_first_attempt():
     t = _track()
     t.download_path = "/dl/album/01 - Song.flac"
     with (
-        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch(
+            "streamrip.media.track.global_download_semaphore", return_value=_async_cm()
+        ),
         patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
     ):
         await t.download()
@@ -178,9 +180,7 @@ async def test_download_records_queue_wait_and_transfer_separately():
 
     t.downloadable.download = AsyncMock(side_effect=slow_download)
     with (
-        patch(
-            "streamrip.media.track.global_download_semaphore", return_value=slow_cm
-        ),
+        patch("streamrip.media.track.global_download_semaphore", return_value=slow_cm),
         patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
     ):
         await t.download()
@@ -199,7 +199,9 @@ async def test_rip_logs_the_phase_breakdown(caplog, tmp_path):
     t.postprocess = AsyncMock()
     with (
         caplog.at_level(logging.DEBUG, logger="streamrip"),
-        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch(
+            "streamrip.media.track.global_download_semaphore", return_value=_async_cm()
+        ),
         patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
         patch("streamrip.media.track.advance_overall"),
     ):
@@ -215,7 +217,9 @@ async def test_download_retries_on_first_failure(caplog):
     t.download_path = "/dl/album/01 - Song.flac"
     t.downloadable.download = AsyncMock(side_effect=[RuntimeError("network"), None])
     with (
-        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch(
+            "streamrip.media.track.global_download_semaphore", return_value=_async_cm()
+        ),
         patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
     ):
         await t.download()
@@ -228,7 +232,9 @@ async def test_download_marks_failed_after_two_failures(caplog):
     t.download_path = "/dl/album/01 - Song.flac"
     t.downloadable.download = AsyncMock(side_effect=RuntimeError("bad"))
     with (
-        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch(
+            "streamrip.media.track.global_download_semaphore", return_value=_async_cm()
+        ),
         patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
         pytest.raises(NonStreamableError, match="after 2 attempts"),
     ):
@@ -252,7 +258,9 @@ async def test_download_removes_partial_file_after_persistent_failure(tmp_path):
     t.download_path = str(partial)
     t.downloadable.download = AsyncMock(side_effect=RuntimeError("boom"))
     with (
-        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch(
+            "streamrip.media.track.global_download_semaphore", return_value=_async_cm()
+        ),
         patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
         pytest.raises(NonStreamableError),
     ):
@@ -270,7 +278,9 @@ async def test_download_keeps_going_when_partial_cannot_be_removed(tmp_path, cap
     t.download_path = str(partial)
     t.downloadable.download = AsyncMock(side_effect=RuntimeError("boom"))
     with (
-        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch(
+            "streamrip.media.track.global_download_semaphore", return_value=_async_cm()
+        ),
         patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
         patch("streamrip.media.track.os.remove", side_effect=OSError("read-only fs")),
         pytest.raises(NonStreamableError, match="after 2 attempts"),
@@ -285,7 +295,9 @@ async def test_download_no_partial_to_remove_is_not_an_error():
     t.download_path = "/dl/album/does-not-exist.flac"
     t.downloadable.download = AsyncMock(side_effect=RuntimeError("boom"))
     with (
-        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch(
+            "streamrip.media.track.global_download_semaphore", return_value=_async_cm()
+        ),
         patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
         patch("streamrip.media.track.os.remove") as mock_remove,
         pytest.raises(NonStreamableError),
@@ -301,7 +313,9 @@ async def test_download_failure_clears_progress_title_when_single():
     t.download_path = "/dl/album/01 - Song.flac"
     t.downloadable.download = AsyncMock(side_effect=RuntimeError("boom"))
     with (
-        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch(
+            "streamrip.media.track.global_download_semaphore", return_value=_async_cm()
+        ),
         patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
         patch("streamrip.media.track.remove_title") as mock_remove_title,
         pytest.raises(NonStreamableError),
@@ -317,7 +331,9 @@ async def test_download_failure_does_not_clear_title_when_not_single():
     t.download_path = "/dl/album/01 - Song.flac"
     t.downloadable.download = AsyncMock(side_effect=RuntimeError("boom"))
     with (
-        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch(
+            "streamrip.media.track.global_download_semaphore", return_value=_async_cm()
+        ),
         patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
         patch("streamrip.media.track.remove_title") as mock_remove_title,
         pytest.raises(NonStreamableError),
@@ -333,7 +349,9 @@ async def test_rip_does_not_postprocess_when_download_fails():
     t = _track()
     t.downloadable.download = AsyncMock(side_effect=RuntimeError("bad"))
     with (
-        patch("streamrip.media.track.global_download_semaphore", return_value=_async_cm()),
+        patch(
+            "streamrip.media.track.global_download_semaphore", return_value=_async_cm()
+        ),
         patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
         patch("streamrip.media.track.tag_file", new=AsyncMock()) as mock_tag,
         patch("streamrip.media.track.advance_overall"),
@@ -407,6 +425,7 @@ async def test_postprocess_logs_error_when_integrity_fails(caplog):
     t = _track()
     t.download_path = "/dl/album/01 - Song.flac"
     import logging
+
     with (
         patch("streamrip.media.track.tag_file", new=AsyncMock()),
         patch("streamrip.media.track.remove_title"),
@@ -443,7 +462,9 @@ async def test_postprocess_marks_failed_when_integrity_fails():
     with (
         patch("streamrip.media.track.tag_file", new=AsyncMock()),
         patch("streamrip.media.track.remove_title"),
-        patch("streamrip.media.track.check_integrity", return_value=(False, "truncated")),
+        patch(
+            "streamrip.media.track.check_integrity", return_value=(False, "truncated")
+        ),
         pytest.raises(NonStreamableError),
     ):
         await t.postprocess()
@@ -497,7 +518,10 @@ async def test_convert_calls_engine_and_updates_path():
     engine.final_fn = "/dl/album/01 - Song.mp3"
 
     with (
-        patch("streamrip.media.track.converter.get", return_value=MagicMock(return_value=engine)),
+        patch(
+            "streamrip.media.track.converter.get",
+            return_value=MagicMock(return_value=engine),
+        ),
         patch("streamrip.media.track.tag_file", new=AsyncMock()) as mock_tag,
     ):
         await t._convert()
@@ -523,7 +547,10 @@ async def test_convert_retags_taggable_containers(ext):
     engine.final_fn = f"/dl/album/01 - Song.{ext}"
 
     with (
-        patch("streamrip.media.track.converter.get", return_value=MagicMock(return_value=engine)),
+        patch(
+            "streamrip.media.track.converter.get",
+            return_value=MagicMock(return_value=engine),
+        ),
         patch("streamrip.media.track.tag_file", new=AsyncMock()) as mock_tag,
     ):
         await t._convert()
@@ -549,7 +576,10 @@ async def test_convert_skips_retag_for_untaggable_containers(ext):
     engine.final_fn = f"/dl/album/01 - Song.{ext}"
 
     with (
-        patch("streamrip.media.track.converter.get", return_value=MagicMock(return_value=engine)),
+        patch(
+            "streamrip.media.track.converter.get",
+            return_value=MagicMock(return_value=engine),
+        ),
         patch("streamrip.media.track.tag_file", new=AsyncMock()) as mock_tag,
     ):
         await t._convert()
@@ -571,7 +601,10 @@ async def test_convert_retag_matches_extension_case_insensitively():
     engine.final_fn = "/dl/album/01 - Song.AIFF"
 
     with (
-        patch("streamrip.media.track.converter.get", return_value=MagicMock(return_value=engine)),
+        patch(
+            "streamrip.media.track.converter.get",
+            return_value=MagicMock(return_value=engine),
+        ),
         patch("streamrip.media.track.tag_file", new=AsyncMock()) as mock_tag,
     ):
         await t._convert()
@@ -613,7 +646,9 @@ async def test_rip_records_success_in_stats():
 async def test_rip_records_failure_and_reraises():
     t = _track()
     stats = DownloadStats()
-    with patch.object(t, "preprocess", new=AsyncMock(side_effect=RuntimeError("disk full"))):
+    with patch.object(
+        t, "preprocess", new=AsyncMock(side_effect=RuntimeError("disk full"))
+    ):
         with pytest.raises(RuntimeError, match="disk full"):
             await t.rip(stats)
     assert stats.tracks_failed == 1
@@ -694,7 +729,10 @@ async def test_pending_track_returns_none_on_get_metadata_non_streamable():
 
 async def test_pending_track_returns_none_on_metadata_exception():
     pt = _pending_track()
-    with patch("streamrip.media.track.TrackMetadata.from_resp", side_effect=ValueError("bad resp")):
+    with patch(
+        "streamrip.media.track.TrackMetadata.from_resp",
+        side_effect=ValueError("bad resp"),
+    ):
         assert await pt.resolve() is None
 
 
@@ -709,7 +747,9 @@ async def test_pending_track_records_failure_on_get_metadata_non_streamable():
 
 async def test_pending_track_records_failure_on_metadata_exception():
     pt = _pending_track()
-    with patch("streamrip.media.track.TrackMetadata.from_resp", side_effect=ValueError("bad")):
+    with patch(
+        "streamrip.media.track.TrackMetadata.from_resp", side_effect=ValueError("bad")
+    ):
         await pt.resolve()
     pt.db.set_failed.assert_called_once_with("deezer", "track", "42")
 
@@ -739,13 +779,18 @@ async def test_pending_track_returns_none_when_meta_is_none():
 async def test_pending_track_returns_none_on_downloadable_non_streamable():
     pt = _pending_track()
     pt.client.get_downloadable = AsyncMock(side_effect=NonStreamableError("no dl"))
-    with patch("streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock(tracknumber=1)):
+    with patch(
+        "streamrip.media.track.TrackMetadata.from_resp",
+        return_value=MagicMock(tracknumber=1),
+    ):
         assert await pt.resolve() is None
 
 
 async def test_pending_track_returns_track():
     pt = _pending_track()
-    with patch("streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()):
+    with patch(
+        "streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()
+    ):
         result = await pt.resolve()
     assert isinstance(result, Track)
     assert result.folder == "/dl/album"
@@ -764,7 +809,9 @@ async def test_pending_track_disc_subdirectory():
 async def test_pending_track_no_disc_folder_when_single_disc():
     pt = _pending_track(disc_subdirectories=True)
     pt.album.disctotal = 1
-    with patch("streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()):
+    with patch(
+        "streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()
+    ):
         result = await pt.resolve()
     assert result.folder == "/dl/album"
 
@@ -784,7 +831,9 @@ def _pending_single(downloaded=False, add_singles_to_folder=True, source="deezer
     cfg = _config(add_singles_to_folder=add_singles_to_folder)
     setattr(cfg.session, source, MagicMock(quality=2))
 
-    return PendingSingle(id="1", client=client, config=cfg, db=_db(downloaded=downloaded))
+    return PendingSingle(
+        id="1", client=client, config=cfg, db=_db(downloaded=downloaded)
+    )
 
 
 async def test_pending_single_skips_if_downloaded():
@@ -813,8 +862,14 @@ async def test_pending_single_records_failure_on_album_metadata_exception():
 async def test_pending_single_records_failure_on_track_metadata_exception():
     ps = _pending_single()
     with (
-        patch("streamrip.media.track.AlbumMetadata.from_track_resp", return_value=MagicMock()),
-        patch("streamrip.media.track.TrackMetadata.from_resp", side_effect=ValueError("bad")),
+        patch(
+            "streamrip.media.track.AlbumMetadata.from_track_resp",
+            return_value=MagicMock(),
+        ),
+        patch(
+            "streamrip.media.track.TrackMetadata.from_resp",
+            side_effect=ValueError("bad"),
+        ),
     ):
         await ps.resolve()
     ps.db.set_failed.assert_called_once_with("deezer", "track", "1")
@@ -834,13 +889,18 @@ async def test_pending_single_returns_none_on_metadata_non_streamable():
 
 async def test_pending_single_returns_none_on_album_exception():
     ps = _pending_single()
-    with patch("streamrip.media.track.AlbumMetadata.from_track_resp", side_effect=ValueError("bad")):
+    with patch(
+        "streamrip.media.track.AlbumMetadata.from_track_resp",
+        side_effect=ValueError("bad"),
+    ):
         assert await ps.resolve() is None
 
 
 async def test_pending_single_returns_none_when_album_is_none():
     ps = _pending_single()
-    with patch("streamrip.media.track.AlbumMetadata.from_track_resp", return_value=None):
+    with patch(
+        "streamrip.media.track.AlbumMetadata.from_track_resp", return_value=None
+    ):
         result = await ps.resolve()
     assert result is None
     ps.db.set_failed.assert_called_once()
@@ -850,8 +910,13 @@ async def test_pending_single_returns_none_on_track_meta_exception():
     ps = _pending_single()
     album = MagicMock()
     with (
-        patch("streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album),
-        patch("streamrip.media.track.TrackMetadata.from_resp", side_effect=ValueError("bad")),
+        patch(
+            "streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album
+        ),
+        patch(
+            "streamrip.media.track.TrackMetadata.from_resp",
+            side_effect=ValueError("bad"),
+        ),
     ):
         assert await ps.resolve() is None
 
@@ -860,7 +925,9 @@ async def test_pending_single_returns_none_when_track_meta_is_none():
     ps = _pending_single()
     album = MagicMock()
     with (
-        patch("streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album),
+        patch(
+            "streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album
+        ),
         patch("streamrip.media.track.TrackMetadata.from_resp", return_value=None),
     ):
         result = await ps.resolve()
@@ -873,9 +940,16 @@ async def test_pending_single_returns_track_with_is_single():
     album = MagicMock()
     album.info.quality = 2
     with (
-        patch("streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album),
-        patch("streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()),
-        patch("streamrip.media.track.download_embed_cover", new=AsyncMock(return_value="/cover.jpg")),
+        patch(
+            "streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album
+        ),
+        patch(
+            "streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()
+        ),
+        patch(
+            "streamrip.media.track.download_embed_cover",
+            new=AsyncMock(return_value="/cover.jpg"),
+        ),
         patch("streamrip.media.track.os.makedirs"),
     ):
         result = await ps.resolve()
@@ -887,9 +961,16 @@ async def test_pending_single_uses_parent_folder_when_add_singles_to_folder_fals
     ps = _pending_single(add_singles_to_folder=False)
     album = MagicMock()
     with (
-        patch("streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album),
-        patch("streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()),
-        patch("streamrip.media.track.download_embed_cover", new=AsyncMock(return_value=None)),
+        patch(
+            "streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album
+        ),
+        patch(
+            "streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()
+        ),
+        patch(
+            "streamrip.media.track.download_embed_cover",
+            new=AsyncMock(return_value=None),
+        ),
         patch("streamrip.media.track.os.makedirs"),
     ):
         result = await ps.resolve()
@@ -900,9 +981,16 @@ async def test_pending_single_uses_format_folder_when_add_singles_to_folder():
     ps = _pending_single(add_singles_to_folder=True)
     album = MagicMock()
     with (
-        patch("streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album),
-        patch("streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()),
-        patch("streamrip.media.track.download_embed_cover", new=AsyncMock(return_value=None)),
+        patch(
+            "streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album
+        ),
+        patch(
+            "streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()
+        ),
+        patch(
+            "streamrip.media.track.download_embed_cover",
+            new=AsyncMock(return_value=None),
+        ),
         patch("streamrip.media.track.os.makedirs"),
         patch.object(ps, "_format_folder", return_value="/dl/Artist/Album") as mock_ff,
     ):

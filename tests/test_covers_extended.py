@@ -14,7 +14,11 @@ class TestCoversSetLargestPath:
         c = Covers()
         c.set_cover_url("large", "http://example.com/cover.jpg")
         c.set_largest_path("/tmp/cover.jpg")
-        assert c._covers[1] == ("large", "http://example.com/cover.jpg", "/tmp/cover.jpg")
+        assert c._covers[1] == (
+            "large",
+            "http://example.com/cover.jpg",
+            "/tmp/cover.jpg",
+        )
 
     def test_raises_when_no_url(self):
         c = Covers()
@@ -27,7 +31,11 @@ class TestCoversSetPath:
         c = Covers()
         c.set_cover_url("small", "http://example.com/small.jpg")
         c.set_path("small", "/tmp/small.jpg")
-        assert c._covers[2] == ("small", "http://example.com/small.jpg", "/tmp/small.jpg")
+        assert c._covers[2] == (
+            "small",
+            "http://example.com/small.jpg",
+            "/tmp/small.jpg",
+        )
 
 
 class TestCoversFromDeezer:

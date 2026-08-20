@@ -72,7 +72,9 @@ class AlbumMetadata:
         4: ("FLAC", 24, 192),
     }
 
-    def format_folder_path(self, formatter: str, effective_quality: int | None = None) -> str:
+    def format_folder_path(
+        self, formatter: str, effective_quality: int | None = None
+    ) -> str:
         """Format the folder path for this album using the given template.
 
         Args:
@@ -198,7 +200,11 @@ class AlbumMetadata:
     def from_deezer(cls, resp: dict) -> AlbumMetadata | None:
         album = resp.get("title", "Unknown Album")
         tracktotal = typed(resp.get("track_total", 0) or resp.get("nb_tracks", 0), int)
-        disctotal = typed(resp["tracks"][-1].get("disk_number", 1), int) if resp["tracks"] else 1
+        disctotal = (
+            typed(resp["tracks"][-1].get("disk_number", 1), int)
+            if resp["tracks"]
+            else 1
+        )
         genres = [typed(g["name"], str) for g in resp["genres"]["data"]]
 
         date = typed(resp["release_date"], str)

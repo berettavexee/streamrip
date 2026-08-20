@@ -107,28 +107,88 @@ def test_string_similarity_unrelated_is_low() -> None:
 # Format: (query_title, query_artist, result_title, result_artist, description)  # ruff: ignore[commented-out-code]
 _LOG_PAIRS = [
     # Simple exact match with case variants in artist
-    ("Enter The Cipher", "Follow the Cipher", "Enter the Cipher", "Follow The Cipher", "artist capitalisation variant"),
+    (
+        "Enter The Cipher",
+        "Follow the Cipher",
+        "Enter the Cipher",
+        "Follow The Cipher",
+        "artist capitalisation variant",
+    ),
     # Identical title, identical artist
-    ("Litany of the Northern Lights", "Temperance", "Litany of the Northern Lights", "Temperance", "exact match"),
+    (
+        "Litany of the Northern Lights",
+        "Temperance",
+        "Litany of the Northern Lights",
+        "Temperance",
+        "exact match",
+    ),
     # Short title, exact match
-    ("Hellfire", "Visions of Atlantis", "Hellfire", "Visions of Atlantis", "short title exact"),
+    (
+        "Hellfire",
+        "Visions of Atlantis",
+        "Hellfire",
+        "Visions of Atlantis",
+        "short title exact",
+    ),
     # Title capitalisation differs
-    ("Wake Up The World", "Galderia", "Wake up the World", "GALDERIA", "title+artist caps variants"),
+    (
+        "Wake Up The World",
+        "Galderia",
+        "Wake up the World",
+        "GALDERIA",
+        "title+artist caps variants",
+    ),
     # All-caps artist
-    ("Master of the Universe", "Angus McSix", "Master of the Universe", "ANGUS McSIX", "stylised all-caps artist"),
+    (
+        "Master of the Universe",
+        "Angus McSix",
+        "Master of the Universe",
+        "ANGUS McSIX",
+        "stylised all-caps artist",
+    ),
     # Artist uses 'In' capitalisation
-    ("True Believer", "Beast in Black", "True Believer", "Beast In Black", "minor caps diff in artist"),
+    (
+        "True Believer",
+        "Beast in Black",
+        "True Believer",
+        "Beast In Black",
+        "minor caps diff in artist",
+    ),
     # Punctuation in title (apostrophe, dot)  # ruff: ignore[commented-out-code]
     ("Mr. White", "Temperance", "Mr. White", "Temperance", "dot in title"),
     ("Circe's Spell", "Kalidia", "Circe's Spell", "Kalidia", "apostrophe in title"),
-    ("Draugen's Maelstrom", "Elvenking", "Draugen's Maelstrom", "Elvenking", "apostrophe in title 2"),
+    (
+        "Draugen's Maelstrom",
+        "Elvenking",
+        "Draugen's Maelstrom",
+        "Elvenking",
+        "apostrophe in title 2",
+    ),
     # Long title
-    ("If It Bleeds We Can Kill It", "Dragony", "If It Bleeds We Can Kill It", "Dragony", "long title"),
-    ("Breaking the Rules of Heavy Metal", "Temperance", "Breaking the Rules of Heavy Metal", "Temperance", "very long title"),
+    (
+        "If It Bleeds We Can Kill It",
+        "Dragony",
+        "If It Bleeds We Can Kill It",
+        "Dragony",
+        "long title",
+    ),
+    (
+        "Breaking the Rules of Heavy Metal",
+        "Temperance",
+        "Breaking the Rules of Heavy Metal",
+        "Temperance",
+        "very long title",
+    ),
     # Title equals artist name
     ("Freedom Call", "Freedom Call", "Freedom Call", "Freedom Call", "title == artist"),
     # Title with article "The"
-    ("Get Out Of My Head", "The Dark Element", "Get out of My Head", "The Dark Element", "mixed case title, 'The' artist"),
+    (
+        "Get Out Of My Head",
+        "The Dark Element",
+        "Get out of My Head",
+        "The Dark Element",
+        "mixed case title, 'The' artist",
+    ),
     # Featured artist stays in RESULT title (but was stripped from the search query)
     (
         "The Nine Crusades (feat. Unleash the Archers)",
@@ -138,7 +198,13 @@ _LOG_PAIRS = [
         "feat. credit preserved in result title",
     ),
     # Multi-word artist with apostrophe already absent
-    ("In The Arms Of A Devil", "Dynazty", "In the Arms of a Devil", "Dynazty", "preposition capitalisation in title"),
+    (
+        "In The Arms Of A Devil",
+        "Dynazty",
+        "In the Arms of a Devil",
+        "Dynazty",
+        "preposition capitalisation in title",
+    ),
 ]
 
 
@@ -167,19 +233,25 @@ def test_score_similarity_log_pairs(
 
 
 def test_score_wrong_title_scores_low() -> None:
-    score = score_similarity("Afterlife", ["Unleash the Archers"], "Hellfire", "Visions of Atlantis")
+    score = score_similarity(
+        "Afterlife", ["Unleash the Archers"], "Hellfire", "Visions of Atlantis"
+    )
     assert score < 0.55
 
 
 def test_score_wrong_artist_with_common_title_penalised() -> None:
     # "Strangers" is a generic title; wrong artist should push score down
-    score = score_similarity("Strangers", ["Nocturna"], "Strangers", "Completely Different Band")
+    score = score_similarity(
+        "Strangers", ["Nocturna"], "Strangers", "Completely Different Band"
+    )
     correct = score_similarity("Strangers", ["Nocturna"], "Strangers", "Nocturna")
     assert correct > score
 
 
 def test_score_complete_mismatch_is_low() -> None:
-    score = score_similarity("Afterlife", ["Unleash the Archers"], "Freedom Call", "Freedom Call")
+    score = score_similarity(
+        "Afterlife", ["Unleash the Archers"], "Freedom Call", "Freedom Call"
+    )
     assert score < 0.40
 
 
@@ -222,14 +294,14 @@ def test_score_title_close_wrong_artist_capped_at_055() -> None:
 @pytest.mark.parametrize(
     "expected, actual, close",
     [
-        (210, 210, True),       # identical
-        (210, 218, True),       # within 10 s default
-        (210, 221, False),      # just outside 10 s
-        (600, 622, True),       # adaptive: 4.5% of 622 ≈ 28 s
-        (600, 632, False),      # 32 s > 30 s cap
-        (0, 5, True),           # zero-length edge
-        ("210", "218", True),   # string inputs coerced
-        (None, 210, False),     # bad input → False
+        (210, 210, True),  # identical
+        (210, 218, True),  # within 10 s default
+        (210, 221, False),  # just outside 10 s
+        (600, 622, True),  # adaptive: 4.5% of 622 ≈ 28 s
+        (600, 632, False),  # 32 s > 30 s cap
+        (0, 5, True),  # zero-length edge
+        ("210", "218", True),  # string inputs coerced
+        (None, 210, False),  # bad input → False
     ],
 )
 def test_duration_close(expected, actual, close: bool) -> None:
@@ -241,8 +313,12 @@ def test_score_duration_bonus_applied() -> None:
     # exact title, mismatched artist → base well below 1.0 so the bonus isn't clamped away
     base = score_similarity("Afterlife", ["Kiss"], "Afterlife", "Bloodbound")
     with_dur = score_similarity(
-        "Afterlife", ["Kiss"], "Afterlife", "Bloodbound",
-        query_duration=210, result_duration=215,
+        "Afterlife",
+        ["Kiss"],
+        "Afterlife",
+        "Bloodbound",
+        query_duration=210,
+        result_duration=215,
     )
     assert with_dur > base
     assert with_dur == pytest.approx(base * 1.08, rel=1e-5)

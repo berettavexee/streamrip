@@ -155,6 +155,7 @@ def test_remove_title_ignores_missing(pm):
 
 def test_gen_title_text_returns_rule(pm):
     from rich.rule import Rule
+
     assert isinstance(pm.gen_title_text(), Rule)
 
 
@@ -179,8 +180,8 @@ def test_get_title_text_returns_cached_rule(pm):
 def test_get_progress_callback_disabled_returns_noop_handle():
     handle = get_progress_callback(enabled=False, total=100, desc="x")
     assert isinstance(handle, Handle)
-    handle.update(99)   # must not raise
-    handle.done()       # must not raise
+    handle.update(99)  # must not raise
+    handle.done()  # must not raise
 
 
 def test_get_progress_callback_enabled_delegates_to_p(pm):

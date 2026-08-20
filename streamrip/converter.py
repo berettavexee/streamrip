@@ -25,6 +25,7 @@ def _check_libfdk_aac() -> bool:
     except Exception:
         return False
 
+
 _LIBFDK_AAC_AVAILABLE = _check_libfdk_aac()
 
 
@@ -162,9 +163,11 @@ class Converter:
         try:
             if out_ext == ".ogg":
                 from mutagen.oggvorbis import OggVorbis
+
                 audio = OggVorbis(self.final_fn)
             elif out_ext == ".opus":
                 from mutagen.oggopus import OggOpus
+
                 audio = OggOpus(self.final_fn)  # type: ignore[assignment]
             else:
                 return

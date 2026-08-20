@@ -52,4 +52,6 @@ def test_db_paths_under_log_dir():
 
 def test_db_paths_filenames():
     assert os.path.basename(up.DEFAULT_DOWNLOADS_DB_PATH) == "downloads.db"
-    assert os.path.basename(up.DEFAULT_FAILED_DOWNLOADS_DB_PATH) == "failed_downloads.db"
+    assert (
+        os.path.basename(up.DEFAULT_FAILED_DOWNLOADS_DB_PATH) == "failed_downloads.db"
+    )
