@@ -2018,4 +2018,4 @@ ssl = ["certifi"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "2a6d748283136886582403cb717f31818c04b2a7a98b3297b452bfd38d494375"
+content-hash = "aded354cf0d056d543b0afd12c3fa4fbc3f8e7229d3636e516e6d4e53eb52dac"
