@@ -13,8 +13,13 @@ from .downloadable import Downloadable
 
 logger = logging.getLogger("streamrip")
 
+# Single source of truth for the client identity presented to every service, on
+# both HTTP stacks (aiohttp here, deezer-py's requests session in deezer.py).
+# Worth refreshing when it drifts far behind a shipping Firefox: this used to
+# claim Firefox 83, a 2020 build, which is a conspicuous thing to announce to a
+# private API.
 DEFAULT_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0"
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"
 )
 
 
