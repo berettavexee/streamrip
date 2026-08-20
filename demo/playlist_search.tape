@@ -1,18 +1,18 @@
 # Source de demo/playlist_search.png.
 #
 # EXIGE : la source (ici « tidal ») configurée dans config.toml + réseau.
-# vhs produit un .mp4 ; ffmpeg en extrait la dernière frame (la liste
-# interactive à l'écran). Voir ./demo/build_demos.sh.
+# vhs produit un GIF (texte net, sans bavure de compression) ; ffmpeg en extrait
+# la dernière frame (la liste interactive à l'écran). Voir ./demo/build_demos.sh.
 # Pour ce fork orienté Deezer, tu peux remplacer « tidal » par « deezer » —
 # garde la commande cohérente avec le texte du README.
 
-Output demo/playlist_search.mp4
+Output demo/playlist_search.gif
 
 Set Shell bash
-Set FontSize 22
-Set Width 1200
-Set Height 700
-Set Padding 20
+Set FontSize 26
+Set Width 1500
+Set Height 760
+Set Padding 24
 
 Hide
 Type "source .venv/bin/activate"
