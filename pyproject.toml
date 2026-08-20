@@ -42,12 +42,18 @@ certifi = { version = "^2025.1.31", optional = true }
 [tool.poetry.urls]
 "Bug Reports" = "https://github.com/nathom/streamrip/issues"
 
-[tool.poetry.dev-dependencies]
-types-click = "^7.1.2"
-types-Pillow = "^8.3.1"
+[tool.poetry.group.dev.dependencies]
+# types-click et types-Pillow ont été retirés : ce sont des stubs pour un
+# type-checker qui n'existe nulle part ici (ni mypy en dépendance, ni étape de
+# typage dans le CI), et ils étaient restés sur des majeures obsolètes —
+# click 7 alors que le projet utilise click 8.
 # ruff couvre à lui seul isort (`I`), le cœur de flake8 (`E`/`F`) et le
 # formatage black (cf. [tool.ruff.format]) : les trois outils ont été retirés.
 ruff = ">=0.16"
+# vulture est déclaré ici parce que sa configuration l'est aussi
+# ([tool.vulture] + .vulture_whitelist.py) : sans ça, `poetry install` ne le
+# fournit pas et l'outil ne vit que dans les venvs où quelqu'un l'a pip-installé.
+vulture = "^2.16"
 setuptools = "^83.0.0"
 pytest = "^9.0"
 pytest-mock = "^3.11.1"

@@ -1,0 +1,38 @@
+name: Dead code
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+jobs:
+  vulture:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-in-project: true
+
+      # Only the dev group: vulture parses the source, it never imports it, so
+      # the runtime dependencies are not needed. Installing from the lock keeps
+      # the CI on the same vulture version as a local `poetry install`.
+      - name: Install dev dependencies
+        run: poetry install --only dev --no-root --no-interaction
+
+      # Paths, confidence threshold and the curated whitelist all come from
+      # [tool.vulture] in pyproject.toml, so this is the same command locally.
+      - name: Run vulture
+        run: poetry run vulture

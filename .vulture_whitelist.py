@@ -3,8 +3,8 @@
 # référencé ici comme « utilisé », ce qui garde les analyses propres pour faire
 # ressortir le vrai code mort futur.
 #
-# Usage :
-#   vulture streamrip/ .vulture_whitelist.py --min-confidence 60
+# Usage : `poetry run vulture` suffit — les chemins et le seuil de confiance
+# sont dans [tool.vulture] (pyproject.toml), et le CI lance la même commande.
 #
 # Régénérer le point de départ après une revue :
 #   vulture streamrip/ --make-whitelist --min-confidence 60
@@ -23,8 +23,7 @@ _._get_login_link       # unused method (streamrip/client/tidal.py:381)
 
 # ── API publique / utilisée seulement par les tests ──────────────────────────
 _.pipe_query            # unused method (streamrip/client/deezer.py:299)
-_._album_cache          # unused property — alias de compat pour les tests (deezer.py:198)
-_._album_tasks          # unused property — alias de compat pour les tests (deezer.py:202)
+_.has_pending           # unused method — surface de lecture de _TaskCache, testée (deezer.py:147)
 _.reset                 # unused method — testé (streamrip/db.py:187)
 _.get_failed_downloads  # unused method — testé (streamrip/db.py:254)
 _._non_albums           # unused method (streamrip/media/artist.py:158)
@@ -37,6 +36,7 @@ parse_soundcloud_id     # unused function (streamrip/metadata/playlist.py:38)
 config_open             # unused function (streamrip/rip/cli.py:345)
 config_reset            # unused function (streamrip/rip/cli.py:365)
 database_browse         # unused function (streamrip/rip/cli.py:395)
+repair                  # unused function (streamrip/rip/cli.py:447)
 
 # ── Champs de config désérialisés depuis TOML (Config(**toml[...])) ───────────
 download_booklets       # unused variable (streamrip/config.py:37)

@@ -160,6 +160,12 @@ The CI runs `poetry install` followed by `poetry run pytest --cov`; use that exa
 pair locally, since installing with `pip` leaves the virtualenv ahead of
 `poetry.lock` and hides bugs specific to the locked versions.
 
+`poetry run vulture` reports dead code. Paths, the confidence threshold and the
+curated whitelist (`.vulture_whitelist.py`) come from `[tool.vulture]`, so the
+bare command matches what CI runs. Symbols that only look unused — click
+commands, config fields deserialised from TOML, methods kept for upstream parity
+— belong in the whitelist, with a comment saying which case they are.
+
 `./run_realworld_tests.sh` runs `rip` against live Deezer/Last.fm URLs — tracks,
 album, playlist, loved tracks, artist top tracks, Last.fm, AIFF/OPUS conversion
 and `rip repair` — each case isolated in `realworld_runs/<timestamp>/` with its
