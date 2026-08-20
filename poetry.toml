@@ -1,0 +1,8 @@
+[virtualenvs]
+# Le venv vit dans .venv/ à la racine du projet, comme dans le CI
+# (snok/install-poetry avec virtualenvs-in-project: true).
+#
+# Explicite à dessein : Poetry détecte tout seul un .venv/ existant, mais si ce
+# dossier disparaît il en recrée un dans son cache — et `.venv/bin/pytest`
+# désignerait alors silencieusement un autre environnement que `poetry run`.
+in-project = true
