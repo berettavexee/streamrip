@@ -134,6 +134,8 @@ The main evolutions focus on Deezer and the following areas:
 
 ## CLI / misc
 
+- Per-track progress bars show whole percentages instead of one decimal. The decimal carried no information at that bar width, and its variable length (`9.8%` against `100.0%`) shifted the speed and ETA columns sideways as tracks progressed.
+
 - `-l`/`--log-file` option writes all log messages at DEBUG level to a file for post-mortem analysis ([#81](https://github.com/nathom/streamrip/issues/81)); fix: DEBUG messages from the `streamrip` logger now correctly reach the log file in non-verbose mode; fix: the `RichHandler` is explicitly held at INFO when the root logger is lowered to DEBUG for file output, preventing DEBUG messages from bleeding into the terminal alongside normal output
 - Fix double "Downloading…" banner printed to the terminal at the end of a session — `ProgressManager.cleanup()` now syncs the Rich `Live` display to the cleared state before stopping it, so the last rendered frame no longer re-appears after the progress bars close
 - Global overall progress bar displayed above the per-track download bars: shows `N/total • ETA` in white so the batch completion percentage is visible at a glance. Initialised by album and playlist downloads; advances after each track regardless of outcome (success, failure, already-in-DB skip)

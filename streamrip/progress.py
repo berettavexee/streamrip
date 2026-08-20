@@ -37,7 +37,11 @@ class ProgressManager:
         self.progress = Progress(
             TextColumn("[cyan]{task.description}"),
             BarColumn(bar_width=None),
-            "[progress.percentage]{task.percentage:>3.1f}%",
+            # Pourcentage entier : la décimale n'apporte rien sur une barre de
+            # quelques centaines de pixels, et sa largeur variable (« 9.8% » vs
+            # « 100.0% ») faisait danser les colonnes qui suivent. `>3` cale
+            # « 0% », « 42% » et « 100% » sur la même largeur.
+            "[progress.percentage]{task.percentage:>3.0f}%",
             "•",
             TransferSpeedColumn(),
             "•",
