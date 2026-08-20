@@ -1,6 +1,12 @@
 # Changes from upstream
 
-All fixes and improvements present in this fork on top of [`nathom/streamrip:dev`](https://github.com/nathom/streamrip/tree/dev).
+Here is a non-exhaustive list of fixes and improvements present in this fork on top of [`nathom/streamrip:dev`](https://github.com/nathom/streamrip/tree/dev).
+The main evolutions focus on Deezer and the following areas:
+
+- **Testing and Diagnostics**: most of the work has been carried out on the toolset. The logs have been enhanced to provide better diagnostic capabilities. A series of automated tests has been written to test the system under real-world conditions. These test scripts are not published to avoid leaking my login details. All of this enables the creation of continuous improvement and quality assurance loops using Claude Code (because I’m a lazy person).
+- **Resilience**: The code has been hardened to cope with network and platform irregularities. The system now absorbs and handles malformed responces, redirects and missing information much more flexibly. The number of instances resulting in the download of corrupted, incomplete or incorrectly tags has been reduced.
+- **Optimization**: The number of API calls has been drastically reduced through the implementation of a caching system. Furthermore, resource-intensive operations (network requests, downloads, stream decryption and post-processing) have been extensively parallelized so that the code is now completely I/O-bound for Deezer. The time savings amount to just a few seconds and are therefore imperceptible to most users; it’s just a personal quirk of mine.
+- **Integrations**: Addition and integration of a few third-party patches intended for the upstream.
 
 ## Deezer
 
