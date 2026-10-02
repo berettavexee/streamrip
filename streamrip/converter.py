@@ -6,6 +6,7 @@ import logging
 import os
 import shutil
 import subprocess
+import uuid
 from tempfile import gettempdir
 from typing import Final, Optional
 
@@ -73,7 +74,13 @@ class Converter:
 
         self.filename = filename
         self.final_fn = f"{os.path.splitext(filename)[0]}.{self.container}"
-        self.tempfile = os.path.join(gettempdir(), os.path.basename(self.final_fn))
+        # Unique per conversion: tracks of different albums often share a file
+        # name ("01. Intro.flac"), and concurrent conversions would otherwise
+        # write the same temp file and swap their audio.
+        self.tempfile = os.path.join(
+            gettempdir(),
+            f"__streamrip_{uuid.uuid4().hex}_{os.path.basename(self.final_fn)}",
+        )
         self.remove_source = remove_source
         self.sampling_rate = sampling_rate
         self.bit_depth = bit_depth
@@ -126,6 +133,9 @@ class Converter:
             if cover_data is not None:
                 await asyncio.to_thread(self._embed_cover_art, *cover_data)
         else:
+            # ffmpeg can leave a partial output behind when it fails.
+            if os.path.exists(self.tempfile):  # ruff: ignore[blocking-path-method-in-async-function]
+                os.remove(self.tempfile)
             raise ConversionError(f"FFmpeg output:\n{out, err}")
 
     def _read_source_cover(self) -> tuple[bytes, str] | None:

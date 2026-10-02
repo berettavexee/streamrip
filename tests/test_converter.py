@@ -4,7 +4,10 @@ These don't run ffmpeg -- converter.get() only resolves a class, and the
 ffmpeg availability check lives in Converter.__init__.
 """
 
+import os
+
 import pytest
+from util import arun
 
 from streamrip import converter
 
@@ -75,3 +78,46 @@ def test_lossy_quality_arg_follows_lossy_bitrate(cls, rate, arg):
 @pytest.mark.parametrize("cls", [converter.FLAC, converter.ALAC, converter.AIFF])
 def test_lossless_quality_arg_is_the_default(cls):
     assert cls.get_quality_arg(128) == cls.default_ffmpeg_arg
+
+
+@pytest.fixture
+def no_ffmpeg_check(monkeypatch):
+    """Converter.__init__ only checks that ffmpeg is on PATH."""
+    monkeypatch.setattr(converter.shutil, "which", lambda _: "/usr/bin/ffmpeg")
+
+
+def test_same_file_name_gets_distinct_temp_files(no_ffmpeg_check):
+    """Tracks of different albums share names ("01. Intro"); their concurrent
+    conversions used to write the same temp file."""
+    a = converter.LAME("/music/Album A/01. Intro.flac")
+    b = converter.LAME("/music/Album B/01. Intro.flac")
+    assert a.tempfile != b.tempfile
+    assert a.tempfile.endswith("01. Intro.mp3")
+
+
+def test_failed_conversion_removes_its_temp_file(
+    no_ffmpeg_check, monkeypatch, tmp_path
+):
+    src = tmp_path / "01. Song.flac"
+    src.write_bytes(b"flac")
+    conv = converter.LAME(str(src))
+    # What ffmpeg had written of its output when it failed.
+    with open(conv.tempfile, "wb") as f:
+        f.write(b"partial")
+
+    class FailedProcess:
+        returncode = 1
+
+        async def communicate(self):
+            return None, b"error"
+
+    async def fake_exec(*_args, **_kwargs):
+        return FailedProcess()
+
+    monkeypatch.setattr(converter.asyncio, "create_subprocess_exec", fake_exec)
+
+    with pytest.raises(converter.ConversionError):
+        arun(conv.convert())
+
+    assert not os.path.exists(conv.tempfile)
+    assert src.exists()  # the source is only removed after a success
