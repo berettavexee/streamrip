@@ -100,8 +100,9 @@ sampling_rate = 48000
 # Only 16 and 24 are available. It is only applied when the bit depth is higher
 # than this value.
 bit_depth = 24
-# Only applicable for lossy codecs
-lossy_bitrate = 320
+# Target bitrate in kbps for lossy codecs. 0 keeps each codec's own default:
+# MP3 V0 (~245k VBR), Opus 128k, AAC 256k, Vorbis q6.
+lossy_bitrate = 0
 
 # Filter a Qobuz artist's discography. Set to 'true' to turn on a filter.
 # This will also be applied to other sources, but is not guaranteed to work correctly

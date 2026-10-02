@@ -284,3 +284,8 @@ def test_config_dont_update_without_set_modified():
 
 if __name__ == "__main__":
     pytest.main()
+
+
+def test_default_lossy_bitrate_keeps_codec_defaults():
+    """A fresh config converts at each codec's own default, not one shared rate."""
+    assert Config.defaults().session.conversion.lossy_bitrate == 0

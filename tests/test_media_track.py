@@ -616,20 +616,29 @@ async def test_convert_calls_engine_and_updates_path():
 
 
 @pytest.mark.parametrize(
-    ("codec", "expected_arg"),
-    [("MP3", "-b:a 192k"), ("OPUS", "-b:a 192k"), ("FLAC", None)],
+    ("codec", "rate", "expected_arg"),
+    [
+        ("MP3", 192, "-b:a 192k"),
+        ("OPUS", 192, "-b:a 192k"),
+        ("FLAC", 192, None),
+        # 0 keeps each codec's own default: one rate means something
+        # different for MP3, Opus and AAC.
+        ("MP3", 0, None),
+        ("OPUS", 0, None),
+        ("AAC", 0, None),
+    ],
 )
-async def test_convert_passes_lossy_bitrate(codec, expected_arg):
-    """[conversion] lossy_bitrate reaches lossy encoders, and only them.
+async def test_convert_passes_lossy_bitrate(codec, rate, expected_arg):
+    """[conversion] lossy_bitrate reaches lossy encoders when set, and only them.
 
-    It used to be read from the config and dropped: every lossy conversion ran
-    at the codec default (MP3 V0, Opus 128k) whatever the setting.
+    A set value used to be read from the config and dropped. Left at 0, the
+    converter falls back to the codec default (ffmpeg_arg=None).
     """
     from streamrip import converter as converter_mod
 
     cfg = _config(conversion_enabled=True)
     cfg.session.conversion.codec = codec
-    cfg.session.conversion.lossy_bitrate = 192
+    cfg.session.conversion.lossy_bitrate = rate
     t = _track(cfg=cfg)
     t.download_path = "/dl/album/01 - Song.flac"
 

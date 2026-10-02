@@ -278,12 +278,13 @@ class Track(Media):
         """
         c = self.config.session.conversion
         engine_class = converter.get(c.codec)
-        # Lossless codecs take no quality argument; lossy ones honour
-        # [conversion] lossy_bitrate.
+        # Lossless codecs take no quality argument. Lossy ones keep their own
+        # default (MP3 V0, Opus 128k, AAC 256k) unless lossy_bitrate sets one:
+        # a single rate means something different for each codec.
         ffmpeg_arg = (
-            None
-            if engine_class.lossless
-            else engine_class.get_quality_arg(c.lossy_bitrate)
+            engine_class.get_quality_arg(c.lossy_bitrate)
+            if not engine_class.lossless and c.lossy_bitrate > 0
+            else None
         )
         engine = engine_class(
             filename=self.download_path,

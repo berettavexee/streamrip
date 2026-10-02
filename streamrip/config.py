@@ -101,7 +101,7 @@ class ConversionConfig:
     # Only 16 and 24 are available. It is only applied when the bit depth is higher
     # than this value.
     bit_depth: int
-    # Only applicable for lossy codecs
+    # Target bitrate in kbps for lossy codecs; 0 keeps the codec's own default
     lossy_bitrate: int
 
 
