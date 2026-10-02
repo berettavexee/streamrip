@@ -250,7 +250,8 @@ def test_save_audio_aac():
 def test_save_audio_mp3():
     audio = MagicMock()
     Container.MP3.save_audio(audio, "dummy.mp3")
-    audio.save.assert_called_once_with("dummy.mp3", "v2_version=3")
+    audio.update_to_v23.assert_called_once_with()
+    audio.save.assert_called_once_with("dummy.mp3", v2_version=3)
 
 
 # ---------------------------------------------------------------------------
@@ -368,3 +369,21 @@ def test_taggable_extensions_matches_tag_file_dispatch(full_meta, tmp_path):
         p = tmp_path / f"track.{ext}"
         with pytest.raises(Exception, match="Invalid extension"):
             arun(tag_file(str(p), full_meta, None))
+
+
+def test_mp3_is_written_as_id3v23(full_meta, tmp_path):
+    """MP3s are saved as ID3v2.3, with the v2.4-only frames converted.
+
+    The call used to be save(path, "v2_version=3"): the string landed in the
+    v1 parameter and the file was written as v2.4.
+    """
+    p = tmp_path / "track.mp3"
+    p.write_bytes(b"")  # an ID3 tag doesn't need an audio stream
+    full_meta.album.date = "2020-05-17"
+    arun(tag_file(str(p), full_meta, None))
+
+    raw = ID3(str(p), translate=False)  # as written, not upgraded on read
+    assert raw.version[:2] == (2, 3)
+    assert "TDRC" not in raw
+    assert str(raw["TYER"]) == "2020"
+    assert str(ID3(str(p))["TIT2"]) == "Title"

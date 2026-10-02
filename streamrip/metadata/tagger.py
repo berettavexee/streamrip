@@ -290,7 +290,11 @@ class Container(Enum):
         elif self == Container.AAC:
             audio.save()
         elif self == Container.MP3:
-            audio.save(path, "v2_version=3")
+            # ID3v2.3 for the widest player support. save() alone only sets
+            # the header version; update_to_v23() converts the v2.4-only frames
+            # (TDRC → TYER/TDAT) so the file really is v2.3.
+            audio.update_to_v23()
+            audio.save(path, v2_version=3)
         elif self == Container.AIFF:
             # `audio` is the _IFFID3 built by add_tags(), which carries no
             # filename of its own — the path has to be passed explicitly.
