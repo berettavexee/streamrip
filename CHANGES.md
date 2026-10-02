@@ -103,6 +103,8 @@ The main evolutions focus on Deezer and the following areas:
 - `Track.download()` deletes any leftover file at the download path when both attempts have failed, as a backstop. Each `Downloadable._download` already removes its own partial (see above), so this should never find anything — it guards the case where a future download path forgets to, since the file sits at its final location in the library and would otherwise be picked up by tagging. A cleanup error is logged rather than masking the download error being raised. Deliberately different from an integrity failure, where the file is kept for inspection because it looks complete.
 - Fix a single track whose download failed keeping its title in the progress-bar header for the rest of the session — `postprocess()` normally clears it, but a failed download never reaches it
 
+- **Fix one dropped connection costing a track its cover.** Artwork had a single attempt: any network error made `download_artwork` return no path, the track was tagged without art and recorded as downloaded, so nothing would ever retry it. Seen on a real 59-track playlist run, where a `Connection reset by peer` from the image CDN left one track bare while the same track got its cover on the next pass. Each cover is now tried 3 times with a 1 s then 2 s backoff (the partial file is removed between attempts), the final error names the URL instead of a bare exception, and the saved `cover.jpg` and the embedded cover now fail independently — one no longer discards the other.
+
 ## Converter
 
 - OGG/OPUS: cover art is embedded post-conversion via `mutagen` (`METADATA_BLOCK_PICTURE`), and `-vn` prevents an unwanted Theora video stream ([#992](https://github.com/nathom/streamrip/pull/992))

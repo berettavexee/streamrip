@@ -228,8 +228,15 @@ async def test_download_artwork_both(mock_downloadable, tmp_path):
     assert saved_path == os.path.join(str(tmp_path), "cover.jpg")
 
 
-async def test_download_artwork_gather_exception_returns_none(tmp_path):
-    """asyncio.gather failure is caught and (None, None) is returned."""
+@pytest.fixture
+def no_sleep():
+    """Skip the retry backoff."""
+    with patch("streamrip.media.artwork.asyncio.sleep", new=AsyncMock()) as sleep:
+        yield sleep
+
+
+async def test_download_artwork_gather_exception_returns_none(tmp_path, no_sleep):
+    """When every attempt fails, both covers come back as None."""
     with patch("streamrip.media.artwork.BasicDownloadable") as mock_cls:
         instance = MagicMock()
         instance.download = AsyncMock(side_effect=RuntimeError("network error"))
@@ -240,6 +247,73 @@ async def test_download_artwork_gather_exception_returns_none(tmp_path):
         )
 
     assert result == (None, None)
+    # Both covers were tried COVER_DOWNLOAD_ATTEMPTS times each.
+    assert instance.download.await_count == 2 * artwork_module.COVER_DOWNLOAD_ATTEMPTS
+
+
+async def test_download_artwork_retries_a_dropped_connection(tmp_path, no_sleep):
+    """A transient failure is retried instead of costing the track its cover.
+
+    Seen on a real playlist run: one 'Connection reset by peer' left a track
+    tagged without art, with nothing to retry it later.
+    """
+    with patch("streamrip.media.artwork.BasicDownloadable") as mock_cls:
+        instance = MagicMock()
+        instance.download = AsyncMock(
+            side_effect=[ConnectionResetError(104, "Connection reset by peer"), None]
+        )
+        mock_cls.return_value = instance
+
+        embed_path, saved_path = await download_artwork(
+            MagicMock(), str(tmp_path), _covers(), _config(save_artwork=False), False
+        )
+
+    assert embed_path is not None
+    assert saved_path is None
+    assert instance.download.await_count == 2
+    no_sleep.assert_awaited_once_with(1)
+
+
+async def test_download_artwork_one_failed_cover_keeps_the_other(tmp_path, no_sleep):
+    """A cover.jpg that cannot be fetched no longer discards the embedded art."""
+
+    def make(session, url, ext):
+        dl = MagicMock()
+        if url.endswith("orig.jpg"):  # the hi-res, saved cover
+            dl.download = AsyncMock(side_effect=OSError("gone"))
+        else:
+            dl.download = AsyncMock()
+        return dl
+
+    with patch("streamrip.media.artwork.BasicDownloadable", side_effect=make):
+        embed_path, saved_path = await download_artwork(
+            MagicMock(), str(tmp_path), _covers(), _config(), False
+        )
+
+    assert saved_path is None
+    assert embed_path is not None
+
+
+async def test_download_artwork_logs_the_url_on_final_failure(
+    tmp_path, no_sleep, caplog
+):
+    with patch("streamrip.media.artwork.BasicDownloadable") as mock_cls:
+        instance = MagicMock()
+        instance.download = AsyncMock(side_effect=OSError("boom"))
+        mock_cls.return_value = instance
+        with caplog.at_level("ERROR", logger="streamrip"):
+            await download_artwork(
+                MagicMock(),
+                str(tmp_path),
+                _covers(),
+                _config(save_artwork=False),
+                False,
+            )
+
+    errors = [r.getMessage() for r in caplog.records if r.levelname == "ERROR"]
+    assert len(errors) == 1
+    assert "https://example.com/large.jpg" in errors[0]
+    assert "after 3 attempts" in errors[0]
 
 
 async def test_download_artwork_downscale_saved(mock_downloadable, tmp_path, mocker):
