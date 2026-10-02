@@ -24,6 +24,11 @@ from .semaphore import global_download_semaphore
 
 logger = logging.getLogger("streamrip")
 
+# (source codec, target codec) pairs already warned about in this run: a
+# playlist of MP3s converted to Opus would otherwise repeat the same warning
+# for every track.
+_lossy_to_lossy_warned: set[tuple[str, str]] = set()
+
 
 @dataclass(slots=True)
 class Track(Media):
@@ -259,6 +264,44 @@ class Track(Media):
 
         self.db.set_downloaded(self.meta.info.id)
 
+    async def _warn_if_lossy_source(self, target: str) -> None:
+        """Warn when a lossy file is about to be re-encoded to a lossy codec.
+
+        Every lossy encode discards detail that the next one cannot recover, so
+        MP3 → Opus sounds worse than the MP3 it starts from, at any bitrate.
+        This happens when the service only served a lossy tier (quality 0/1,
+        an account without HiFi, a track without a FLAC). The warning is
+        logged once per source/target pair and run; each track is logged at
+        DEBUG.
+
+        Args:
+            target: The configured conversion codec (``[conversion] codec``).
+        """
+        source = await asyncio.to_thread(
+            converter.lossy_source_codec, self.download_path
+        )
+        if source is None:
+            return
+        logger.debug(
+            "Lossy-to-lossy conversion (%s -> %s): %s",
+            source,
+            target,
+            self.download_path,
+        )
+        pair = (source, target.upper())
+        if pair in _lossy_to_lossy_warned:
+            return
+        _lossy_to_lossy_warned.add(pair)
+        logger.warning(
+            "Converting %s files to %s re-encodes audio that is already lossy: "
+            "the result will sound worse than the %s source, whatever the "
+            "bitrate. Download in FLAC (quality 2) or convert to a lossless "
+            "codec to avoid this generation loss.",
+            source,
+            target.upper(),
+            source,
+        )
+
     async def _convert(self):
         """Convert the downloaded file to the configured codec and re-tag it.
 
@@ -278,6 +321,8 @@ class Track(Media):
         """
         c = self.config.session.conversion
         engine_class = converter.get(c.codec)
+        if not engine_class.lossless:
+            await self._warn_if_lossy_source(c.codec)
         # Lossless codecs take no quality argument. Lossy ones keep their own
         # default (MP3 V0, Opus 128k, AAC 256k) unless lossy_bitrate sets one:
         # a single rate means something different for each codec.

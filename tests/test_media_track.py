@@ -713,6 +713,96 @@ async def test_convert_skips_retag_for_untaggable_containers(ext):
     mock_tag.assert_not_awaited()
 
 
+@pytest.fixture
+def fresh_lossy_warnings(monkeypatch):
+    """The once-per-pair memory is module state; isolate it per test."""
+    monkeypatch.setattr("streamrip.media.track._lossy_to_lossy_warned", set())
+
+
+def _convert_patches(engine_class):
+    engine = engine_class.return_value
+    engine.convert = AsyncMock()
+    engine.final_fn = "/dl/album/01 - Song.out"
+    return (
+        patch("streamrip.media.track.converter.get", return_value=engine_class),
+        patch("streamrip.media.track.tag_file", new=AsyncMock()),
+    )
+
+
+def _engine_class(lossless):
+    cls = MagicMock()
+    cls.lossless = lossless
+    cls.get_quality_arg = MagicMock(return_value="")
+    return cls
+
+
+async def test_lossy_to_lossy_conversion_warns_once(fresh_lossy_warnings, caplog):
+    """MP3 -> Opus is generation loss: warn, but not once per track."""
+    cfg = _config(conversion_enabled=True)
+    cfg.session.conversion.codec = "OPUS"
+    cfg.session.conversion.lossy_bitrate = 0
+    engine_class = _engine_class(lossless=False)
+    get_patch, tag_patch = _convert_patches(engine_class)
+
+    with get_patch, tag_patch, caplog.at_level("WARNING", logger="streamrip"):
+        for _ in range(3):
+            t = _track(cfg=cfg)
+            t.download_path = "/dl/album/01 - Song.mp3"
+            await t._convert()
+
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warnings) == 1
+    assert "MP3 files to OPUS" in warnings[0].getMessage()
+
+
+@pytest.mark.parametrize(
+    ("source", "lossless_target"),
+    [
+        ("/dl/album/01 - Song.flac", False),  # FLAC -> Opus: one lossy encode
+        ("/dl/album/01 - Song.mp3", True),  # MP3 -> FLAC: nothing lost again
+    ],
+)
+async def test_no_lossy_warning_without_two_lossy_steps(
+    fresh_lossy_warnings, caplog, source, lossless_target
+):
+    cfg = _config(conversion_enabled=True)
+    cfg.session.conversion.codec = "FLAC" if lossless_target else "OPUS"
+    cfg.session.conversion.lossy_bitrate = 0
+    engine_class = _engine_class(lossless=lossless_target)
+    get_patch, tag_patch = _convert_patches(engine_class)
+
+    t = _track(cfg=cfg)
+    t.download_path = source
+    with get_patch, tag_patch, caplog.at_level("WARNING", logger="streamrip"):
+        await t._convert()
+
+    assert not [r for r in caplog.records if r.levelname == "WARNING"]
+
+
+async def test_lossy_warning_is_per_source_and_target(fresh_lossy_warnings, caplog):
+    """A different pair is new information and gets its own warning."""
+    cfg = _config(conversion_enabled=True)
+    cfg.session.conversion.lossy_bitrate = 0
+    engine_class = _engine_class(lossless=False)
+    get_patch, tag_patch = _convert_patches(engine_class)
+
+    with get_patch, tag_patch, caplog.at_level("WARNING", logger="streamrip"):
+        for source, codec in [
+            ("/dl/a.mp3", "OPUS"),
+            ("/dl/b.mp3", "AAC"),
+            ("/dl/c.mp3", "OPUS"),
+        ]:
+            cfg.session.conversion.codec = codec
+            t = _track(cfg=cfg)
+            t.download_path = source
+            await t._convert()
+
+    messages = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    assert len(messages) == 2
+    assert any("to OPUS" in m for m in messages)
+    assert any("to AAC" in m for m in messages)
+
+
 async def test_convert_retag_matches_extension_case_insensitively():
     """An uppercase extension must still be recognised as taggable."""
     cfg = _config(conversion_enabled=True)

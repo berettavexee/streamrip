@@ -121,3 +121,34 @@ def test_failed_conversion_removes_its_temp_file(
 
     assert not os.path.exists(conv.tempfile)
     assert src.exists()  # the source is only removed after a success
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("a.mp3", "MP3"),
+        ("a.MP3", "MP3"),
+        ("a.ogg", "Vorbis"),
+        ("a.opus", "Opus"),
+        ("a.flac", None),
+        ("a.aiff", None),
+    ],
+)
+def test_lossy_source_codec_by_extension(name, expected):
+    assert converter.lossy_source_codec(name) == expected
+
+
+@pytest.mark.parametrize(("codec", "expected"), [("mp4a.40.2", "AAC"), ("alac", None)])
+def test_lossy_source_codec_reads_m4a(monkeypatch, codec, expected):
+    """An .m4a holds AAC or ALAC; only the file can tell which."""
+    import mutagen.mp4
+
+    fake = type("FakeMP4", (), {"info": type("Info", (), {"codec": codec})()})
+    monkeypatch.setattr(mutagen.mp4, "MP4", lambda _path: fake)
+    assert converter.lossy_source_codec("a.m4a") == expected
+
+
+def test_lossy_source_codec_unreadable_m4a_is_not_called_lossy(tmp_path):
+    path = tmp_path / "broken.m4a"
+    path.write_bytes(b"not an mp4")
+    assert converter.lossy_source_codec(str(path)) is None

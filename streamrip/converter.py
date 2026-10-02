@@ -441,6 +441,42 @@ class AAC(Converter):
         return f"-b:a {rate}k"
 
 
+# Containers whose audio is always lossy, by extension.
+_LOSSY_EXTENSIONS: Final[dict[str, str]] = {
+    "mp3": "MP3",
+    "ogg": "Vorbis",
+    "opus": "Opus",
+}
+
+
+def lossy_source_codec(path: str) -> str | None:
+    """Name the lossy codec of an audio file, if it uses one.
+
+    The extension decides for MP3, Ogg and Opus. An ``.m4a`` can hold either
+    AAC (lossy) or ALAC (lossless), so its codec is read from the file.
+
+    Args:
+        path: The audio file to inspect.
+
+    Returns:
+        ``"MP3"``, ``"AAC"``, ``"Vorbis"`` or ``"Opus"`` for a lossy file;
+        None for a lossless one, or when the format cannot be determined.
+    """
+    ext = os.path.splitext(path)[1].lstrip(".").lower()
+    if ext in _LOSSY_EXTENSIONS:
+        return _LOSSY_EXTENSIONS[ext]
+    if ext in ("m4a", "mp4"):
+        from mutagen.mp4 import MP4
+
+        try:
+            codec = MP4(path).info.codec or ""
+        except Exception as e:
+            logger.debug("Could not read the codec of %s: %s", path, e)
+            return None
+        return None if codec.lower().startswith("alac") else "AAC"
+    return None
+
+
 def get(codec: str) -> type[Converter]:
     converter_classes = {
         "FLAC": FLAC,
