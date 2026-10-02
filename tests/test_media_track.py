@@ -524,6 +524,33 @@ async def test_postprocess_does_not_tag_a_file_failing_integrity():
     mock_tag.assert_not_awaited()
 
 
+async def test_postprocess_keeps_the_original_when_conversion_fails(caplog):
+    """A failed conversion must not cost the track (upstream #1010).
+
+    The download is sound and tagged; raising here used to leave the track
+    unrecorded, so every run downloaded it again only to fail converting it.
+    """
+    from streamrip.exceptions import ConversionError
+
+    t = _track(cfg=_config(conversion_enabled=True))
+    t.download_path = "/dl/album/01 - Song.flac"
+    with (
+        patch("streamrip.media.track.tag_file", new=AsyncMock()),
+        patch("streamrip.media.track.remove_title"),
+        patch.object(
+            t, "_convert", new=AsyncMock(side_effect=ConversionError("no libfdk_aac"))
+        ),
+        _integrity_ok(),
+        caplog.at_level("ERROR", logger="streamrip"),
+    ):
+        await t.postprocess()
+
+    assert t.download_path == "/dl/album/01 - Song.flac"
+    t.db.set_downloaded.assert_called_once()
+    t.db.set_failed.assert_not_called()
+    assert any("keeping the original file" in r.message for r in caplog.records)
+
+
 async def test_postprocess_runs_conversion_when_enabled():
     t = _track(cfg=_config(conversion_enabled=True))
     t.download_path = "/dl/album/01 - Song.flac"

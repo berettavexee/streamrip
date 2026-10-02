@@ -214,8 +214,9 @@ class Track(Media):
 
         Raises:
             NonStreamableError: When the downloaded file fails the integrity check.
-            Exception: Propagated from :func:`tag_file` or :meth:`_convert`
-                on tagging or conversion failure.
+            Exception: Propagated from :func:`tag_file` on tagging failure. A
+                conversion failure is logged and does not raise: the original
+                file is kept and the track recorded as downloaded.
         """
         if self.is_single:
             remove_title(self.meta.title)
@@ -242,7 +243,19 @@ class Track(Media):
             self.config.session.metadata.exclude,
         )
         if self.config.session.conversion.enabled:
-            await self._convert()
+            try:
+                await self._convert()
+            except Exception as e:
+                # The download is sound and already tagged: keep it and record
+                # it. Failing here would re-download the track on every run for
+                # a cause that is almost always local and persistent (ffmpeg
+                # missing, or built without the encoder) -- upstream #1010.
+                logger.error(
+                    "Could not convert '%s', keeping the original file: %s: %s",
+                    self.meta.title,
+                    type(e).__name__,
+                    e,
+                )
 
         self.db.set_downloaded(self.meta.info.id)
 
