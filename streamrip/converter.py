@@ -7,7 +7,7 @@ import os
 import shutil
 import subprocess
 from tempfile import gettempdir
-from typing import Optional
+from typing import Final, Optional
 
 from .exceptions import ConversionError
 
@@ -248,6 +248,21 @@ class Converter:
             self.ffmpeg_arg = self.default_ffmpeg_arg
             return
 
+    @classmethod
+    def get_quality_arg(cls, rate: int) -> str:
+        """Translate ``[conversion] lossy_bitrate`` into this codec's ffmpeg argument.
+
+        The base implementation ignores the rate and returns the codec default;
+        lossy codecs override it.
+
+        Args:
+            rate: Target bitrate in kbps, as set in the config.
+
+        Returns:
+            The ffmpeg argument string selecting that quality.
+        """
+        return cls.default_ffmpeg_arg
+
 
 class FLAC(Converter):
     """Class for FLAC converter."""
@@ -285,6 +300,34 @@ class LAME(Converter):
     container = "mp3"
     default_ffmpeg_arg = "-q:a 0"  # V0
 
+    # LAME's VBR presets, keyed by their average bitrate; any other rate is
+    # encoded as CBR.
+    _bitrate_map: Final[dict[int, str]] = {
+        320: "-b:a 320k",
+        245: "-q:a 0",
+        225: "-q:a 1",
+        190: "-q:a 2",
+        175: "-q:a 3",
+        165: "-q:a 4",
+        130: "-q:a 5",
+        115: "-q:a 6",
+        100: "-q:a 7",
+        85: "-q:a 8",
+        65: "-q:a 9",
+    }
+
+    @classmethod
+    def get_quality_arg(cls, rate: int) -> str:
+        """Pick the LAME VBR preset for ``rate``, or CBR when there is none.
+
+        Args:
+            rate: Target bitrate in kbps.
+
+        Returns:
+            ``-q:a N`` for a rate matching a VBR preset, ``-b:a <rate>k`` otherwise.
+        """
+        return cls._bitrate_map.get(rate, f"-b:a {rate}k")
+
 
 class ALAC(Converter):
     """Class for ALAC converter."""
@@ -311,6 +354,25 @@ class Vorbis(Converter):
     _ffmpeg_supports_art = False
     default_ffmpeg_arg = "-q:a 6"  # 160, aka the "high" quality profile from Spotify
 
+    @classmethod
+    def get_quality_arg(cls, rate: int) -> str:
+        """Map ``rate`` onto libvorbis' quality scale (-1 to 10).
+
+        Args:
+            rate: Target bitrate in kbps.
+
+        Returns:
+            A ``-q:a`` argument whose nominal bitrate is close to ``rate``
+            (q4 ≈ 128, q5 ≈ 160, q8 ≈ 256, q9 ≈ 320 kbps).
+        """
+        if rate <= 128:
+            q = rate / 16 - 4
+        elif rate <= 256:
+            q = rate / 32
+        else:
+            q = rate / 64 + 4
+        return f"-q:a {max(-1, min(10, round(q)))}"
+
 
 class OPUS(Converter):
     """Class for libopus.
@@ -328,6 +390,18 @@ class OPUS(Converter):
     _ffmpeg_supports_art = False
     default_ffmpeg_arg = "-b:a 128k"  # Transparent
 
+    @classmethod
+    def get_quality_arg(cls, rate: int) -> str:
+        """Encode at a constant ``rate``.
+
+        Args:
+            rate: Target bitrate in kbps.
+
+        Returns:
+            ``-b:a <rate>k``.
+        """
+        return f"-b:a {rate}k"
+
 
 class AAC(Converter):
     """Class for AAC converter.
@@ -343,6 +417,18 @@ class AAC(Converter):
     codec_lib = "libfdk_aac" if _LIBFDK_AAC_AVAILABLE else "aac"
     container = "m4a"
     default_ffmpeg_arg = "-b:a 256k"
+
+    @classmethod
+    def get_quality_arg(cls, rate: int) -> str:
+        """Encode at a constant ``rate``.
+
+        Args:
+            rate: Target bitrate in kbps.
+
+        Returns:
+            ``-b:a <rate>k``.
+        """
+        return f"-b:a {rate}k"
 
 
 def get(codec: str) -> type[Converter]:

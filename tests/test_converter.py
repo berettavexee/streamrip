@@ -48,3 +48,30 @@ def test_aiff_encodes_24_bit_pcm():
 def test_get_unknown_codec_raises():
     with pytest.raises(KeyError):
         converter.get("WAV")
+
+
+@pytest.mark.parametrize(
+    ("cls", "rate", "arg"),
+    [
+        # A rate matching a LAME VBR preset uses it; any other is CBR.
+        (converter.LAME, 245, "-q:a 0"),
+        (converter.LAME, 190, "-q:a 2"),
+        (converter.LAME, 320, "-b:a 320k"),
+        (converter.LAME, 192, "-b:a 192k"),
+        # libvorbis quality scale: q4 ≈ 128, q5 ≈ 160, q8 ≈ 256, q9 ≈ 320.
+        (converter.Vorbis, 128, "-q:a 4"),
+        (converter.Vorbis, 160, "-q:a 5"),
+        (converter.Vorbis, 256, "-q:a 8"),
+        (converter.Vorbis, 320, "-q:a 9"),
+        (converter.Vorbis, 32, "-q:a -1"),
+        (converter.OPUS, 96, "-b:a 96k"),
+        (converter.AAC, 192, "-b:a 192k"),
+    ],
+)
+def test_lossy_quality_arg_follows_lossy_bitrate(cls, rate, arg):
+    assert cls.get_quality_arg(rate) == arg
+
+
+@pytest.mark.parametrize("cls", [converter.FLAC, converter.ALAC, converter.AIFF])
+def test_lossless_quality_arg_is_the_default(cls):
+    assert cls.get_quality_arg(128) == cls.default_ffmpeg_arg

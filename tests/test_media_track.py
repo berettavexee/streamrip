@@ -533,6 +533,41 @@ async def test_convert_calls_engine_and_updates_path():
     mock_tag.assert_awaited_once_with("/dl/album/01 - Song.mp3", t.meta, t.cover_path)
 
 
+@pytest.mark.parametrize(
+    ("codec", "expected_arg"),
+    [("MP3", "-b:a 192k"), ("OPUS", "-b:a 192k"), ("FLAC", None)],
+)
+async def test_convert_passes_lossy_bitrate(codec, expected_arg):
+    """[conversion] lossy_bitrate reaches lossy encoders, and only them.
+
+    It used to be read from the config and dropped: every lossy conversion ran
+    at the codec default (MP3 V0, Opus 128k) whatever the setting.
+    """
+    from streamrip import converter as converter_mod
+
+    cfg = _config(conversion_enabled=True)
+    cfg.session.conversion.codec = codec
+    cfg.session.conversion.lossy_bitrate = 192
+    t = _track(cfg=cfg)
+    t.download_path = "/dl/album/01 - Song.flac"
+
+    real_class = converter_mod.get(codec)
+    engine = MagicMock()
+    engine.convert = AsyncMock()
+    engine.final_fn = "/dl/album/01 - Song.opus"
+    engine_class = MagicMock(return_value=engine)
+    engine_class.lossless = real_class.lossless
+    engine_class.get_quality_arg = real_class.get_quality_arg
+
+    with (
+        patch("streamrip.media.track.converter.get", return_value=engine_class),
+        patch("streamrip.media.track.tag_file", new=AsyncMock()),
+    ):
+        await t._convert()
+
+    assert engine_class.call_args.kwargs["ffmpeg_arg"] == expected_arg
+
+
 @pytest.mark.parametrize("ext", ["flac", "m4a", "mp3", "aiff", "aif"])
 async def test_convert_retags_taggable_containers(ext):
     cfg = _config(conversion_enabled=True)
