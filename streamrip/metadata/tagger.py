@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from collections.abc import Collection
 from enum import Enum
 
 import aiofiles
@@ -135,19 +136,32 @@ class Container(Enum):
         # unreachable
         return {}
 
-    def get_tag_pairs(self, meta) -> list[tuple]:
+    def get_tag_pairs(self, meta, exclude: Collection[str] = ()) -> list[tuple]:
+        """Build this container's (key, value) tag pairs for ``meta``.
+
+        Args:
+            meta: The track metadata to write.
+            exclude: streamrip tag names (``METADATA_TYPES``, e.g. ``"genre"``,
+                ``"albumartist"``) to leave out, matched case-insensitively.
+
+        Returns:
+            The pairs to assign on the mutagen object, in ``METADATA_TYPES`` order.
+        """
+        skip = {name.lower() for name in exclude}
         if self == Container.FLAC:
-            return self._tag_flac(meta)
+            return self._tag_flac(meta, skip)
         elif self in (Container.MP3, Container.AIFF):
-            return self._tag_mp3(meta)
+            return self._tag_mp3(meta, skip)
         elif self == Container.AAC:
-            return self._tag_mp4(meta)
+            return self._tag_mp4(meta, skip)
         # unreachable
         return []
 
-    def _tag_flac(self, meta: TrackMetadata) -> list[tuple]:
+    def _tag_flac(self, meta: TrackMetadata, skip: Collection[str] = ()) -> list[tuple]:
         out = []
         for k, v in FLAC_KEY.items():
+            if k in skip:
+                continue
             tag = self._attr_from_meta(meta, k)
             if tag:
                 if k in {
@@ -161,9 +175,11 @@ class Container(Enum):
                 out.append((v, str(tag)))
         return out
 
-    def _tag_mp3(self, meta: TrackMetadata):
+    def _tag_mp3(self, meta: TrackMetadata, skip: Collection[str] = ()):
         out = []
         for k, v in MP3_KEY.items():
+            if k in skip:
+                continue
             if k == "tracknumber":
                 text = f"{meta.tracknumber}/{meta.album.tracktotal}"
             elif k == "discnumber":
@@ -188,9 +204,11 @@ class Container(Enum):
                 out.append((v.__name__, v(encoding=3, text=text)))  # type: ignore[arg-type]
         return out
 
-    def _tag_mp4(self, meta: TrackMetadata):
+    def _tag_mp4(self, meta: TrackMetadata, skip: Collection[str] = ()):
         out = []
         for k, v in MP4_KEY.items():
+            if k in skip:
+                continue
             if k == "tracknumber":
                 text = [(meta.tracknumber, meta.album.tracktotal)]
             elif k == "discnumber":
@@ -309,7 +327,24 @@ class Container(Enum):
 TAGGABLE_EXTENSIONS = frozenset({"flac", "m4a", "mp3", "aiff", "aif"})
 
 
-async def tag_file(path: str, meta: TrackMetadata, cover_path: str | None):
+async def tag_file(
+    path: str,
+    meta: TrackMetadata,
+    cover_path: str | None,
+    exclude: Collection[str] = (),
+):
+    """Write ``meta`` and the cover into the audio file at ``path``.
+
+    Args:
+        path: The audio file; its extension picks the tag format.
+        meta: The track metadata to write.
+        cover_path: JPEG to embed, or None to embed nothing.
+        exclude: streamrip tag names to leave out (``[metadata] exclude``).
+
+    Raises:
+        Exception: When the extension is not in :data:`TAGGABLE_EXTENSIONS`, or
+            when the cover is too large for a FLAC picture block.
+    """
     ext = path.split(".")[-1].lower()
     if ext == "flac":
         container = Container.FLAC
@@ -323,7 +358,7 @@ async def tag_file(path: str, meta: TrackMetadata, cover_path: str | None):
         raise Exception(f"Invalid extension {ext}")
 
     audio = await asyncio.to_thread(container.get_mutagen_class, path)
-    tags = container.get_tag_pairs(meta)
+    tags = container.get_tag_pairs(meta, exclude)
     logger.debug("Tagging with %s", tags)
     container.tag_audio(audio, tags)
     if cover_path is not None:

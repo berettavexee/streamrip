@@ -387,3 +387,42 @@ def test_mp3_is_written_as_id3v23(full_meta, tmp_path):
     assert "TDRC" not in raw
     assert str(raw["TYER"]) == "2020"
     assert str(ID3(str(p))["TIT2"]) == "Title"
+
+
+@pytest.mark.parametrize(
+    ("container", "dropped", "kept"),
+    [
+        (Container.FLAC, "GENRE", "TITLE"),
+        (Container.MP3, "TCON", "TIT2"),
+        (Container.AAC, "\xa9gen", "\xa9nam"),
+    ],
+)
+def test_exclude_drops_only_the_named_tags(full_meta, container, dropped, kept):
+    """[metadata] exclude takes streamrip's tag names, case-insensitively."""
+    keys = [k for k, _ in container.get_tag_pairs(full_meta, ["Genre"])]
+    assert dropped not in keys
+    assert kept in keys
+    assert dropped in [k for k, _ in container.get_tag_pairs(full_meta)]
+
+
+def test_exclude_applies_to_specially_handled_tags(full_meta):
+    """Track/disc numbers and ReplayGain take their own branches; exclude must
+    reach them too."""
+    keys = [
+        k
+        for k, _ in Container.MP3.get_tag_pairs(
+            full_meta, ["tracknumber", "replaygain_track_gain"]
+        )
+    ]
+    assert "TRCK" not in keys
+    assert "TXXX:replaygain_track_gain" not in keys
+    assert "TPOS" in keys
+
+
+async def test_tag_file_honours_exclude(full_meta, tmp_path):
+    p = tmp_path / "track.mp3"
+    p.write_bytes(b"")
+    await tag_file(str(p), full_meta, None, ["composer"])
+    tags = ID3(str(p))
+    assert "TCOM" not in tags
+    assert "TIT2" in tags

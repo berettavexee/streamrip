@@ -214,7 +214,12 @@ class Track(Media):
         if self.is_single:
             remove_title(self.meta.title)
 
-        await tag_file(self.download_path, self.meta, self.cover_path)
+        await tag_file(
+            self.download_path,
+            self.meta,
+            self.cover_path,
+            self.config.session.metadata.exclude,
+        )
         if self.config.session.conversion.enabled:
             await self._convert()
 
@@ -273,7 +278,12 @@ class Track(Media):
 
         ext = os.path.splitext(self.download_path)[1].lstrip(".").lower()
         if ext in TAGGABLE_EXTENSIONS:
-            await tag_file(self.download_path, self.meta, self.cover_path)
+            await tag_file(
+                self.download_path,
+                self.meta,
+                self.cover_path,
+                self.config.session.metadata.exclude,
+            )
 
     def _set_download_path(self):
         c = self.config.session.filepaths

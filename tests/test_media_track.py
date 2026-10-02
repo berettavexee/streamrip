@@ -376,13 +376,15 @@ def _integrity_ok():
 async def test_postprocess_tags_file():
     t = _track()
     t.download_path = "/dl/album/01 - Song.flac"
+    t.config.session.metadata.exclude = ["genre"]
     with (
         patch("streamrip.media.track.tag_file", new=AsyncMock()) as mock_tag,
         patch("streamrip.media.track.remove_title"),
         _integrity_ok(),
     ):
         await t.postprocess()
-    mock_tag.assert_awaited_once_with(t.download_path, t.meta, t.cover_path)
+    # [metadata] exclude reaches the tagger; it used to be read and dropped.
+    mock_tag.assert_awaited_once_with(t.download_path, t.meta, t.cover_path, ["genre"])
 
 
 async def test_postprocess_removes_title_when_single():
@@ -530,7 +532,12 @@ async def test_convert_calls_engine_and_updates_path():
     assert t.download_path == "/dl/album/01 - Song.mp3"
     # ffmpeg drops fields across a container change (ISRC and lyrics, at
     # least), so the converted file is tagged again.
-    mock_tag.assert_awaited_once_with("/dl/album/01 - Song.mp3", t.meta, t.cover_path)
+    mock_tag.assert_awaited_once_with(
+        "/dl/album/01 - Song.mp3",
+        t.meta,
+        t.cover_path,
+        t.config.session.metadata.exclude,
+    )
 
 
 @pytest.mark.parametrize(
