@@ -91,6 +91,9 @@
 #   QUALITY=1 ./run_realworld_tests.sh    # force une qualité (0..2 pour Deezer)
 #   CONVERT_CODECS="MP3 FLAC" ./run_realworld_tests.sh   # codecs à convertir
 #   MAX_TRACKS=0 ./run_realworld_tests.sh   # pas de plafond sur loved/top (lent)
+#   CONVERT_ALL=MP3 ./run_realworld_tests.sh   # convertit TOUS les cas en MP3
+#   PLAYLIST_MAX_TRACKS=20 ./run_realworld_tests.sh   # plafonne aussi la playlist
+#   FREE_PASS=0 ./run_realworld_tests.sh    # saute la passe gratuite malgré FREE_ARL
 #   FREE_ARL=... ./run_realworld_tests.sh   # ajoute la passe compte gratuit
 #   KEEP_AUDIO=0 ./run_realworld_tests.sh   # valide puis supprime l'audio
 #   KEEP_RUNS=3 ./run_realworld_tests.sh    # ne garde que les 3 derniers runs
@@ -155,6 +158,10 @@ fi
 # donc la liste complète est quand même récupérée et la pagination GW des
 # favoris — spécificité du fork — reste exercée. 0 = pas de limite.
 : "${MAX_TRACKS:=50}"
+# Plafond --max-tracks du cas playlist. Vide = playlist complète (défaut) : c'est
+# elle qui exerce le pipeline resolve/download sur un vrai volume. À poser pour
+# tenir un budget de pistes serré.
+: "${PLAYLIST_MAX_TRACKS:=}"
 
 # Codecs testés par le cas conversion, séparés par des espaces. Les deux par
 # défaut sont les cas limites opposés :
@@ -163,8 +170,18 @@ fi
 #          ffmpeg et la pochette de _embed_cover_art du convertisseur.
 : "${CONVERT_CODECS:=AIFF OPUS}"
 
+# Codec appliqué à TOUS les cas (passé en -c), pour éprouver la conversion sur
+# du volume réel et pas sur la seule piste du cas conversion. Vide = désactivé.
+# Un fichier qui ne sort pas dans le conteneur attendu fait échouer le cas : sans
+# ce contrôle, une conversion silencieusement sautée passerait pour un succès.
+: "${CONVERT_ALL:=}"
+
 # Passe compte gratuit (validation du downgrade WrongLicense). Vide = ignorée.
 : "${FREE_ARL:=}"         # ARL d'un compte gratuit ; déclenche la 2e passe
+# 0 = saute la passe gratuite même si FREE_ARL est renseigné. Nécessaire car
+# test_urls.env est sourcé après l'env : FREE_ARL= en ligne de commande ne
+# suffit pas à la couper.
+: "${FREE_PASS:=1}"
 : "${FREE_QUALITY:=2}"    # qualité forcée pour la passe gratuite (FLAC demandé)
 # Les favoris sont liés à un compte : rejouer LOVED_URL avec l'ARL gratuit
 # interroge les favoris du compte PRINCIPAL, que le gratuit n'a pas le droit de
@@ -254,11 +271,14 @@ _make_temp_config() {
 # Le seuil de 100 est volontairement haut : les md5 (32 caractères) sont partout
 # dans les URLs de CDN Deezer et les masquer rendrait les logs inexploitables.
 # Le seul md5 sensible — le mot de passe Qobuz — est attrapé par la passe 1.
+# Les valeurs sont masquées entre guillemets doubles (TOML, JSON) comme entre
+# apostrophes : les traces rich de `rip -v` (show_locals) affichent les
+# variables locales sous la forme  arl = '…', tronquées sous 100 caractères.
 _scrub_secrets() {
     local _keys='arl|email_or_userid|password_or_token|access_token|refresh_token|user_id|client_id|client_secret|password|email|token'
     sed -i -E \
         -e "s/^([[:space:]]*($_keys)[[:space:]]*=[[:space:]]*\")[^\"]+\"/\1<REDACTED>\"/I" \
-        -e "s/(\b($_keys)\"?[[:space:]]*[:=][[:space:]]*\"?)[A-Za-z0-9._~+\/-]{8,}/\1<REDACTED>/gI" \
+        -e "s/(\b($_keys)[\"']?[[:space:]]*[:=][[:space:]]*[\"']?)[A-Za-z0-9._~+\/-]{8,}/\1<REDACTED>/gI" \
         -e 's/[0-9a-fA-F]{100,}/<REDACTED>/g' \
         "$1" 2>/dev/null || true
 }
@@ -453,6 +473,8 @@ _sample_files() {
 CASE_CHECK_TAGS=""
 # Plafond --max-tracks du cas courant ; vide = pas de plafond.
 CASE_MAX_TRACKS=""
+# Codec que le cas courant doit produire (cas conversion) ; vide = CONVERT_ALL.
+CASE_CODEC=""
 
 # Supprime l'audio d'un cas une fois validé, en gardant tout ce qui sert au
 # diagnostic (logs, console, rapports d'anomalies). Appelé après le calcul du
@@ -462,6 +484,19 @@ _discard_case_audio() {
     [[ "$KEEP_AUDIO" == "0" ]] || return 0
     rm -rf "$dl_dir"
     mkdir -p "$dl_dir"
+}
+
+# Extension produite par un codec de `rip -c` (cf. converter.get).
+_codec_ext() {
+    case "${1^^}" in
+        MP3)            echo mp3 ;;
+        FLAC)           echo flac ;;
+        ALAC|AAC|M4A)   echo m4a ;;
+        OPUS)           echo opus ;;
+        OGG|VORBIS)     echo ogg ;;
+        AIFF|AIF)       echo aiff ;;
+        *)              echo "${1,,}" ;;
+    esac
 }
 
 run_case() {
@@ -516,8 +551,24 @@ run_case() {
                 printf '%s\t%s\n' "$reason" "$(basename "$f")" >> "$invalid_log"
             fi
         done
+        # Conversion (cas dédié ou CONVERT_ALL) : chaque fichier doit être dans
+        # le conteneur du codec demandé.
+        local unconverted=0 want_codec="${CASE_CODEC:-$CONVERT_ALL}"
+        if [[ -n "$want_codec" ]]; then
+            local want_ext; want_ext=$(_codec_ext "$want_codec")
+            for f in "${files[@]}"; do
+                local ext="${f##*.}"
+                if [[ "${ext,,}" != "$want_ext" ]]; then
+                    unconverted=$((unconverted+1))
+                    printf 'NOT_CONVERTED\t.%s au lieu de .%s\t%s\n' \
+                        "$ext" "$want_ext" "$(basename "$f")" >> "$invalid_log"
+                fi
+            done
+        fi
         if (( bad > 0 )); then
             status="FAIL"; note="$bad/$n invalide(s) — voir invalid_files.txt"
+        elif (( unconverted > 0 )); then
+            status="FAIL"; note="$unconverted/$n non converti(s) en $want_codec — voir invalid_files.txt"
         else
             rm -f "$invalid_log"
 
@@ -735,7 +786,9 @@ run_or_skip() {
 run_all_cases() {
     run_or_skip "Deezer track (déchiffrement streaming)" "$TRACK_URL"      url "$TRACK_URL"
     run_or_skip "Deezer album (prefetch GW + cache)"     "$ALBUM_URL"      url "$ALBUM_URL"
+    CASE_MAX_TRACKS="$PLAYLIST_MAX_TRACKS"
     run_or_skip "Deezer playlist (pipeline resolve/dl)"  "$PLAYLIST_URL"   url "$PLAYLIST_URL"
+    CASE_MAX_TRACKS=""
     # Cas lourds : plafonnés pour que le script reste utilisable (cf. MAX_TRACKS).
     [[ "$MAX_TRACKS" != "0" ]] && CASE_MAX_TRACKS="$MAX_TRACKS"
     # Seule URL du jeu liée à un compte Deezer : les playlists, albums et
@@ -765,14 +818,19 @@ run_all_cases() {
 
     # Conversion : tous les fichiers sont contrôlés, pochette comprise.
     for _codec in $CONVERT_CODECS; do
-        CASE_CHECK_TAGS=1
+        CASE_CHECK_TAGS=1; CASE_CODEC="$_codec"
         run_or_skip "Conversion $_codec (tags + pochette)" "$CONVERT_URL" \
             -c "$_codec" url "$CONVERT_URL"
-        CASE_CHECK_TAGS=""
+        CASE_CHECK_TAGS=""; CASE_CODEC=""
     done
 }
 
+CONVERT_OPTS=()
+[[ -n "$CONVERT_ALL" ]] && CONVERT_OPTS=(-c "$CONVERT_ALL")
+
+EXTRA_OPTS=("${CONVERT_OPTS[@]}")
 run_all_cases
+EXTRA_OPTS=()
 
 # `repair` teste la base des échecs, pas le licensing : il tourne une seule fois,
 # et sur sa propre copie de config (donc hors passe gratuite).
@@ -817,7 +875,10 @@ with open(path, "w", encoding="utf-8") as fh:
 PY
 }
 
-if [[ -n "$FREE_ARL" ]]; then
+if [[ -n "$FREE_ARL" && "$FREE_PASS" == "0" ]]; then
+    echo "Passe compte gratuit ignorée (FREE_PASS=0)."
+    echo
+elif [[ -n "$FREE_ARL" ]]; then
     if [[ -n "$DRY_RUN" ]]; then
         echo "Passe compte gratuit ignorée (DRY_RUN : rien n'est téléchargé, donc"
         echo "rien à contrôler sur le format servi)."
@@ -830,7 +891,7 @@ if [[ -n "$FREE_ARL" ]]; then
         echo "PASSE COMPTE GRATUIT — qualité $FREE_QUALITY forcée, downgrade MP3 attendu"
         echo "════════════════════════════════════════════════════════════════════════"
         echo
-        EXTRA_OPTS=(--config-path "$FREE_CFG")
+        EXTRA_OPTS=(--config-path "$FREE_CFG" "${CONVERT_OPTS[@]}")
         EXPECT_MP3=1
         CASE_PREFIX="[gratuit] "
         QUALITY="$FREE_QUALITY"
