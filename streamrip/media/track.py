@@ -194,11 +194,17 @@ class Track(Media):
 
         Steps in order:
 
-        1. Run Mutagen tagging in a thread pool (non-blocking).
-        2. If conversion is enabled, convert to the configured codec and
+        1. Run the integrity check (effective bitrate vs. quality tier) on
+           the file as downloaded.
+        2. Run Mutagen tagging in a thread pool (non-blocking).
+        3. If conversion is enabled, convert to the configured codec and
            update :attr:`download_path` to the new extension.
-        3. Run the integrity check (effective bitrate vs. quality tier).
         4. Record the track as downloaded in the database.
+
+        The check runs before conversion because its thresholds describe what
+        the service delivers at a quality tier, not what the converter writes:
+        a lossy re-encode at a modest ``lossy_bitrate`` (Opus 96k from a FLAC)
+        would otherwise fall under the FLAC floor and be reported as truncated.
 
         A file that fails the integrity check is recorded as *failed*, not as
         downloaded: marking it as downloaded would make the database skip it on
@@ -214,15 +220,6 @@ class Track(Media):
         if self.is_single:
             remove_title(self.meta.title)
 
-        await tag_file(
-            self.download_path,
-            self.meta,
-            self.cover_path,
-            self.config.session.metadata.exclude,
-        )
-        if self.config.session.conversion.enabled:
-            await self._convert()
-
         ok, reason = await asyncio.to_thread(
             check_integrity, self.download_path, self.meta.info.quality
         )
@@ -237,6 +234,15 @@ class Track(Media):
             raise NonStreamableError(
                 f"Integrity check failed for '{self.meta.title}': {reason}"
             )
+
+        await tag_file(
+            self.download_path,
+            self.meta,
+            self.cover_path,
+            self.config.session.metadata.exclude,
+        )
+        if self.config.session.conversion.enabled:
+            await self._convert()
 
         self.db.set_downloaded(self.meta.info.id)
 

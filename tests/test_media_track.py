@@ -476,6 +476,54 @@ async def test_postprocess_marks_failed_when_integrity_fails():
     )
 
 
+async def test_postprocess_checks_integrity_before_conversion():
+    """The check judges the downloaded file, never the converted one.
+
+    Its floors describe what a service delivers at a quality tier. A FLAC
+    re-encoded to Opus at lossy_bitrate = 96 sits under the 100 kbps FLAC
+    floor, and used to be reported as truncated -- then marked failed and
+    downloaded again on every run.
+    """
+    t = _track(cfg=_config(conversion_enabled=True))
+    t.download_path = "/dl/album/01 - Song.flac"
+    checked = []
+
+    async def fake_convert():
+        t.download_path = "/dl/album/01 - Song.opus"
+
+    def fake_check(path, _quality):
+        checked.append(path)
+        return True, ""
+
+    with (
+        patch("streamrip.media.track.tag_file", new=AsyncMock()) as mock_tag,
+        patch("streamrip.media.track.remove_title"),
+        patch.object(t, "_convert", new=fake_convert),
+        patch("streamrip.media.track.check_integrity", side_effect=fake_check),
+    ):
+        await t.postprocess()
+
+    assert checked == ["/dl/album/01 - Song.flac"]
+    t.db.set_downloaded.assert_called_once()
+    mock_tag.assert_awaited_once()
+
+
+async def test_postprocess_does_not_tag_a_file_failing_integrity():
+    """A truncated file is reported as such, before mutagen trips over it."""
+    t = _track()
+    t.download_path = "/dl/album/01 - Song.flac"
+    with (
+        patch("streamrip.media.track.tag_file", new=AsyncMock()) as mock_tag,
+        patch("streamrip.media.track.remove_title"),
+        patch(
+            "streamrip.media.track.check_integrity", return_value=(False, "truncated")
+        ),
+        pytest.raises(NonStreamableError),
+    ):
+        await t.postprocess()
+    mock_tag.assert_not_awaited()
+
+
 async def test_postprocess_runs_conversion_when_enabled():
     t = _track(cfg=_config(conversion_enabled=True))
     t.download_path = "/dl/album/01 - Song.flac"
