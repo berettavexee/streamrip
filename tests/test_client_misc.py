@@ -209,3 +209,28 @@ class TestGetRateLimiter:
 
         result = Client.get_rate_limiter(60)
         assert isinstance(result, aiolimiter.AsyncLimiter)
+
+
+async def test_tidal_404_raises_non_streamable_not_a_logging_error(caplog):
+    """The 404 warning had an argument but no placeholder: formatting the record
+    raised TypeError from inside logging instead of the NonStreamableError."""
+    from contextlib import asynccontextmanager
+
+    from streamrip.client.tidal import TidalClient
+    from streamrip.exceptions import NonStreamableError
+
+    config = Config.defaults()
+    config.session.downloads.requests_per_minute = 0
+    client = TidalClient(config)
+
+    resp = MagicMock(status=404, url="https://api.tidal.com/v1/tracks/1")
+
+    @asynccontextmanager
+    async def fake_get(*_a, **_kw):
+        yield resp
+
+    client.session = MagicMock(get=fake_get)
+    with caplog.at_level("WARNING", logger="streamrip"):
+        with pytest.raises(NonStreamableError):
+            await client._api_request("tracks/1")
+    assert "https://api.tidal.com/v1/tracks/1" in caplog.text
