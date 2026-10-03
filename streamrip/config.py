@@ -4,7 +4,6 @@ import copy
 import functools
 import logging
 import os
-import shutil
 from dataclasses import dataclass, fields
 from pathlib import Path
 
@@ -15,7 +14,12 @@ from tomlkit.toml_document import TOMLDocument
 logger = logging.getLogger("streamrip")
 
 APP_DIR = click.get_app_dir("streamrip")
-os.makedirs(APP_DIR, exist_ok=True)
+# The app directory holds the config (Deezer ARL, Qobuz token, Tidal tokens,
+# Last.fm key) and the databases: owner-only. chmod as well, since makedirs'
+# mode is filtered by the umask and ignored for a directory that exists.
+os.makedirs(APP_DIR, mode=0o700, exist_ok=True)
+if os.name == "posix":
+    os.chmod(APP_DIR, 0o700)
 DEFAULT_CONFIG_PATH = os.path.join(APP_DIR, "config.toml")
 CURRENT_CONFIG_VERSION = "2.2.1"
 
@@ -361,6 +365,11 @@ class Config:
         self.path = path
 
         with open(path) as toml_file:
+            # User configs carry credentials; tighten one created before this
+            # rule (it used to be 0644 or 0664). The packaged template is
+            # shared and holds none.
+            if _is_user_config(path):
+                os.fchmod(toml_file.fileno(), 0o600)
             self.file: ConfigData = ConfigData.from_toml(toml_file.read())
 
         self.session: ConfigData = copy.deepcopy(self.file)
@@ -369,9 +378,8 @@ class Config:
         if not self.file.modified:
             return
 
-        with open(self.path, "w") as toml_file:
-            self.file.update_toml()
-            toml_file.write(dumps(self.file.toml))
+        self.file.update_toml()
+        _write_config(self.path, self.file.toml)
 
     @staticmethod
     def _update_file(old_path: str, new_path: str):
@@ -386,8 +394,7 @@ class Config:
 
         update_config(old_toml, new_toml)  # type: ignore[arg-type]
 
-        with open(old_path, "w") as f:
-            f.write(dumps(new_toml))
+        _write_config(old_path, new_toml)
 
     @classmethod
     def update_file(cls, path: str):
@@ -404,17 +411,53 @@ class Config:
         self.save_file()
 
 
-def set_user_defaults(path: str, /):
-    """Update the TOML file at the path with user-specific default values."""
-    shutil.copy(BLANK_CONFIG_PATH, path)
+def _is_user_config(path: str) -> bool:
+    """Tell whether ``path`` is a user's config rather than the packaged template.
 
-    with open(path) as f:
+    Args:
+        path: A config file path.
+
+    Returns:
+        True on POSIX for anything but ``BLANK_CONFIG_PATH`` -- the only files
+        whose permissions are worth tightening.
+    """
+    return os.name == "posix" and not (
+        os.path.exists(path) and os.path.samefile(path, BLANK_CONFIG_PATH)
+    )
+
+
+def _write_config(path: str, toml: TOMLDocument) -> None:
+    """Write a config file readable by its owner only.
+
+    The file is opened with mode 0600, so a new one is never world-readable,
+    even briefly or under a permissive umask; an existing one is chmodded
+    before it is truncated, so its old contents are not exposed in between.
+
+    Args:
+        path: The config file to write.
+        toml: The document to serialize into it.
+    """
+    contents = dumps(toml)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o600)
+    with os.fdopen(fd, "w") as f:
+        if _is_user_config(path):
+            os.fchmod(f.fileno(), 0o600)
+        f.truncate(0)
+        f.write(contents)
+
+
+def set_user_defaults(path: str, /):
+    """Create the config at the path from the template, with user defaults.
+
+    Args:
+        path: Where to write the new config (owner-only, see _write_config).
+    """
+    with open(BLANK_CONFIG_PATH) as f:
         toml = parse(f.read())
 
     toml_set_user_defaults(toml)
 
-    with open(path, "w") as f:
-        f.write(dumps(toml))
+    _write_config(path, toml)
 
 
 def toml_set_user_defaults(toml: TOMLDocument):

@@ -1,10 +1,12 @@
 import os
 import shutil
+import stat
 
 import pytest
 import tomlkit
 
 from streamrip.config import (
+    BLANK_CONFIG_PATH,
     ArtworkConfig,
     CliConfig,
     Config,
@@ -23,6 +25,7 @@ from streamrip.config import (
     TidalConfig,
     _get_dict_keys_r,
     _nested_set,
+    set_user_defaults,
     update_config,
 )
 
@@ -289,3 +292,40 @@ if __name__ == "__main__":
 def test_default_lossy_bitrate_keeps_codec_defaults():
     """A fresh config converts at each codec's own default, not one shared rate."""
     assert Config.defaults().session.conversion.lossy_bitrate == 0
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permissions")
+class TestConfigPermissions:
+    """The config holds the Deezer ARL, the Qobuz token and the Last.fm key."""
+
+    def test_loading_tightens_an_old_world_readable_config(self, tmp_path):
+        path = tmp_path / "config.toml"
+        set_user_defaults(str(path))
+        os.chmod(path, 0o664)  # what older versions left behind
+
+        Config(str(path))
+
+        assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
+
+    def test_new_config_is_owner_only_even_with_a_permissive_umask(self, tmp_path):
+        path = tmp_path / "config.toml"
+        old = os.umask(0)
+        try:
+            set_user_defaults(str(path))
+        finally:
+            os.umask(old)
+        assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
+
+    def test_saving_keeps_it_owner_only(self, tmp_path):
+        path = tmp_path / "config.toml"
+        set_user_defaults(str(path))
+        with Config(str(path)) as c:
+            c.file.deezer.arl = "x" * 192
+            c.file.set_modified()
+        assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
+        assert Config(str(path)).session.deezer.arl == "x" * 192
+
+    def test_the_packaged_template_is_left_alone(self):
+        before = stat.S_IMODE(os.stat(BLANK_CONFIG_PATH).st_mode)
+        Config.defaults()
+        assert stat.S_IMODE(os.stat(BLANK_CONFIG_PATH).st_mode) == before
