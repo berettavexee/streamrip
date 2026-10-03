@@ -2,6 +2,7 @@
 
 import asyncio
 import contextlib
+import http.client
 import logging
 from abc import ABC, abstractmethod
 
@@ -12,6 +13,12 @@ from ..utils.ssl_utils import get_aiohttp_connector_kwargs
 from .downloadable import Downloadable
 
 logger = logging.getLogger("streamrip")
+
+# http.client -- under requests: deezer-py and the plain downloads -- rejects a
+# response with more than 100 headers ("got more than 100 headers"), and some
+# CDNs (Qobuz's Akamai edge) send more. Raised once, process-wide, here: every
+# client and Downloadable imports this module before any request is made.
+http.client._MAXHEADERS = 1000  # type: ignore[attr-defined]
 
 # Single source of truth for the client identity presented to every service, on
 # both HTTP stacks (aiohttp here, deezer-py's requests session in deezer.py).

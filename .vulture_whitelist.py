@@ -65,3 +65,7 @@ kvs                     # unused variable (streamrip/db.py:41, 50)
 # ── Constantes de chemins (alias module) ─────────────────────────────────────
 CACHE_DIR               # unused variable (streamrip/rip/user_paths.py:10)
 DOWNLOADS_DIR           # unused variable (streamrip/rip/user_paths.py:13)
+
+# ── Attributs de la stdlib réglés pour leur effet de bord ────────────────────
+# Lu par http.client, pas par streamrip : vulture ne peut pas le voir.
+_._MAXHEADERS           # unused attribute (streamrip/client/client.py:21)

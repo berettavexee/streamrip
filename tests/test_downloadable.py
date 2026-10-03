@@ -491,3 +491,32 @@ class TestSoundcloudDownloadable:
         url = "https://sc.com/track.mp3"
         d = SoundcloudDownloadable(MagicMock(), {"type": "mp3", "url": url})
         assert d.url == url
+
+
+async def test_download_accepts_a_response_with_many_headers(tmp_path):
+    """http.client rejects more than 100 response headers by default ("got more
+    than 100 headers"); some CDNs (Qobuz's Akamai edge) send more."""
+
+    class ManyHeaders(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            body = b"audio"
+            self.send_response(200)
+            for i in range(150):
+                self.send_header(f"X-Edge-{i}", "1")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), ManyHeaders)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    path = tmp_path / "track.flac"
+    try:
+        await fast_async_download(
+            str(path), f"http://127.0.0.1:{srv.server_address[1]}/", {}, lambda n: None
+        )
+    finally:
+        srv.shutdown()
+    assert path.read_bytes() == b"audio"
