@@ -23,6 +23,24 @@ from .downloadable import BasicDownloadable, Downloadable
 
 logger = logging.getLogger("streamrip")
 
+# Query parameters that carry a credential or are derived from one. They reach
+# log lines and error messages through the params dict; Qobuz takes the
+# password and user_auth_token as URL query parameters, not a header.
+_SECRET_PARAMS = frozenset({"password", "user_auth_token", "request_sig"})
+
+
+def _masked(params: dict) -> dict:
+    """Copy request parameters with every credential replaced by "***".
+
+    Args:
+        params: Query parameters of a Qobuz API request.
+
+    Returns:
+        A copy that is safe to log or to put in an exception message.
+    """
+    return {k: "***" if k in _SECRET_PARAMS else v for k, v in params.items()}
+
+
 QOBUZ_BASE_URL = "https://www.qobuz.com/api.json/0.2"
 
 QOBUZ_FEATURED_KEYS = {
@@ -233,14 +251,23 @@ class QobuzClient(Client):
                 "app_id": str(c.app_id),
             }
 
-        logger.debug("Request params %s", params)
+        # Neither the params (password or token) nor the response (a fresh
+        # user_auth_token, the account's e-mail) belong in a log or an error.
+        method = "user_auth_token" if c.use_auth_token else "email/password"
+        logger.debug("Logging in to Qobuz with %s", method)
         status, resp = await self._api_request("user/login", params)
-        logger.debug("Login resp: %s", resp)
+        logger.debug("Qobuz login answered HTTP %d", status)
 
         if status == 401:
-            raise AuthenticationError(f"Invalid credentials from params {params}")
+            raise AuthenticationError(f"Qobuz rejected the credentials ({method})")
         elif status == 400:
-            raise InvalidAppIdError(f"Invalid app id from params {params}")
+            raise InvalidAppIdError(f"Qobuz rejected app id {c.app_id}")
+        elif status != 200:
+            # A 5xx or an HTML error page: used to fail on resp["user"] with a
+            # bare KeyError.
+            raise AuthenticationError(
+                f"Qobuz login failed: HTTP {status}, {resp.get('message', '')}"
+            )
 
         logger.debug("Logged in to Qobuz")
 
@@ -492,7 +519,7 @@ class QobuzClient(Client):
         )
         working_secrets = [r for r in results if r is not None]
         if len(working_secrets) == 0:
-            raise InvalidAppSecretError(secrets)
+            raise InvalidAppSecretError(f"none of the {len(secrets)} app secrets works")
 
         return working_secrets[0]
 
@@ -505,9 +532,8 @@ class QobuzClient(Client):
         quality = self.get_quality(quality)
         unix_ts = time.time()
         r_sig = f"trackgetFileUrlformat_id{quality}intentstreamtrack_id{track_id}{unix_ts}{secret}"
-        logger.debug("Raw request signature: %s", r_sig)
+        # r_sig ends with the app secret in clear text: never log it.
         r_sig_hashed = hashlib.md5(r_sig.encode("utf-8")).hexdigest()
-        logger.debug("Hashed request signature: %s", r_sig_hashed)
         params = {
             "request_ts": unix_ts,
             "request_sig": r_sig_hashed,
@@ -522,10 +548,18 @@ class QobuzClient(Client):
         returns: status code, json parsed response
         """
         url = f"{QOBUZ_BASE_URL}/{epoint}"
-        logger.debug("api_request: endpoint=%s, params=%s", epoint, params)
+        logger.debug("api_request: endpoint=%s, params=%s", epoint, _masked(params))
         async with self.rate_limiter:
             async with self.session.get(url, params=params) as response:
-                return response.status, await response.json()
+                try:
+                    return response.status, await response.json()
+                except aiohttp.ContentTypeError:
+                    # An HTML error page (a 502 from Qobuz's edge). aiohttp's
+                    # exception quotes the full URL, query string included --
+                    # the password or token on user/login. Report the status.
+                    return response.status, {
+                        "message": f"non-JSON response (HTTP {response.status})"
+                    }
 
     @staticmethod
     def get_quality(quality: int):
