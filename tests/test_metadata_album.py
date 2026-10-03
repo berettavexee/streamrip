@@ -794,3 +794,20 @@ def test_from_album_resp_deezer():
 def test_from_album_resp_invalid_source():
     with pytest.raises(Exception, match="Invalid source"):
         AlbumMetadata.from_album_resp({}, "napster")
+
+
+def test_from_tidal_null_copyright():
+    """Tidal sends "copyright": null for some releases; typed() used to raise."""
+    with _PATCH_COVERS["tidal"]:
+        meta = AlbumMetadata.from_tidal(_tidal(copyright=None))
+    assert meta is not None
+    assert not meta.copyright
+
+
+def test_from_tidal_playlist_track_null_copyright():
+    with _PATCH_COVERS["tidal"]:
+        meta = AlbumMetadata.from_tidal_playlist_track_resp(
+            _tidal_track(copyright=None)
+        )
+    assert meta is not None
+    assert not meta.copyright
