@@ -75,16 +75,7 @@ class PendingPlaylistTrack(Pending):
 
         quality = self.config.session.get_source(self.client.source).quality
         try:
-            embedded_cover_path, downloadable = await asyncio.gather(
-                download_embed_cover(
-                    self.client.session,
-                    self.folder,
-                    album.covers,
-                    self.config.session.artwork,
-                    for_playlist=True,
-                ),
-                self.client.get_downloadable(self.id, quality),
-            )
+            downloadable = await self.client.get_downloadable(self.id, quality)
         except NonStreamableError as e:
             logger.error(f"Error fetching download info for track {self.id}: {e}")
             self.db.set_failed(self.client.source, "track", self.id)
@@ -95,13 +86,26 @@ class PendingPlaylistTrack(Pending):
         # geoblocked, or because it is delisted and Deezer redirects to the
         # release that superseded it. Either way the requested track's metadata
         # — most visibly its cover — no longer describes the bytes on disk
-        # (Deezer serves a placeholder or a missing image for such releases), so
+        # (Deezer serves its grey "no cover" placeholder for such releases), so
         # rebuild album/meta/cover from the track that was actually served.
+        #
+        # The cover is therefore only fetched once the served track is known.
+        # Fetching it alongside get_downloadable, as this used to, downloaded
+        # that placeholder for every fallback-served track, only to discard it.
+        fb = None
         served_id = getattr(downloadable, "id", None)
         if served_id is not None and str(served_id) != str(self.id):
             fb = await self._resolve_fallback_metadata(str(served_id))
-            if fb is not None:
-                album, meta, embedded_cover_path = fb
+        if fb is not None:
+            album, meta, embedded_cover_path = fb
+        else:
+            embedded_cover_path = await download_embed_cover(
+                self.client.session,
+                self.folder,
+                album.covers,
+                self.config.session.artwork,
+                for_playlist=True,
+            )
 
         c = self.config.session.metadata
         if c.renumber_playlist_tracks:

@@ -247,13 +247,16 @@ async def test_ppt_resolve_returns_none_on_download_non_streamable():
             "streamrip.media.playlist.TrackMetadata.from_resp", return_value=track_meta
         ),
         patch(
-            "streamrip.media.playlist.download_embed_cover",
-            new=AsyncMock(side_effect=NonStreamableError("no download")),
-        ),
+            "streamrip.media.playlist.download_embed_cover", new=AsyncMock()
+        ) as mock_cover,
     ):
+        ppt.client.get_downloadable = AsyncMock(
+            side_effect=NonStreamableError("no download")
+        )
         result = await ppt.resolve()
     assert result is None
     ppt.db.set_failed.assert_called_once()
+    mock_cover.assert_not_awaited()  # no cover for a track that will not download
 
 
 # ---------------------------------------------------------------------------
@@ -330,7 +333,7 @@ async def test_ppt_resolve_uses_fallback_metadata_on_geoblock():
         ),
         patch(
             "streamrip.media.playlist.download_embed_cover",
-            new=AsyncMock(side_effect=["/orig_cover.jpg", "/fb_cover.jpg"]),
+            new=AsyncMock(return_value="/fb_cover.jpg"),
         ) as mock_cover,
         patch("streamrip.media.playlist.Track") as mock_track,
     ):
@@ -342,7 +345,11 @@ async def test_ppt_resolve_uses_fallback_metadata_on_geoblock():
     assert args[4] == "/fb_cover.jpg"  # embedded_cover_path
     # Fallback metadata was fetched for the served id.
     client.get_track_for_playlist.assert_any_await("999")
-    assert mock_cover.await_count == 2  # original + fallback cover
+    # Only the served track's cover is fetched. The requested release's cover
+    # -- Deezer's grey placeholder for a geoblocked or delisted release -- used
+    # to be downloaded too, alongside get_downloadable, then discarded.
+    assert mock_cover.await_count == 1
+    assert mock_cover.await_args.args[2] is fb_album.covers
 
 
 async def test_ppt_resolve_renumbers_track():
