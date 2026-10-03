@@ -62,6 +62,9 @@ The main evolutions focus on Deezer and the following areas:
 - Fix infinite recursion / `KeyError` when BTS manifest decode fails at quality 0 ([#892](https://github.com/nathom/streamrip/issues/892))
 - Fix `TypeError: len(None)` when the `artists` field is absent from a track response
 - Fix `KeyError` when `audioQuality` returns an unknown value (e.g. new tiers)
+- Fix a 404 crashing inside logging: the warning passed an argument with no placeholder, so formatting it raised `TypeError` instead of the `NonStreamableError` that followed. It now logs the URL. From Stensel8/streamrip (ghostdanser)
+- Fix share links ending in `/u` (`https://tidal.com/album/152697662/u`): the suffix was parsed as the item id and the API answered 404. From Stensel8/streamrip (ghostdanser)
+- Fix albums with `"copyright": null` failing to parse, in both Tidal parsers that read the field. From Stensel8/streamrip (hi-imruka)
 
 ## Qobuz
 
@@ -69,11 +72,15 @@ The main evolutions focus on Deezer and the following areas:
 - Fall back to `album.artist.name` when the track-level `performer` field is absent — fixes `AssertionError` on compilation albums ([#610](https://github.com/nathom/streamrip/issues/610))
 - Replace `assert status == 200` guards with proper `NonStreamableError` exceptions (asserts are silently disabled by Python's `-O` flag) ([#780](https://github.com/nathom/streamrip/issues/780))
 - Fix silent wrong-quality bug in `get_quality()`: passing `quality=0` would return the 24-bit format via Python's negative index instead of raising an error
+- **Fix every album crashing with `KeyError: 'tracks'` and playlists resolving to 0 tracks** since Qobuz stopped inlining track listings (~2026-07-18, upstream [#1012](https://github.com/nathom/streamrip/issues/1012)). `extra=track_ids` is requested and used when the legacy shape is absent. From Stensel8/streamrip (izzoa). Not verified against the live API.
+- When Qobuz rotates its app secret, a stale `app_id`/secrets pair (pinned or cached in the config) is refetched from the web player bundle, saved, and the login retried once instead of failing. From Stensel8/streamrip (László Károlyi). Not verified against the live API.
 
 ## SoundCloud
 
 - Replace `assert url is not None` with a graceful `NON_STREAMABLE` return when no HLS stream is found for a track
 - Replace all remaining `assert status == 200` guards in `search`, `resolve_url`, `_get_track`, `_get_playlist`, and `get_downloadable` with `NonStreamableError` exceptions
+- The client id is found by scanning every script bundle of soundcloud.com (yt-dlp's approach) rather than one script tag of an exact shape, which broke upstream ([#1038](https://github.com/nathom/streamrip/issues/1038)); `app_version` is optional. Progressive MP3 is preferred over HLS, snipped 30 s previews are refused instead of saved as the track, and a track without an MP3 stream is non-streamable instead of failing an assertion. From Stensel8/streamrip
+- **Fix downloadable tracks failing outright:** anonymously, the original-file endpoint now answers 401 even for tracks marked downloadable, and its empty body crashed the JSON decoding before the status was read. The MP3 stream is used instead. Checked live on four public tracks and one SNIP-policy track.
 
 ## All clients
 
