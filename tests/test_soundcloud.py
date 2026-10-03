@@ -152,3 +152,26 @@ async def test_request_returns_status_for_a_non_json_error_body():
         {},
         401,
     )
+
+
+async def test_small_playlist_with_inline_metadata_gets_custom_ids():
+    """When every track comes with its metadata, no batch fetch is needed --
+    and the code returned early, skipping the id rewrite. Each track kept its
+    numeric id and failed in get_downloadable ("'int' object has no attribute
+    'split'"); seen live on 3-track public playlists."""
+    tracks = [
+        _track(_tc("progressive", "audio/mpeg", f"https://x/{i}/stream/progressive"))
+        for i in (1, 2)
+    ]
+    for i, t in enumerate(tracks, start=1):
+        t["id"] = i
+    client = _client_with_responses({"playlists/9": ({"tracks": tracks}, 200)})
+
+    resp = await client._get_playlist("9")
+
+    assert [t["id"] for t in resp["tracks"]] == [
+        "1|https://x/1/stream/progressive",
+        "2|https://x/2/stream/progressive",
+    ]
+    # Nothing to fetch in batches.
+    assert all(c.args[0] == "playlists/9" for c in client._api_request.await_args_list)

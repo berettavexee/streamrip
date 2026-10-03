@@ -205,38 +205,42 @@ class SoundcloudClient(Client):
             track["id"] for track in original_resp["tracks"] if "media" not in track
         ]
 
-        if len(unresolved_tracks) == 0:
-            return original_resp
+        # Small playlists come with every track's metadata ("media") already.
+        # They used to return here, skipping the id rewrite below, so each track
+        # kept its plain numeric id and failed with "'int' object has no
+        # attribute 'split'" in get_downloadable.
+        if unresolved_tracks:
+            batches = batched(unresolved_tracks, MAX_BATCH_SIZE)
+            requests = [
+                self._api_request(
+                    "tracks",
+                    params={"ids": ",".join(str(id) for id in filter_none(batch))},
+                )
+                for batch in batches
+            ]
 
-        batches = batched(unresolved_tracks, MAX_BATCH_SIZE)
-        requests = [
-            self._api_request(
-                "tracks",
-                params={"ids": ",".join(str(id) for id in filter_none(batch))},
-            )
-            for batch in batches
-        ]
+            # (list of track metadata, status code)
+            responses: list[tuple[list, int]] = await asyncio.gather(*requests)
 
-        # (list of track metadata, status code)
-        responses: list[tuple[list, int]] = await asyncio.gather(*requests)
+            failed = [status for _, status in responses if status != 200]
+            if failed:
+                raise NonStreamableError(
+                    f"SoundCloud batch track fetch failed (statuses: {failed})"
+                )
 
-        failed = [status for _, status in responses if status != 200]
-        if failed:
-            raise NonStreamableError(
-                f"SoundCloud batch track fetch failed (statuses: {failed})"
-            )
+            remaining_tracks = list(itertools.chain(*[resp for resp, _ in responses]))
 
-        remaining_tracks = list(itertools.chain(*[resp for resp, _ in responses]))
-
-        # Insert the new metadata into the original response
-        track_map: dict[str, dict] = {track["id"]: track for track in remaining_tracks}
-        for i, track in enumerate(original_resp["tracks"]):
-            if "media" in track:  # track already has metadata
-                continue
-            this_track = track_map.get(track["id"])
-            if this_track is None:
-                raise Exception(f"Requested {track['id']} but got no response")
-            original_resp["tracks"][i] = this_track
+            # Insert the new metadata into the original response
+            track_map: dict[str, dict] = {
+                track["id"]: track for track in remaining_tracks
+            }
+            for i, track in enumerate(original_resp["tracks"]):
+                if "media" in track:  # track already has metadata
+                    continue
+                this_track = track_map.get(track["id"])
+                if this_track is None:
+                    raise Exception(f"Requested {track['id']} but got no response")
+                original_resp["tracks"][i] = this_track
 
         # Overwrite all ids in playlist
         for track in original_resp["tracks"]:
