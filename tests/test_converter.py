@@ -4,6 +4,7 @@ These don't run ffmpeg -- converter.get() only resolves a class, and the
 ffmpeg availability check lives in Converter.__init__.
 """
 
+import asyncio
 import os
 
 import pytest
@@ -121,6 +122,41 @@ def test_failed_conversion_removes_its_temp_file(
 
     assert not os.path.exists(conv.tempfile)
     assert src.exists()  # the source is only removed after a success
+
+
+def test_cancelled_conversion_stops_ffmpeg_and_removes_its_temp_file(
+    no_ffmpeg_check, monkeypatch, tmp_path
+):
+    """Ctrl-C during a conversion used to leave ffmpeg's partial output in /tmp."""
+    src = tmp_path / "01. Song.flac"
+    src.write_bytes(b"flac")
+    conv = converter.LAME(str(src))
+    with open(conv.tempfile, "wb") as f:
+        f.write(b"partial")
+
+    class RunningProcess:
+        returncode = None
+        killed = False
+
+        async def communicate(self):
+            raise asyncio.CancelledError
+
+        def kill(self):
+            self.killed = True
+
+    proc = RunningProcess()
+
+    async def fake_exec(*_args, **_kwargs):
+        return proc
+
+    monkeypatch.setattr(converter.asyncio, "create_subprocess_exec", fake_exec)
+
+    with pytest.raises(asyncio.CancelledError):
+        arun(conv.convert())
+
+    assert proc.killed
+    assert not os.path.exists(conv.tempfile)
+    assert src.exists()
 
 
 @pytest.mark.parametrize(

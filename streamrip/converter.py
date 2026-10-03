@@ -121,7 +121,18 @@ class Converter:
             stdin=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.PIPE,
         )
-        out, err = await process.communicate()
+        try:
+            out, err = await process.communicate()
+        except BaseException:
+            # Cancelled (Ctrl-C): stop ffmpeg if the signal has not already,
+            # and drop its partial output, which used to stay in the temp
+            # directory. The source is untouched: it is only removed after a
+            # successful run.
+            if process.returncode is None:
+                process.kill()
+            if os.path.exists(self.tempfile):  # ruff: ignore[blocking-path-method-in-async-function]
+                os.remove(self.tempfile)
+            raise
         if process.returncode == 0 and os.path.isfile(self.tempfile):  # ruff: ignore[blocking-path-method-in-async-function]
             if self.remove_source:
                 os.remove(self.filename)
