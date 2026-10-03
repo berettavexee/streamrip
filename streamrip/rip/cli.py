@@ -132,13 +132,16 @@ def rip(
     )
     logger = logging.getLogger("streamrip")
     if verbose:
+        # No show_locals: a traceback is what people paste into bug reports,
+        # and the locals of a failing frame routinely hold credentials -- the
+        # ARL itself (`arl = '...'` in DeezerClient.login), and every Config
+        # repr, which includes it. Masking by variable name could not catch
+        # the reprs; the full stack and the DEBUG log stay available.
         install(
             console=console,
             suppress=[
                 click,
             ],
-            show_locals=True,
-            locals_hide_sunder=False,
         )
         logger.setLevel(logging.DEBUG)
         logger.debug("Showing all debug logs")
