@@ -5,6 +5,7 @@ import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import requests
 from PIL import Image
 
 import streamrip.media.artwork as artwork_module
@@ -60,12 +61,18 @@ def _make_jpeg(path: str, width: int, height: int):
     Image.new("RGB", (width, height), color=(64, 64, 64)).save(path, "JPEG")
 
 
+def _write_image(path, _callback):
+    """What a successful BasicDownloadable.download leaves behind."""
+    with open(path, "wb") as f:
+        f.write(b"jpeg")
+
+
 @pytest.fixture
 def mock_downloadable():
     """Patch BasicDownloadable so no real HTTP calls are made."""
     with patch("streamrip.media.artwork.BasicDownloadable") as mock_cls:
         instance = MagicMock()
-        instance.download = AsyncMock()
+        instance.download = AsyncMock(side_effect=_write_image)
         mock_cls.return_value = instance
         yield mock_cls
 
@@ -207,17 +214,23 @@ async def test_download_artwork_only_embed(mock_downloadable, tmp_path):
 
 
 async def test_download_artwork_embed_creates_tempdir(mock_downloadable, tmp_path):
-    """Embedding artwork creates an __artwork subdirectory and registers it."""
-    await download_artwork(
-        MagicMock(),
-        str(tmp_path),
-        _covers(),
-        _config(save_artwork=False, embed=True),
-        False,
-    )
-    expected_dir = os.path.join(str(tmp_path), "__artwork")
-    assert (tmp_path / "__artwork").is_dir()
-    assert expected_dir in artwork_module._artwork_tempdirs
+    """Each call embeds into a fresh __artwork_<random> directory it registers.
+
+    A single shared "__artwork" directory let concurrent playlist tracks of one
+    album write the same file, and its cleanup would have deleted a folder of
+    that name belonging to the user.
+    """
+    for _ in range(2):
+        await download_artwork(
+            MagicMock(),
+            str(tmp_path),
+            _covers(),
+            _config(save_artwork=False, embed=True),
+            False,
+        )
+    dirs = sorted(p for p in tmp_path.iterdir() if p.name.startswith("__artwork_"))
+    assert len(dirs) == 2
+    assert {str(d) for d in dirs} == artwork_module._artwork_tempdirs
 
 
 async def test_download_artwork_both(mock_downloadable, tmp_path):
@@ -239,7 +252,9 @@ async def test_download_artwork_gather_exception_returns_none(tmp_path, no_sleep
     """When every attempt fails, both covers come back as None."""
     with patch("streamrip.media.artwork.BasicDownloadable") as mock_cls:
         instance = MagicMock()
-        instance.download = AsyncMock(side_effect=RuntimeError("network error"))
+        instance.download = AsyncMock(
+            side_effect=requests.ConnectionError("network error")
+        )
         mock_cls.return_value = instance
 
         result = await download_artwork(
@@ -259,9 +274,18 @@ async def test_download_artwork_retries_a_dropped_connection(tmp_path, no_sleep)
     """
     with patch("streamrip.media.artwork.BasicDownloadable") as mock_cls:
         instance = MagicMock()
-        instance.download = AsyncMock(
-            side_effect=[ConnectionResetError(104, "Connection reset by peer"), None]
-        )
+        calls = []
+
+        def drop_then_succeed(path, cb):
+            calls.append(path)
+            if len(calls) == 1:
+                raise requests.ConnectionError(
+                    "('Connection aborted.', "
+                    "ConnectionResetError(104, 'Connection reset by peer'))"
+                )
+            _write_image(path, cb)
+
+        instance.download = AsyncMock(side_effect=drop_then_succeed)
         mock_cls.return_value = instance
 
         embed_path, saved_path = await download_artwork(
@@ -282,7 +306,7 @@ async def test_download_artwork_one_failed_cover_keeps_the_other(tmp_path, no_sl
         if url.endswith("orig.jpg"):  # the hi-res, saved cover
             dl.download = AsyncMock(side_effect=OSError("gone"))
         else:
-            dl.download = AsyncMock()
+            dl.download = AsyncMock(side_effect=_write_image)
         return dl
 
     with patch("streamrip.media.artwork.BasicDownloadable", side_effect=make):
@@ -299,7 +323,7 @@ async def test_download_artwork_logs_the_url_on_final_failure(
 ):
     with patch("streamrip.media.artwork.BasicDownloadable") as mock_cls:
         instance = MagicMock()
-        instance.download = AsyncMock(side_effect=OSError("boom"))
+        instance.download = AsyncMock(side_effect=requests.ConnectionError("boom"))
         mock_cls.return_value = instance
         with caplog.at_level("ERROR", logger="streamrip"):
             await download_artwork(
@@ -375,3 +399,80 @@ async def test_download_embed_cover_returns_none_when_disabled(tmp_path):
         False,
     )
     assert result is None
+
+
+def _http_error(status):
+    resp = requests.Response()
+    resp.status_code = status
+    return requests.HTTPError(f"{status} error", response=resp)
+
+
+@pytest.mark.parametrize(
+    ("error", "retried"),
+    [
+        (_http_error(404), False),
+        (_http_error(403), False),
+        (_http_error(429), True),
+        (_http_error(503), True),
+        (requests.ConnectionError("reset"), True),
+        (requests.Timeout("slow"), True),
+        (requests.exceptions.ChunkedEncodingError("cut"), True),
+        (OSError("disk full"), False),
+    ],
+)
+async def test_only_transient_errors_are_retried(tmp_path, no_sleep, error, retried):
+    """A missing cover (404) fails at once instead of burning three attempts."""
+    with patch("streamrip.media.artwork.BasicDownloadable") as mock_cls:
+        instance = MagicMock()
+        instance.download = AsyncMock(side_effect=error)
+        mock_cls.return_value = instance
+        await download_artwork(
+            MagicMock(), str(tmp_path), _covers(), _config(save_artwork=False), False
+        )
+    expected = artwork_module.COVER_DOWNLOAD_ATTEMPTS if retried else 1
+    assert instance.download.await_count == expected
+
+
+async def test_a_failing_writer_does_not_delete_a_finished_cover(tmp_path):
+    """Concurrent writers of one path: the loser cannot remove the winner's file.
+
+    Singles saved to the same folder all write cover.jpg. BasicDownloadable
+    deletes its partial file on failure, which used to be the shared path.
+    """
+    target = str(tmp_path / "cover.jpg")
+
+    def make(session, url, ext):
+        dl = MagicMock()
+        if url == "ok":
+            dl.download = AsyncMock(side_effect=_write_image)
+        else:
+
+            def fail(path, _cb):
+                with open(path, "wb") as f:
+                    f.write(b"partial")
+                os.remove(path)  # what BasicDownloadable does on error
+                raise OSError("gone")
+
+            dl.download = AsyncMock(side_effect=fail)
+        return dl
+
+    with patch("streamrip.media.artwork.BasicDownloadable", side_effect=make):
+        assert await artwork_module._download_cover(MagicMock(), "ok", target)
+        assert not await artwork_module._download_cover(MagicMock(), "bad", target)
+
+    assert (tmp_path / "cover.jpg").read_bytes() == b"jpeg"
+    assert [p.name for p in tmp_path.iterdir()] == ["cover.jpg"]  # no .part left
+
+
+def test_cleanup_leaves_a_users_artwork_folder_alone(tmp_path):
+    user_dir = tmp_path / "__artwork"
+    user_dir.mkdir()
+    (user_dir / "mine.jpg").write_bytes(b"x")
+    ours = tempfile.mkdtemp(prefix="__artwork_", dir=tmp_path)
+    artwork_module._artwork_tempdirs.add(ours)
+
+    remove_artwork_tempdirs()
+
+    assert (user_dir / "mine.jpg").exists()
+    assert not os.path.exists(ours)
+    assert artwork_module._artwork_tempdirs == set()

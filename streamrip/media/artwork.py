@@ -2,8 +2,11 @@ import asyncio
 import logging
 import os
 import shutil
+import tempfile
+import uuid
 
 import aiohttp
+import requests
 from PIL import Image
 
 from ..client import BasicDownloadable
@@ -20,11 +23,39 @@ logger = logging.getLogger("streamrip")
 COVER_DOWNLOAD_ATTEMPTS = 3
 
 
+def _worth_retrying(e: Exception) -> bool:
+    """Tell whether a failed cover download might succeed on another try.
+
+    A 404 or 403 will not change in two seconds; a dropped connection, a
+    timeout, a truncated body, a 429 or a 5xx usually does.
+
+    Args:
+        e: The exception the download raised.
+
+    Returns:
+        True for a transient network or server failure, False otherwise.
+    """
+    if isinstance(e, requests.HTTPError):
+        status = e.response.status_code if e.response is not None else 0
+        return status == 429 or status >= 500
+    return isinstance(
+        e,
+        requests.ConnectionError
+        | requests.Timeout
+        | requests.exceptions.ChunkedEncodingError
+        | requests.exceptions.ContentDecodingError,
+    )
+
+
 async def _download_cover(session: aiohttp.ClientSession, url: str, path: str) -> bool:
     """Download one cover image, retrying transient failures.
 
-    ``BasicDownloadable`` removes its partial file when a download fails, so
-    each retry starts from an empty path.
+    The image is written to a temporary file next to ``path`` and moved into
+    place with ``os.replace``, which is atomic. Several tasks can therefore
+    target the same path -- the singles of a folder all saving ``cover.jpg``,
+    tracks of one album sharing an embed cover -- without one reading a
+    half-written file, or a failing one deleting another's finished image
+    (``BasicDownloadable`` removes its partial file on error).
 
     Args:
         session: The HTTP session to download with.
@@ -32,19 +63,24 @@ async def _download_cover(session: aiohttp.ClientSession, url: str, path: str) -
         path: Where to write the image.
 
     Returns:
-        True once the image is on disk, False when every attempt failed (the
-        failure is logged with the URL, so the affected cover can be found).
+        True once the image is at ``path``, False when the download failed for
+        good: on a non-transient error (a 404), or after
+        ``COVER_DOWNLOAD_ATTEMPTS`` tries. The failure is logged with the URL.
     """
+    tmp = f"{path}.{uuid.uuid4().hex}.part"
+    logger.debug("Downloading artwork %s -> %s", url, path)
     for attempt in range(1, COVER_DOWNLOAD_ATTEMPTS + 1):
         try:
-            await BasicDownloadable(session, url, "jpg").download(path, lambda _: None)
+            await BasicDownloadable(session, url, "jpg").download(tmp, lambda _: None)
+            os.replace(tmp, path)
             return True
         except Exception as e:
-            if attempt == COVER_DOWNLOAD_ATTEMPTS:
+            retry = _worth_retrying(e)
+            if attempt == COVER_DOWNLOAD_ATTEMPTS or not retry:
                 logger.error(
-                    "Error downloading artwork %s after %d attempts: %s",
+                    "Error downloading artwork %s (%s): %s",
                     url,
-                    attempt,
+                    f"after {attempt} attempts" if retry else "not retried",
                     e,
                 )
                 return False
@@ -57,12 +93,19 @@ async def _download_cover(session: aiohttp.ClientSession, url: str, path: str) -
 
 
 def remove_artwork_tempdirs():
+    """Delete the temporary embed-artwork directories created this session.
+
+    Only directories this process created with ``mkdtemp`` are listed, so a
+    folder of the user's that happens to be called ``__artwork`` is never
+    touched.
+    """
     logger.debug("Removing dirs %s", _artwork_tempdirs)
-    for path in _artwork_tempdirs:
+    for path in _artwork_tempdirs.copy():
         try:
             shutil.rmtree(path)
         except FileNotFoundError:
             pass
+        _artwork_tempdirs.discard(path)
 
 
 async def download_artwork(
@@ -80,8 +123,9 @@ async def download_artwork(
     If `for_playlist` is set, it will not download hires cover art regardless
     of the config setting.
 
-    Embedded artworks are put in a temporary directory under `folder` called
-    "__embed" that can be deleted once a playlist or album is done downloading.
+    Embedded artworks are put in a temporary directory of their own under
+    `folder` ("__artwork_<random>"), removed by remove_artwork_tempdirs() once
+    the download session is done.
 
     Hi-res (saved) artworks are kept in `folder` as "cover.jpg".
 
@@ -125,8 +169,10 @@ async def download_artwork(
         if embed_url is None:
             logger.warning("No embed cover URL available; skipping artwork embedding")
         else:
-            embed_dir = os.path.join(folder, "__artwork")
-            os.makedirs(embed_dir, exist_ok=True)
+            # A directory of its own per call: playlist tracks of one album
+            # used to write the same "__artwork/cover<hash>.jpg" concurrently.
+            os.makedirs(folder, exist_ok=True)
+            embed_dir = tempfile.mkdtemp(prefix="__artwork_", dir=folder)
             _artwork_tempdirs.add(embed_dir)
             embed_cover_path = os.path.join(embed_dir, f"cover{hash(embed_url)}.jpg")
             downloadables.append(
