@@ -2,6 +2,8 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from streamrip.exceptions import NonStreamableError
 from streamrip.media.album import Album, PendingAlbum
 from streamrip.media.media import DownloadStats
@@ -38,6 +40,7 @@ def _album(tracks=None):
 def _pending_album(source="deezer"):
     client = MagicMock()
     client.source = source
+    client.max_account_quality = MagicMock(return_value=None)  # rights unknown
     client.get_metadata = AsyncMock(return_value={"title": "Test"})
     client.session = MagicMock()
     config = MagicMock()
@@ -259,6 +262,30 @@ def test_album_folder_clips_quality_to_meta():
     # effective_quality passed to format_folder_path must be min(5, 1) = 1
     meta.format_folder_path.assert_called_once_with(
         pa.config.session.filepaths.folder_format, 1
+    )
+
+
+@pytest.mark.parametrize(("account_max", "expected"), [(0, 0), (1, 1), (None, 2)])
+def test_album_folder_clips_quality_to_the_account(account_max, expected):
+    """A free account asking for FLAC gets MP3; the folder must not say FLAC.
+
+    Seen on the real free-account pass: "Discovery [FLAC]" full of MP3s.
+    """
+    pa = _pending_album()
+    pa.config.session.downloads.source_subdirectories = False
+    pa.config.session.filepaths.restrict_characters = False
+    pa.config.session.get_source.return_value.quality = 2
+    pa.client.max_account_quality = MagicMock(return_value=account_max)
+
+    meta = MagicMock()
+    meta.info.quality = 2
+    meta.format_folder_path.return_value = "Artist/Album"
+
+    with patch("streamrip.media.album.clean_filepath", side_effect=lambda p, _: p):
+        pa._album_folder("/dl", meta)
+
+    meta.format_folder_path.assert_called_once_with(
+        pa.config.session.filepaths.folder_format, expected
     )
 
 

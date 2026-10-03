@@ -159,6 +159,9 @@ class PendingAlbum(Pending):
         formatter = config.filepaths.folder_format
         configured_quality = config.get_source(self.client.source).quality
         effective_quality = min(configured_quality, meta.info.quality)
+        account_max = self.client.max_account_quality()
+        if account_max is not None:
+            effective_quality = min(effective_quality, account_max)
         folder = clean_filepath(
             meta.format_folder_path(formatter, effective_quality),
             config.filepaths.restrict_characters,

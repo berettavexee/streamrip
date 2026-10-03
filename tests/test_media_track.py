@@ -1040,6 +1040,7 @@ async def test_pending_track_no_disc_folder_when_single_disc():
 def _pending_single(downloaded=False, add_singles_to_folder=True, source="deezer"):
     client = MagicMock()
     client.source = source
+    client.max_account_quality = MagicMock(return_value=None)  # rights unknown
     client.session = MagicMock()
     client.get_metadata = AsyncMock(return_value={"id": "1", "title": "Song"})
     client.get_downloadable = AsyncMock(return_value=_downloadable())

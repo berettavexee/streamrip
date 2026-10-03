@@ -122,6 +122,19 @@ class Client(ABC):
         """
         return await self.get_metadata(item_id, "track")
 
+    def max_account_quality(self) -> int | None:
+        """The best quality the logged-in account may download, if known.
+
+        Folder names announce a quality; capping it here keeps a free account
+        asking for FLAC from naming an album "[FLAC]" when every track will come
+        as MP3.
+
+        Returns:
+            A quality level, or None when the service does not say -- the
+            default -- in which case no cap is applied.
+        """
+        return None
+
     @staticmethod
     def get_rate_limiter(
         requests_per_min: int,

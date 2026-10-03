@@ -305,6 +305,26 @@ class DeezerClient(Client):
 
     # ── public interface ──────────────────────────────────────────────────────
 
+    def max_account_quality(self) -> int | None:
+        """The best quality this Deezer account's licence allows.
+
+        Read from the flags deezer-py keeps after login. A free account has
+        neither and streams MP3 128 only; the WrongLicense loop already downloads
+        accordingly, this only lets folder names say so.
+
+        Returns:
+            2 (FLAC) with ``can_stream_lossless``, 1 (MP3 320) with
+            ``can_stream_hq``, 0 otherwise; None before login.
+        """
+        user = getattr(self.client, "current_user", None) or {}
+        if not user.get("license_token"):
+            return None
+        if user.get("can_stream_lossless"):
+            return 2
+        if user.get("can_stream_hq"):
+            return 1
+        return 0
+
     async def login(self):
         """Log in via ARL token. Creates the aiohttp session for track downloads.
 

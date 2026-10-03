@@ -1515,3 +1515,27 @@ def test_deezer_downloadable_size_never_issues_head():
     assert dl._size is None
     assert arun(dl.size()) == 0
     session.head.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("user", "expected"),
+    [
+        ({"license_token": "t", "can_stream_lossless": True, "can_stream_hq": True}, 2),
+        (
+            {"license_token": "t", "can_stream_lossless": False, "can_stream_hq": True},
+            1,
+        ),
+        (
+            {
+                "license_token": "t",
+                "can_stream_lossless": False,
+                "can_stream_hq": False,
+            },
+            0,
+        ),
+        ({}, None),  # not logged in: rights unknown, no cap
+    ],
+)
+def test_max_account_quality_follows_the_licence(mock_deezer_client, user, expected):
+    mock_deezer_client.client.current_user = user
+    assert mock_deezer_client.max_account_quality() == expected

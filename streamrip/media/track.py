@@ -543,6 +543,9 @@ class PendingSingle(Pending):
             parent = os.path.join(parent, self.client.source.capitalize())
         configured_quality = c.get_source(self.client.source).quality
         effective_quality = min(configured_quality, meta.info.quality)
+        account_max = self.client.max_account_quality()
+        if account_max is not None:
+            effective_quality = min(effective_quality, account_max)
         return os.path.join(
             parent, meta.format_folder_path(formatter, effective_quality)
         )
