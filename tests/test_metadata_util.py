@@ -13,6 +13,16 @@ class TestGetAlbumTrackIds:
         assert get_album_track_ids("deezer", resp) == ["1", "2", "3"]
         assert get_album_track_ids("tidal", resp) == ["1", "2", "3"]
 
+    def test_qobuz_track_ids_without_tracks(self):
+        """Since July 2026 album/get has no "tracks" key; extra=track_ids
+        returns the id list instead (upstream #1012)."""
+        resp = {"id": "alb", "title": "Album", "track_ids": [111, 222, 333]}
+        assert get_album_track_ids("qobuz", resp) == ["111", "222", "333"]
+
+    def test_qobuz_legacy_tracks_still_preferred(self):
+        resp = {"tracks": {"items": [{"id": "a"}]}, "track_ids": [999]}
+        assert get_album_track_ids("qobuz", resp) == ["a"]
+
     def test_empty_tracklist(self):
         resp = {"tracks": []}
         assert get_album_track_ids("deezer", resp) == []

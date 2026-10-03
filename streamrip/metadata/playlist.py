@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from .album import AlbumMetadata
 from .track import TrackMetadata
-from .util import typed
+from .util import safe_get, typed
 
 NON_STREAMABLE = "_non_streamable"
 ORIGINAL_DOWNLOAD = "_original_download"
@@ -52,7 +52,7 @@ class PlaylistMetadata:
         name = typed(resp["name"], str)
         tracks = []
 
-        for i, track in enumerate(resp["tracks"]["items"]):
+        for i, track in enumerate(safe_get(resp, "tracks", "items", default=[])):
             meta = TrackMetadata.from_qobuz(
                 AlbumMetadata.from_qobuz(track["album"]),
                 track,
@@ -63,6 +63,12 @@ class PlaylistMetadata:
                 )
                 continue
             tracks.append(meta)
+
+        if not tracks and resp.get("track_ids"):
+            # Qobuz's playlist/get returns an empty "tracks" object since July
+            # 2026; fall back to the id list from the track_ids extra. Each
+            # track's metadata is fetched by PendingPlaylistTrack.resolve().
+            return cls(name, [str(i) for i in resp["track_ids"]])
 
         return cls(name, tracks)
 

@@ -290,6 +290,20 @@ def test_from_resp_dispatches_tidal():
     assert meta.name == "T"
 
 
+def test_from_qobuz_falls_back_to_track_ids():
+    """playlist/get returns an always-empty tracks.items since July 2026, with
+    the ids under the track_ids extra (upstream #1012). It used to resolve to
+    0 tracks and exit without an error."""
+    resp = {"name": "PL", "tracks": {"items": []}, "track_ids": [5, 6, 7]}
+    meta = PlaylistMetadata.from_qobuz(resp)
+    assert meta.ids() == ["5", "6", "7"]
+
+
+def test_from_qobuz_without_tracks_or_ids_is_empty():
+    meta = PlaylistMetadata.from_qobuz({"name": "PL"})
+    assert meta.tracks == []
+
+
 def test_from_resp_dispatches_qobuz():
     resp = {"name": "Q", "tracks": {"items": []}}
     with (

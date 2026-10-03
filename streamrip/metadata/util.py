@@ -9,11 +9,16 @@ def get_album_track_ids(source: str, resp) -> list[str]:
         source: Service name (e.g. ``"qobuz"``, ``"deezer"``); used to
             locate the track list inside the response dict (Qobuz wraps the
             list in an extra ``"items"`` key).
-        resp: Raw API response for an album, containing a ``"tracks"`` key.
+        resp: Raw API response for an album, containing a ``"tracks"`` key --
+            or, for Qobuz since July 2026, a ``"track_ids"`` list instead.
 
     Returns:
         An ordered list of track-ID strings as returned by the service.
     """
+    if source == "qobuz" and "tracks" not in resp:
+        # Qobuz's album/get stopped inlining "tracks" (July 2026); the client
+        # requests extra=track_ids instead.
+        return [str(i) for i in resp["track_ids"]]
     tracklist = resp["tracks"]
     if source == "qobuz":
         tracklist = tracklist["items"]

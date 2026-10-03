@@ -234,3 +234,22 @@ async def test_tidal_404_raises_non_streamable_not_a_logging_error(caplog):
         with pytest.raises(NonStreamableError):
             await client._api_request("tracks/1")
     assert "https://api.tidal.com/v1/tracks/1" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("media_type", "extra"),
+    [("album", "track_ids"), ("playlist", "tracks,track_ids"), ("artist", "albums")],
+)
+async def test_qobuz_metadata_requests_track_ids(media_type, extra):
+    """album/get and playlist/get must ask for track_ids (upstream #1012)."""
+    from streamrip.client.qobuz import QobuzClient
+
+    config = Config.defaults()
+    config.session.downloads.requests_per_minute = 0
+    client = QobuzClient(config)
+    client._api_request = AsyncMock(return_value=(200, {}))
+
+    await client.get_metadata("1", media_type)
+
+    params = client._api_request.await_args.args[1]
+    assert params["extra"] == extra
