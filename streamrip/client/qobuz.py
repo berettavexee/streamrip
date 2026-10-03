@@ -173,53 +173,84 @@ class QobuzClient(Client):
 
             if not c.app_id or not c.secrets:
                 logger.info("App id/secrets not found, fetching")
-                c.app_id, c.secrets = await self._get_app_id_and_secrets()
-                # write to file
-                f = self.config.file
-                f.qobuz.app_id = c.app_id
-                f.qobuz.secrets = c.secrets
-                f.set_modified()
+                await self._refresh_app_id_and_secrets()
 
-            self.session.headers.update({"X-App-Id": str(c.app_id)})
-
-            if c.use_auth_token:
-                params = {
-                    "user_id": c.email_or_userid,
-                    "user_auth_token": c.password_or_token,
-                    "app_id": str(c.app_id),
-                }
-            else:
-                params = {
-                    "email": c.email_or_userid,
-                    "password": c.password_or_token,
-                    "app_id": str(c.app_id),
-                }
-
-            logger.debug("Request params %s", params)
-            status, resp = await self._api_request("user/login", params)
-            logger.debug("Login resp: %s", resp)
-
-            if status == 401:
-                raise AuthenticationError(f"Invalid credentials from params {params}")
-            elif status == 400:
-                raise InvalidAppIdError(f"Invalid app id from params {params}")
-
-            logger.debug("Logged in to Qobuz")
-
-            if not resp["user"]["credential"]["parameters"]:
-                raise IneligibleError(
-                    "Free accounts are not eligible to download tracks."
+            # Qobuz rotates its app secret now and then. A stale app_id/secret
+            # pair -- pinned in the config, or cached by an earlier run -- fails
+            # with InvalidAppIdError or InvalidAppSecretError. Fetch a fresh
+            # pair from the web player bundle and retry once before giving up.
+            try:
+                await self._attempt_login()
+            except (InvalidAppIdError, InvalidAppSecretError) as e:
+                logger.warning(
+                    "Qobuz login failed (%s), refetching app id/secrets",
+                    type(e).__name__,
                 )
-
-            uat = resp["user_auth_token"]
-            self.session.headers.update({"X-User-Auth-Token": uat})
-
-            self.secret = await self._get_valid_secret(c.secrets)
+                self.session.headers.pop("X-User-Auth-Token", None)
+                await self._refresh_app_id_and_secrets()
+                await self._attempt_login()
 
             self.logged_in = True
         except Exception:
             await self.session.close()
             raise
+
+    async def _refresh_app_id_and_secrets(self):
+        """Fetch a fresh app id and secrets from Qobuz's web bundle and save them.
+
+        The pair is written back to the config file, so the next run starts
+        from it instead of the stale one.
+        """
+        c = self.config.session.qobuz
+        c.app_id, c.secrets = await self._get_app_id_and_secrets()
+        f = self.config.file
+        f.qobuz.app_id = c.app_id
+        f.qobuz.secrets = c.secrets
+        f.set_modified()
+
+    async def _attempt_login(self):
+        """Log in with the current app id/secrets and pick a working secret.
+
+        Raises:
+            AuthenticationError: When Qobuz rejects the user credentials.
+            InvalidAppIdError: When Qobuz rejects the app id (HTTP 400).
+            InvalidAppSecretError: When none of the secrets is accepted.
+            IneligibleError: For a free account, which cannot download.
+        """
+        c = self.config.session.qobuz
+        self.session.headers.update({"X-App-Id": str(c.app_id)})
+
+        if c.use_auth_token:
+            params = {
+                "user_id": c.email_or_userid,
+                "user_auth_token": c.password_or_token,
+                "app_id": str(c.app_id),
+            }
+        else:
+            params = {
+                "email": c.email_or_userid,
+                "password": c.password_or_token,
+                "app_id": str(c.app_id),
+            }
+
+        logger.debug("Request params %s", params)
+        status, resp = await self._api_request("user/login", params)
+        logger.debug("Login resp: %s", resp)
+
+        if status == 401:
+            raise AuthenticationError(f"Invalid credentials from params {params}")
+        elif status == 400:
+            raise InvalidAppIdError(f"Invalid app id from params {params}")
+
+        logger.debug("Logged in to Qobuz")
+
+        if not resp["user"]["credential"]["parameters"]:
+            raise IneligibleError("Free accounts are not eligible to download tracks.")
+
+        uat = resp["user_auth_token"]
+        self.session.headers.update({"X-User-Auth-Token": uat})
+
+        self.secret = await self._get_valid_secret(c.secrets)
 
     async def get_metadata(self, item: str, media_type: str):
         if media_type == "label":

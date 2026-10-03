@@ -253,3 +253,62 @@ async def test_qobuz_metadata_requests_track_ids(media_type, extra):
 
     params = client._api_request.await_args.args[1]
     assert params["extra"] == extra
+
+
+def _qobuz_client_ready_to_login():
+    from streamrip.client.qobuz import QobuzClient
+
+    config = Config.defaults()
+    config.session.downloads.requests_per_minute = 0
+    config.session.qobuz.email_or_userid = "user"
+    config.session.qobuz.password_or_token = "token"
+    config.session.qobuz.app_id = "old-id"
+    config.session.qobuz.secrets = ["old-secret"]
+    client = QobuzClient(config)
+    session = MagicMock()
+    session.headers = {}
+    session.close = AsyncMock()
+    client.get_session = AsyncMock(return_value=session)
+    client._get_app_id_and_secrets = AsyncMock(return_value=("new-id", ["new-secret"]))
+    return client
+
+
+async def test_qobuz_stale_app_secret_is_refetched_and_login_retried():
+    """Qobuz rotates its app secret; a pinned or cached pair must self-heal."""
+    from streamrip.exceptions import InvalidAppSecretError
+
+    client = _qobuz_client_ready_to_login()
+    client._attempt_login = AsyncMock(side_effect=[InvalidAppSecretError("x"), None])
+
+    await client.login()
+
+    assert client.logged_in
+    assert client._attempt_login.await_count == 2
+    assert client.config.session.qobuz.app_id == "new-id"
+    assert client.config.file.qobuz.secrets == ["new-secret"]  # persisted
+
+
+async def test_qobuz_login_retries_only_once():
+    from streamrip.exceptions import InvalidAppIdError
+
+    client = _qobuz_client_ready_to_login()
+    client._attempt_login = AsyncMock(side_effect=InvalidAppIdError("x"))
+
+    with pytest.raises(InvalidAppIdError):
+        await client.login()
+
+    assert client._attempt_login.await_count == 2
+    assert not client.logged_in
+    client.session.close.assert_awaited_once()
+
+
+async def test_qobuz_bad_user_credentials_are_not_retried():
+    from streamrip.exceptions import AuthenticationError
+
+    client = _qobuz_client_ready_to_login()
+    client._attempt_login = AsyncMock(side_effect=AuthenticationError("x"))
+
+    with pytest.raises(AuthenticationError):
+        await client.login()
+
+    client._get_app_id_and_secrets.assert_not_awaited()
