@@ -691,7 +691,9 @@ class PendingLastfmPlaylist(Pending):
         tracks: list[tuple[str, str, int | None]] = []
         page = 1
 
-        async with aiohttp.ClientSession(connector=connector) as session:
+        async with aiohttp.ClientSession(
+            connector=connector, trust_env=True
+        ) as session:
             while True:
                 data = await self._fetch_lastfm_api(
                     session,
@@ -927,7 +929,9 @@ class PendingLastfmPlaylist(Pending):
         connector_kwargs = get_aiohttp_connector_kwargs(verify_ssl=verify_ssl)
         connector = aiohttp.TCPConnector(**connector_kwargs)
 
-        async with aiohttp.ClientSession(connector=connector) as session:
+        async with aiohttp.ClientSession(
+            connector=connector, trust_env=True
+        ) as session:
             page = await fetch(session, playlist_url)
             playlist_title_match = re_playlist_title_match.search(page)
             if playlist_title_match is None:

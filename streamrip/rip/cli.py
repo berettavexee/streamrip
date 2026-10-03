@@ -639,7 +639,7 @@ async def latest_streamrip_version(verify_ssl: bool = True) -> tuple[str, str | 
         connector_kwargs = get_aiohttp_connector_kwargs(verify_ssl=verify_ssl)
         connector = aiohttp.TCPConnector(**connector_kwargs)
 
-        async with aiohttp.ClientSession(connector=connector) as s:
+        async with aiohttp.ClientSession(connector=connector, trust_env=True) as s:
             async with s.get("https://pypi.org/pypi/streamrip/json") as resp:
                 data = await resp.json(content_type=None)
             version = data["info"]["version"]

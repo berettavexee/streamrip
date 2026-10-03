@@ -312,3 +312,42 @@ async def test_qobuz_bad_user_credentials_are_not_retried():
         await client.login()
 
     client._get_app_id_and_secrets.assert_not_awaited()
+
+
+async def test_sessions_go_through_the_environment_proxy(monkeypatch):
+    """aiohttp ignores HTTP(S)_PROXY unless trust_env is set; requests (the
+    audio downloads) always honoured it, so only some traffic was proxied."""
+    import http.server
+    import threading
+
+    from streamrip.client.client import Client
+
+    seen = []
+
+    class Proxy(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            seen.append(self.path)  # a proxy receives the absolute URL
+            body = b"via proxy"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Proxy)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    for var in ("NO_PROXY", "no_proxy", "ALL_PROXY", "all_proxy"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("HTTP_PROXY", f"http://127.0.0.1:{srv.server_address[1]}")
+
+    session = await Client.get_session()
+    try:
+        # The host does not exist: only the proxy can answer.
+        async with session.get("http://example.invalid/track") as resp:
+            assert await resp.text() == "via proxy"
+    finally:
+        await session.close()
+        srv.shutdown()
+    assert seen == ["http://example.invalid/track"]

@@ -150,7 +150,7 @@ class QobuzSpoofer:
         connector_kwargs = get_aiohttp_connector_kwargs(verify_ssl=True)
         connector = aiohttp.TCPConnector(**connector_kwargs)
 
-        self.session = aiohttp.ClientSession(connector=connector)
+        self.session = aiohttp.ClientSession(connector=connector, trust_env=True)
         return self
 
     async def __aexit__(self, *_):

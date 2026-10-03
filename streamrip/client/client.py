@@ -182,7 +182,11 @@ class Client(ABC):
         connector_kwargs = get_aiohttp_connector_kwargs(verify_ssl=verify_ssl)
         connector = aiohttp.TCPConnector(**connector_kwargs)
 
+        # trust_env: honour HTTP(S)_PROXY / ALL_PROXY / NO_PROXY, as requests
+        # already does for deezer-py and the plain downloads; aiohttp ignores
+        # them unless told to (upstream #961).
         return aiohttp.ClientSession(
             headers={"User-Agent": DEFAULT_USER_AGENT} | headers,
             connector=connector,
+            trust_env=True,
         )
