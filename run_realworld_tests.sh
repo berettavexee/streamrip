@@ -275,7 +275,7 @@ _make_temp_config() {
 # apostrophes : les traces rich de `rip -v` (show_locals) affichent les
 # variables locales sous la forme  arl = '…', tronquées sous 100 caractères.
 _scrub_secrets() {
-    local _keys='arl|email_or_userid|password_or_token|access_token|refresh_token|user_id|client_id|client_secret|password|email|token'
+    local _keys='arl|api_key|email_or_userid|password_or_token|access_token|refresh_token|user_id|client_id|client_secret|password|email|token'
     sed -i -E \
         -e "s/^([[:space:]]*($_keys)[[:space:]]*=[[:space:]]*\")[^\"]+\"/\1<REDACTED>\"/I" \
         -e "s/(\b($_keys)[\"']?[[:space:]]*[:=][[:space:]]*[\"']?)[A-Za-z0-9._~+\/-]{8,}/\1<REDACTED>/gI" \
