@@ -5,40 +5,31 @@ import mutagen
 
 logger = logging.getLogger("streamrip")
 
-# Minimum effective kbps required for each quality level.
-# Thresholds are deliberately conservative to catch only obvious truncations
-# or catastrophic failures without producing false positives on legitimately
-# compressed audio.
-_MIN_KBPS: dict[int, int] = {
-    0: 50,  # MP3 128 kbps requested
-    1: 100,  # MP3 320 kbps requested
-    2: 100,  # FLAC 16-bit (compression reduces bitrate well below uncompressed)
-    3: 200,  # Hi-Res FLAC (24-bit / high sample rate)
-}
-
-# Tracks shorter than this threshold are skipped: header overhead makes the
-# effective-kbps metric unreliable for very short clips.
-_MIN_DURATION_S = 5.0
+# There is deliberately no bitrate floor here. One used to compare
+# size / duration against a minimum per quality tier, and it was wrong both
+# ways: a complete FLAC of digital silence (10 s ≈ 10 KB, ~8 kbps) failed it,
+# so a valid track was recorded as failed on every run, while a truncated FLAC
+# only fell under it once cut to about a tenth of its size. Truncation is
+# caught upstream instead: on a short body, requests raises
+# ChunkedEncodingError and aiohttp ClientPayloadError, and the download is
+# retried.
 
 
-def check_integrity(path: str, quality: int) -> tuple[bool, str]:
-    """Check that a downloaded audio file's size is coherent with its duration.
+def check_integrity(path: str) -> tuple[bool, str]:
+    """Check that a downloaded file is audio streamrip can read.
 
-    Computes an effective bitrate (``file_size * 8 / duration``) and compares
-    it against a conservative minimum for the requested quality tier.  Only
-    obvious anomalies — truncated downloads, empty files, unreadable formats —
-    are flagged; the tolerance is intentionally wide to avoid false positives
-    from variable-bitrate encoding or heavily compressed lossless audio.
+    This catches what the transport cannot: an empty file, or a body that is
+    not audio at all (an error page or a JSON message saved under an audio
+    extension), which mutagen fails to parse or to give a duration for. It
+    does not judge whether the audio is complete -- see the module comment.
 
     Args:
         path: Absolute path to the audio file on disk.
-        quality: Quality level in [0, 3] as used throughout streamrip
-            (0 = MP3 128, 1 = MP3 320, 2 = FLAC, 3 = Hi-Res FLAC).
 
     Returns:
-        A ``(ok, reason)`` tuple.  ``ok`` is ``True`` when the file passes
-        the check.  When ``ok`` is ``False``, ``reason`` contains a
-        human-readable explanation suitable for a WARNING log line.
+        A ``(ok, reason)`` tuple. ``ok`` is ``True`` when the file passes the
+        check. When ``ok`` is ``False``, ``reason`` contains a human-readable
+        explanation suitable for an ERROR log line.
     """
     try:
         size = os.path.getsize(path)
@@ -59,19 +50,5 @@ def check_integrity(path: str, quality: int) -> tuple[bool, str]:
     duration: float | None = getattr(audio.info, "length", None)
     if not duration or duration <= 0:
         return False, "cannot determine track duration"
-
-    if duration < _MIN_DURATION_S:
-        return True, ""  # too short for reliable effective-kbps check
-
-    effective_kbps = size * 8 / 1000 / duration
-    min_kbps = _MIN_KBPS.get(quality, 50)
-
-    if effective_kbps < min_kbps:
-        return False, (
-            f"effective bitrate {effective_kbps:.0f} kbps is below the "
-            f"{min_kbps} kbps minimum for quality={quality} "
-            f"(size={size // 1024} KB, duration={duration:.1f}s) — "
-            "file may be truncated or corrupt"
-        )
 
     return True, ""

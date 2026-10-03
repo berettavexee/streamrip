@@ -479,10 +479,10 @@ async def test_postprocess_marks_failed_when_integrity_fails():
 async def test_postprocess_checks_integrity_before_conversion():
     """The check judges the downloaded file, never the converted one.
 
-    Its floors describe what a service delivers at a quality tier. A FLAC
-    re-encoded to Opus at lossy_bitrate = 96 sits under the 100 kbps FLAC
-    floor, and used to be reported as truncated -- then marked failed and
-    downloaded again on every run.
+    It is about what the service sent. When it ran after conversion it judged
+    the re-encode instead: with the bitrate floor it then had, a FLAC turned
+    into Opus at lossy_bitrate = 96 was reported as truncated, marked failed
+    and downloaded again on every run.
     """
     t = _track(cfg=_config(conversion_enabled=True))
     t.download_path = "/dl/album/01 - Song.flac"
@@ -491,7 +491,7 @@ async def test_postprocess_checks_integrity_before_conversion():
     async def fake_convert():
         t.download_path = "/dl/album/01 - Song.opus"
 
-    def fake_check(path, _quality):
+    def fake_check(path):
         checked.append(path)
         return True, ""
 
