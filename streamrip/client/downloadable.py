@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import tempfile
+import threading
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -59,8 +60,24 @@ async def fast_async_download(path, url, headers, callback):
     Runs the entire synchronous requests download inside a thread via
     asyncio.to_thread so the HTTP connection setup and file I/O never
     stall other concurrent coroutines on the event loop.
+
+    Cancelling the awaiting task (Ctrl-C) cannot stop the thread, so a
+    ``threading.Event`` asks it to: it checks the event between chunks, stops
+    writing, and the partial file is removed. Without it the thread went on
+    downloading after the task was gone.
+
+    Args:
+        path: Destination file.
+        url: URL to download.
+        headers: Request headers.
+        callback: Called with the size of each chunk written.
+
+    Raises:
+        Exception: Whatever requests raised; the partial file is removed first.
+        asyncio.CancelledError: When the task is cancelled; likewise.
     """
     chunk_size: int = 2**17  # 131 KB
+    stop = threading.Event()
 
     def _sync_download():
         with open(path, "wb") as file:
@@ -72,12 +89,21 @@ async def fast_async_download(path, url, headers, callback):
             ) as resp:
                 resp.raise_for_status()
                 for chunk in resp.iter_content(chunk_size=chunk_size):
+                    if stop.is_set():
+                        break
                     file.write(chunk)
                     callback(len(chunk))
+        if stop.is_set():
+            discard_partial_file(path)
 
     try:
         await asyncio.to_thread(_sync_download)
-    except Exception:
+    except BaseException:
+        # BaseException, not Exception: asyncio.CancelledError is one, and
+        # Ctrl-C reaches downloads as a cancellation. Catching only Exception
+        # left every interrupted track in the library as a truncated file
+        # with the right name and extension.
+        stop.set()
         discard_partial_file(path)
         raise
 
@@ -204,7 +230,7 @@ class DeezerDownloadable(Downloadable):
                         async for chunk in resp.content.iter_chunked(2**17):
                             await audio.write(chunk)
                             callback(len(chunk))
-                except Exception:
+                except BaseException:  # CancelledError too: see fast_async_download
                     discard_partial_file(path)
                     raise
             else:
@@ -248,7 +274,7 @@ class DeezerDownloadable(Downloadable):
                                 )
                             else:
                                 await audio.write(bytes(carry))
-                except Exception:
+                except BaseException:  # CancelledError too: see fast_async_download
                     discard_partial_file(path)
                     raise
 

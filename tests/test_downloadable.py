@@ -1,5 +1,9 @@
 """Tests for client/downloadable.py — constructors, quality clipping, crypto helpers."""
 
+import asyncio
+import http.server
+import threading
+import time
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -10,6 +14,7 @@ from streamrip.client.downloadable import (
     SoundcloudDownloadable,
     TidalDownloadable,
     discard_partial_file,
+    fast_async_download,
     generate_temp_path,
 )
 from streamrip.exceptions import NonStreamableError
@@ -175,15 +180,17 @@ class TestDeezerDownloadCleanup:
         session.get = MagicMock(return_value=cm)
         return session
 
-    async def _run(self, url, path):
+    async def _run(self, url, path, error=None):
+        error = error or RuntimeError("connection reset mid-stream")
+
         def _boom(*_args, **_kwargs):
-            raise RuntimeError("connection reset mid-stream")
+            raise error
 
         resp = self._response(_boom)
         d = DeezerDownloadable(self._session(resp), _deezer_info(url=url))
         # Simulate a partial file left by an interrupted write.
         path.write_bytes(b"\x00" * 1024)
-        with pytest.raises(RuntimeError, match="connection reset"):
+        with pytest.raises(type(error)):
             await d._download(str(path), lambda _n: None)
 
     async def test_encrypted_stream_failure_removes_partial_file(self, tmp_path):
@@ -196,6 +203,81 @@ class TestDeezerDownloadCleanup:
         path = tmp_path / "track.flac"
         await self._run("https://cdns-proxy.dzcdn.net/stream/abc", path)
         assert not path.exists()
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://e-cdns-proxy-a.dzcdn.net/mobile/1/abc",  # encrypted
+            "https://cdns-proxy.dzcdn.net/stream/abc",  # plain
+        ],
+    )
+    async def test_cancellation_removes_partial_file(self, tmp_path, url):
+        """Ctrl-C reaches downloads as asyncio.CancelledError, a BaseException.
+
+        Only Exception used to be caught, so an interrupted album left every
+        in-flight track behind as a truncated .flac with the right name.
+        """
+        path = tmp_path / "track.flac"
+        await self._run(url, path, asyncio.CancelledError())
+        assert not path.exists()
+
+
+class TestFastAsyncDownloadCancellation:
+    async def test_cancel_stops_the_thread_and_removes_the_file(self, tmp_path):
+        """Cancelling the task cannot kill the worker thread; it must stop itself.
+
+        Otherwise it kept downloading after the task was gone.
+        """
+        sent = {"chunks": 0}
+        stop_serving = threading.Event()
+        streaming = threading.Event()
+
+        class Slow(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def do_GET(self):
+                self.send_response(200)
+                self.send_header("Content-Length", str(10_000 * 2**17))
+                self.end_headers()
+                try:
+                    while not stop_serving.is_set():
+                        self.wfile.write(b"\x00" * 2**17)
+                        sent["chunks"] += 1
+                        if sent["chunks"] == 5:
+                            streaming.set()
+                        time.sleep(0.02)
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
+
+        srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Slow)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        path = tmp_path / "track.flac"
+        threads_before = threading.active_count()
+
+        task = asyncio.create_task(
+            fast_async_download(
+                str(path),
+                f"http://127.0.0.1:{srv.server_address[1]}/",
+                {},
+                lambda n: None,
+            )
+        )
+        assert await asyncio.to_thread(streaming.wait, 10)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        # The thread notices within a chunk or two and stops reading.
+        await asyncio.sleep(0.5)
+        served_after_cancel = sent["chunks"]
+        await asyncio.sleep(0.5)
+        stop_serving.set()
+        srv.shutdown()
+
+        assert not path.exists()
+        assert sent["chunks"] - served_after_cancel <= 2
+        assert threading.active_count() <= threads_before + 1  # the server thread
 
 
 class TestDeezerBlowfishKey:
