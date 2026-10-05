@@ -1306,6 +1306,37 @@ def test_batch_url_serves_album_tracks_with_integer_ids(mock_deezer_client):
     mock_deezer_client.client.get_track_url.assert_not_called()
 
 
+def test_batch_url_covers_a_playlist_before_its_tracks_are_fetched(
+    mock_deezer_client,
+):
+    """Playlist tracks are fetched one by one, so when the first one resolved
+    its URL the GW cache held no token, the FLAC batch went out empty, and
+    every track paid its own get_url (69 single calls on a 59-track playlist).
+    The playlist listing's tokens now feed the batch."""
+    mock_deezer_client.client.gw.get_playlist.return_value = {"DATA": {"TITLE": "PL"}}
+    mock_deezer_client.client.gw.get_playlist_tracks.return_value = [
+        {"SNG_ID": tid, "TRACK_TOKEN": f"tok{tid}"} for tid in ("1", "2", "3")
+    ]
+    mock_deezer_client.client.gw.get_track.side_effect = lambda tid: {
+        "SNG_ID": tid,
+        "TRACK_TOKEN": f"tok{tid}",
+        "FILESIZE_FLAC": 1000,
+    }
+    mock_deezer_client.client.get_tracks_url.return_value = [
+        _cdn_url("1"),
+        _cdn_url("2"),
+        _cdn_url("3"),
+    ]
+
+    arun(mock_deezer_client.get_playlist("99"))
+    for tid in ("1", "2", "3"):
+        arun(mock_deezer_client.get_downloadable(tid, quality=2))
+
+    mock_deezer_client.client.get_tracks_url.assert_called_once()
+    assert len(mock_deezer_client.client.get_tracks_url.call_args.args[0]) == 3
+    mock_deezer_client.client.get_track_url.assert_not_called()
+
+
 def test_batch_url_misaligned_results_never_mismatch_tracks(mock_deezer_client):
     """A track in error makes deezer-py emit TWO entries (the error object AND a
     trailing None), so the result list is longer than the token list. Matching by

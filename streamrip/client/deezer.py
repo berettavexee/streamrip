@@ -206,6 +206,12 @@ class DeezerClient(Client):
         self._gw_tracks: _TaskCache[str, dict] = _TaskCache()
         self._pipe: DeezerPipeClient | None = None
         self._url_results: dict[tuple[str, str], str] = {}
+        # TRACK_TOKENs of tracks a playlist or an artist's top listed, for the
+        # batch URL resolution only. Playlists' GW listings lack fields the
+        # metadata reads (DISK_NUMBER, EXPLICIT_LYRICS, PHYSICAL_RELEASE_DATE),
+        # so they are not put in _gw_tracks; but they do carry the tokens, and
+        # without them the batch found nothing to resolve.
+        self._listed_tokens: dict[str, str] = {}
         self._url_batch_tasks: dict[str, asyncio.Task[None]] = {}
         self._url_batch_lock: asyncio.Lock = asyncio.Lock()
 
@@ -722,6 +728,7 @@ class DeezerClient(Client):
             raise
 
         tracks = pl_tracks if isinstance(pl_tracks, list) else pl_tracks["data"]
+        self._remember_tokens(tracks)
         return {
             "title": pl_metadata["DATA"]["TITLE"],
             "tracks": [{"id": str(t["SNG_ID"])} for t in tracks],
@@ -788,6 +795,18 @@ class DeezerClient(Client):
             "track_total": len(all_entries),
         }
 
+    def _remember_tokens(self, gw_tracks: list[dict]) -> None:
+        """Keep the TRACK_TOKEN of listed tracks for the batch URL resolution.
+
+        Args:
+            gw_tracks: GW track dicts, as a playlist or an artist's top lists
+                them; entries without SNG_ID or TRACK_TOKEN are skipped.
+        """
+        for gw_track in gw_tracks:
+            tid, token = gw_track.get("SNG_ID"), gw_track.get("TRACK_TOKEN")
+            if tid and token:
+                self._listed_tokens[str(tid)] = token
+
     async def get_artist_top_tracks(self, artist_id: str) -> dict:
         """Fetch the top tracks for a Deezer artist as a playlist-shaped dict.
 
@@ -802,6 +821,7 @@ class DeezerClient(Client):
             self._rest(self.client.api.get_artist, artist_id),
             self._gw(self.client.gw.get_artist_top_tracks, artist_id),
         )
+        self._remember_tokens(gw_tracks)
         return {
             "title": f"{artist['name']} — Top Tracks",
             "tracks": [{"id": str(t["SNG_ID"])} for t in gw_tracks],
@@ -1067,11 +1087,16 @@ class DeezerClient(Client):
         the wrong track — handing it a Blowfish key that doesn't match the served
         bytes and silently producing a corrupt file of the right size.
         """
-        tokens_by_id = {
-            item_id: gw["TRACK_TOKEN"]
+        # Tracks already fetched one by one, plus those a playlist or an
+        # artist's top listed up front. Playlist tracks are fetched lazily, so
+        # without the listed tokens the first track triggered an empty batch
+        # and every track then paid its own get_url.
+        tokens_by_id = dict(self._listed_tokens)
+        tokens_by_id.update(
+            (item_id, gw["TRACK_TOKEN"])
             for item_id, gw in self._gw_tracks.items()
             if "TRACK_TOKEN" in gw
-        }
+        )
         if not tokens_by_id:
             return
         ids = list(tokens_by_id)
