@@ -10,6 +10,8 @@
 #   URL=https://www.deezer.com/album/302127 ./bench.sh
 #   URL=<playlist url> LABEL=playlist N=3 ./bench.sh
 #   URL=<url> INSTRUMENT=1 ./bench.sh      # + CPU, memory and write syscalls
+#   URL=<url> INSTRUMENT_API=1 UPSTREAM_REF=stensel/dev \
+#     UPSTREAM_PYTHON=/usr/bin/python3.14 UPSTREAM_BIN=streamrip ./bench.sh
 #
 # Environment:
 #   URL          what to download (required)
@@ -17,6 +19,11 @@
 #   N            number of PAIRS of runs; default 3
 #   UPSTREAM_REF git ref of upstream to build; default upstream/dev
 #   INSTRUMENT   1 = add one /usr/bin/time run and one strace run per side
+#   INSTRUMENT_API 1 = log every HTTP request of every run (requests and aiohttp,
+#                via an injected sitecustomize) and report per-side call counts
+#   UPSTREAM_PYTHON interpreter for the other side's venv; default python3
+#                (Stensel8/streamrip needs /usr/bin/python3.14)
+#   UPSTREAM_BIN command the other side installs; default rip (Stensel8: streamrip)
 #   KEEP_AUDIO   1 = keep the downloads (default 0: each run is ~0.4-1.8 GB)
 #
 # Outputs land in benchmark_runs/<timestamp>/ (gitignored): the CSV of every
@@ -56,6 +63,9 @@ URL="${URL:?set URL to the album/playlist to download}"
 N="${N:-3}"
 UPSTREAM_REF="${UPSTREAM_REF:-upstream/dev}"
 INSTRUMENT="${INSTRUMENT:-}"
+INSTRUMENT_API="${INSTRUMENT_API:-}"
+UPSTREAM_PYTHON="${UPSTREAM_PYTHON:-python3}"
+UPSTREAM_BIN="${UPSTREAM_BIN:-rip}"
 KEEP_AUDIO="${KEEP_AUDIO:-0}"
 LABEL="${LABEL:-$(sed -E 's#.*/([a-z]+)/([0-9]+).*#\1-\2#' <<<"$URL")}"
 
@@ -74,7 +84,7 @@ if [[ ! -x "$FORK_RIP" ]]; then
 fi
 
 # ── Upstream checkout, cached between invocations ────────────────────────────
-UP_RIP="$WORK/.venv/bin/rip"
+UP_RIP="$WORK/.venv/bin/$UPSTREAM_BIN"
 if [[ ! -x "$UP_RIP" ]]; then
     echo "==> building $UPSTREAM_REF (cached in $WORK)"
     git rev-parse --verify "$UPSTREAM_REF" >/dev/null 2>&1 || {
@@ -85,7 +95,7 @@ if [[ ! -x "$UP_RIP" ]]; then
     }
     rm -rf "$WORK"; mkdir -p "$WORK"
     git archive "$UPSTREAM_REF" | tar -x -C "$WORK"
-    python3 -m venv "$WORK/.venv"
+    "$UPSTREAM_PYTHON" -m venv "$WORK/.venv"
     "$WORK/.venv/bin/pip" install -q --upgrade pip
     "$WORK/.venv/bin/pip" install -q -e "$WORK" || {
         echo "failed to install upstream into its venv" >&2; exit 1; }
@@ -119,12 +129,17 @@ arl = os.environ.get("ARL_VALUE", "")
 if not arl:
     sys.exit("no arl found in the streamrip config — log in first")
 s = open(cfg, encoding="utf-8").read()
+# Keys a side may have dropped (Stensel8 removed both): set when present.
+optional = {
+    r'^concurrency = .*$': "concurrency = true",
+    r'^check_for_updates = .*$': "check_for_updates = false",
+}
+for pattern, replacement in optional.items():
+    s = re.sub(pattern, replacement, s, flags=re.MULTILINE)
 subs = {
     r'^arl = ".*"$': f'arl = "{arl}"',
-    r'^concurrency = .*$': "concurrency = true",
     r'^max_connections = .*$': "max_connections = 6",
     r'^requests_per_minute = .*$': "requests_per_minute = 60",
-    r'^check_for_updates = .*$': "check_for_updates = false",
     # Upstream ships these empty and its db.Failed asserts on a non-empty path,
     # so the run would die before downloading anything.
     r'^downloads_path = ".*"$': f'downloads_path = "{prefix}-downloads.db"',
@@ -167,13 +182,78 @@ count_audio() {
 
 echo "impl,run,seconds,files,bytes,rc" > "$RESULTS"
 
+# ── Optional: count the HTTP requests each side makes ───────────────────────
+# A sitecustomize on PYTHONPATH wraps requests.Session.send (deezer-py, the
+# plain downloads) and aiohttp.ClientSession._request (CDN streams, covers)
+# in both processes, without touching either codebase. One JSON line per
+# request: host, path, and the GW method name, which is all a gw-light.php
+# call is distinguished by. Query strings are dropped: they carry tokens.
+API_DIR=""
+if [[ -n "$INSTRUMENT_API" ]]; then
+    API_DIR="$RUN_DIR/api"
+    mkdir -p "$API_DIR/site"
+    cat >"$API_DIR/site/sitecustomize.py" <<'PY'
+import atexit, json, os, threading, urllib.parse
+
+_log = os.environ.get("BENCH_API_LOG")
+_lines, _lock = [], threading.Lock()
+
+
+def _record(url, method):
+    u = urllib.parse.urlsplit(str(url))
+    q = urllib.parse.parse_qs(u.query)
+    with _lock:
+        _lines.append({"host": u.hostname, "path": u.path, "verb": method,
+                       "gw": (q.get("method") or [None])[0]})
+
+
+if _log:
+    @atexit.register
+    def _dump():
+        with open(_log, "a", encoding="utf-8") as f:
+            f.writelines(json.dumps(x) + "\n" for x in _lines)
+
+    try:
+        import requests
+
+        _send = requests.Session.send
+
+        def send(self, request, **kw):
+            _record(request.url, request.method)
+            return _send(self, request, **kw)
+
+        requests.Session.send = send
+    except ImportError:
+        pass
+    try:
+        import aiohttp
+
+        _req = aiohttp.ClientSession._request
+
+        async def _request(self, method, str_or_url, **kw):
+            _record(str_or_url, method)
+            return await _req(self, method, str_or_url, **kw)
+
+        aiohttp.ClientSession._request = _request
+    except ImportError:
+        pass
+PY
+fi
+
+api_env() {
+    # api_env <impl> <run>: env assignments for one run, nothing if disabled.
+    [[ -n "$API_DIR" ]] || return 0
+    echo "PYTHONPATH=$API_DIR/site BENCH_API_LOG=$API_DIR/$1-$2.jsonl"
+}
+
 run_one() {
     local impl="$1" i="$2"
     local out="$RUN_DIR/out/$impl-$i" log="$RUN_DIR/logs/$impl-$i.log"
     mkdir -p "$out"
     local start end rc files bytes
     start=$(date +%s.%N)
-    "$(rip_of "$impl")" --config-path "$(cfg_of "$impl")" -ndb -f "$out" url "$URL" \
+    env $(api_env "$impl" "$i") \
+        "$(rip_of "$impl")" --config-path "$(cfg_of "$impl")" -ndb -f "$out" url "$URL" \
         >"$log" 2>&1
     rc=$?
     end=$(date +%s.%N)
@@ -247,3 +327,44 @@ if len(means) == 2:
           f"({u / f:.2f}x)")
     print("ranges overlap:", "no" if max(fast) < min(slow) else "YES — treat the ratio with care")
 PY
+
+# ── API call counts ──────────────────────────────────────────────────────────
+if [[ -n "$API_DIR" ]]; then
+    echo
+    API_DIR="$API_DIR" python3 - <<'PY'
+import collections, glob, json, os, re, statistics as st
+
+def kind(r):
+    h, p = r["host"] or "", r["path"] or ""
+    if r["gw"]:
+        return "GW " + r["gw"]
+    if h == "api.deezer.com":
+        return "REST /" + re.sub(r"/\d+", "/<id>", p.strip("/"))
+    if h == "media.deezer.com":
+        return "media " + p
+    if "dzcdn.net" in h and "/images/" in p:
+        return "cover image"
+    if "dzcdn.net" in h:
+        return "audio stream"
+    return "other " + h
+
+runs = collections.defaultdict(list)
+for f in sorted(glob.glob(os.path.join(os.environ["API_DIR"], "*.jsonl"))):
+    impl = os.path.basename(f).rsplit("-", 1)[0]
+    runs[impl].append(collections.Counter(kind(json.loads(l)) for l in open(f)))
+if not runs:
+    print("API: no request logged")
+    raise SystemExit
+kinds = sorted({k for rs in runs.values() for c in rs for k in c})
+impls = sorted(runs)
+print("HTTP requests per run (mean over runs)")
+print(f"{'':40}" + "".join(f"{i:>12}" for i in impls))
+for k in kinds:
+    print(f"{k[:40]:40}" + "".join(f"{st.mean(c[k] for c in runs[i]):12.1f}" for i in impls))
+tot = {i: st.mean(sum(c.values()) for c in runs[i]) for i in impls}
+api = {i: st.mean(sum(v for k, v in c.items() if k.split()[0] in ("GW", "REST", "media"))
+                   for c in runs[i]) for i in impls}
+print(f"{'TOTAL':40}" + "".join(f"{tot[i]:12.1f}" for i in impls))
+print(f"{'API calls (GW + REST + media)':40}" + "".join(f"{api[i]:12.1f}" for i in impls))
+PY
+fi
