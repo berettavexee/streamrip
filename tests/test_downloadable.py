@@ -6,6 +6,7 @@ import threading
 import time
 from unittest.mock import AsyncMock, MagicMock
 
+import aiohttp
 import pytest
 
 from streamrip.client.downloadable import (
@@ -520,3 +521,89 @@ async def test_download_accepts_a_response_with_many_headers(tmp_path):
     finally:
         srv.shutdown()
     assert path.read_bytes() == b"audio"
+
+
+def _serve(chunks, gap, stall_after=None):
+    """A local server sending `chunks` 1 KB pieces, `gap` seconds apart.
+
+    With `stall_after`, it goes silent after that many pieces, holding the
+    connection open -- a stalled CDN connection.
+    """
+    total = chunks * 1024
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Length", str(total))
+            self.end_headers()
+            try:
+                for i in range(chunks):
+                    if stall_after is not None and i == stall_after:
+                        time.sleep(30)
+                        return
+                    self.wfile.write(b"\0" * 1024)
+                    self.wfile.flush()
+                    time.sleep(gap)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv, f"http://127.0.0.1:{srv.server_address[1]}/"
+
+
+def test_download_sessions_have_no_total_timeout():
+    """aiohttp's default gives a request 300 s in total, body included."""
+    from streamrip.client.downloadable import SESSION_TIMEOUT
+
+    assert SESSION_TIMEOUT.total is None
+    assert SESSION_TIMEOUT.sock_read
+
+
+async def _read(timeout, url):
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.get(url) as resp:
+            return len(await resp.read())
+
+
+async def test_a_slow_but_steady_stream_is_not_cut():
+    """A total timeout fails a download that is slow but progressing; a read
+    timeout only fails one that stops. Same server, both settings: the stream
+    lasts ~2 s, sending every 0.1 s."""
+    srv, url = _serve(chunks=20, gap=0.1)
+    try:
+        with pytest.raises(asyncio.TimeoutError):
+            await _read(aiohttp.ClientTimeout(total=1), url)  # aiohttp's model
+        size = await _read(aiohttp.ClientTimeout(total=None, sock_read=1), url)
+    finally:
+        srv.shutdown()
+    assert size == 20 * 1024
+
+
+async def test_a_stalled_stream_is_cut_by_the_read_timeout():
+    srv, url = _serve(chunks=20, gap=0.05, stall_after=3)
+    try:
+        with pytest.raises(asyncio.TimeoutError):
+            await _read(aiohttp.ClientTimeout(total=None, sock_read=1), url)
+    finally:
+        srv.shutdown()
+
+
+async def test_requests_download_does_not_hang_on_a_stalled_connection(
+    tmp_path, monkeypatch
+):
+    """requests had no timeout: a stalled connection hung the thread for good."""
+    monkeypatch.setattr("streamrip.client.downloadable.REQUESTS_TIMEOUT", (1, 1))
+    srv, url = _serve(chunks=20, gap=0.05, stall_after=3)
+    path = tmp_path / "track.flac"
+    started = time.monotonic()
+    try:
+        with pytest.raises(Exception):
+            await fast_async_download(str(path), url, {}, lambda n: None)
+    finally:
+        srv.shutdown()
+    assert time.monotonic() - started < 10
+    assert not path.exists()

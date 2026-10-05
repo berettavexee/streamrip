@@ -10,7 +10,7 @@ import aiohttp
 import aiolimiter
 
 from ..utils.ssl_utils import get_aiohttp_connector_kwargs
-from .downloadable import Downloadable
+from .downloadable import SESSION_TIMEOUT, Downloadable
 
 logger = logging.getLogger("streamrip")
 
@@ -196,4 +196,5 @@ class Client(ABC):
             headers={"User-Agent": DEFAULT_USER_AGENT} | headers,
             connector=connector,
             trust_env=True,
+            timeout=SESSION_TIMEOUT,
         )

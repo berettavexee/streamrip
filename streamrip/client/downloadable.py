@@ -27,6 +27,18 @@ from ..exceptions import NonStreamableError
 
 logger = logging.getLogger("streamrip")
 
+# Timeouts for the sessions that download audio. aiohttp's default gives a
+# request 300 s in total, body included: a FLAC that takes longer to arrive --
+# a slow link, or six downloads sharing one -- failed every time, and the retry
+# started over under the same limit. A stalled connection is what must be cut,
+# not a slow one: no total, 30 s without receiving anything.
+SESSION_TIMEOUT = aiohttp.ClientTimeout(total=None, sock_connect=15, sock_read=30)
+
+# requests (the plain downloads) has no timeout unless given one, so a stalled
+# connection hung the worker thread forever. (connect, read): read is the
+# longest wait for the next bytes, not for the whole file.
+REQUESTS_TIMEOUT = (15, 60)
+
 
 BLOWFISH_SECRET = "g4el58wc0zvf9na1"
 
@@ -86,6 +98,7 @@ async def fast_async_download(path, url, headers, callback):
                 headers=headers,
                 allow_redirects=True,
                 stream=True,
+                timeout=REQUESTS_TIMEOUT,
             ) as resp:
                 resp.raise_for_status()
                 for chunk in resp.iter_content(chunk_size=chunk_size):
