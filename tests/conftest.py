@@ -109,3 +109,9 @@ def vcr_config():
         "before_record_response": _scrub_response,
         "decode_compressed_response": True,
     }
+
+
+@pytest.fixture(autouse=True)
+def _no_download_retry_waits(monkeypatch):
+    """Track.download waits 2 s then 4 s between attempts; tests need not."""
+    monkeypatch.setattr("streamrip.media.track.RETRY_DELAYS", (0, 0))

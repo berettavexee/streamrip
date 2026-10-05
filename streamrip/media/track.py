@@ -24,6 +24,12 @@ from .semaphore import global_download_semaphore
 
 logger = logging.getLogger("streamrip")
 
+# Waits before the second and third download attempts. Most failures are
+# transient -- a dropped connection, a CDN that refuses for a moment -- and an
+# immediate retry tends to hit the same condition. One attempt more than
+# there are delays.
+RETRY_DELAYS: tuple[float, ...] = (2, 4)
+
 # (source codec, target codec) pairs already warned about in this run: a
 # playlist of MP3s converted to Opus would otherwise repeat the same warning
 # for every track.
@@ -117,10 +123,10 @@ class Track(Media):
         """Download the audio file to :attr:`download_path`.
 
         Acquires the global download semaphore, then attempts the download up
-        to twice (one initial attempt + one retry).  On a second consecutive
-        failure the track is recorded as failed in the database and the error
-        is raised, so that :meth:`postprocess` never runs on a missing or
-        truncated file.
+        to three times, waiting :data:`RETRY_DELAYS` (2 s, then 4 s) before
+        each retry. Once every attempt has failed, the track is recorded as
+        failed in the database and the error is raised, so that
+        :meth:`postprocess` never runs on a missing or truncated file.
 
         Sets :attr:`_queue_wait` (time blocked on the semaphore) and, on
         success, :attr:`_download_time` (transfer time across all attempts),
@@ -131,15 +137,17 @@ class Track(Media):
                 :meth:`Media.download`).
 
         Raises:
-            NonStreamableError: When both attempts fail.
+            NonStreamableError: When every attempt fails.
         """
         t0 = time.monotonic()
         async with global_download_semaphore(self.config.session.downloads):
             self._queue_wait = time.monotonic() - t0
             t0 = time.monotonic()
-            for attempt in range(2):
-                suffix = " (retry)" if attempt else ""
+            attempts = len(RETRY_DELAYS) + 1
+            for attempt in range(attempts):
+                suffix = f" (retry {attempt})" if attempt else ""
                 label = f"Track {self.meta.tracknumber}{suffix}"
+                delay = None
                 with get_progress_callback(
                     self.config.session.cli.progress_bars,
                     await self.downloadable.size(),
@@ -150,9 +158,11 @@ class Track(Media):
                         self._download_time = time.monotonic() - t0
                         return
                     except Exception as e:
-                        if attempt == 0:
+                        if attempt < len(RETRY_DELAYS):
+                            delay = RETRY_DELAYS[attempt]
                             logger.error(
-                                f"Error downloading track '{self.meta.title}', retrying: {e}"
+                                f"Error downloading track '{self.meta.title}', "
+                                f"retrying in {delay:g}s: {e}"
                             )
                         else:
                             logger.error(
@@ -168,8 +178,13 @@ class Track(Media):
                             if self.is_single:
                                 remove_title(self.meta.title)
                             raise NonStreamableError(
-                                f"Failed to download '{self.meta.title}' after 2 attempts: {e}"
+                                f"Failed to download '{self.meta.title}' "
+                                f"after {attempts} attempts: {e}"
                             ) from e
+                # Outside the progress bar: it is not waiting on the network.
+                # The download slot is kept, so the retry does not queue again
+                # behind tracks that started meanwhile.
+                await asyncio.sleep(delay)
 
     def _discard_partial_download(self) -> None:
         """Delete any file left at the download path after a failed download.

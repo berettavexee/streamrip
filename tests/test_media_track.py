@@ -227,7 +227,30 @@ async def test_download_retries_on_first_failure(caplog):
     assert "retrying" in caplog.text
 
 
-async def test_download_marks_failed_after_two_failures(caplog):
+async def test_download_waits_two_then_four_seconds_between_attempts(monkeypatch):
+    """An immediate retry tends to hit the same transient failure."""
+    monkeypatch.setattr("streamrip.media.track.RETRY_DELAYS", (2, 4))
+    sleep = AsyncMock()
+    monkeypatch.setattr("streamrip.media.track.asyncio.sleep", sleep)
+    t = _track()
+    t.download_path = "/dl/album/01 - Song.flac"
+    t.downloadable.download = AsyncMock(
+        side_effect=[RuntimeError("reset"), RuntimeError("reset"), None]
+    )
+    with (
+        patch(
+            "streamrip.media.track.global_download_semaphore", return_value=_async_cm()
+        ),
+        patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
+    ):
+        await t.download()
+
+    assert t.downloadable.download.await_count == 3
+    assert [c.args[0] for c in sleep.await_args_list] == [2, 4]
+    t.db.set_failed.assert_not_called()
+
+
+async def test_download_marks_failed_after_three_failures(caplog):
     t = _track()
     t.download_path = "/dl/album/01 - Song.flac"
     t.downloadable.download = AsyncMock(side_effect=RuntimeError("bad"))
@@ -236,16 +259,16 @@ async def test_download_marks_failed_after_two_failures(caplog):
             "streamrip.media.track.global_download_semaphore", return_value=_async_cm()
         ),
         patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
-        pytest.raises(NonStreamableError, match="after 2 attempts"),
+        pytest.raises(NonStreamableError, match="after 3 attempts"),
     ):
         await t.download()
-    assert t.downloadable.download.await_count == 2
+    assert t.downloadable.download.await_count == 3
     assert "skipping" in caplog.text
     t.db.set_failed.assert_called_once()
 
 
 async def test_download_removes_partial_file_after_persistent_failure(tmp_path):
-    """Track.download() clears the download path once both attempts fail.
+    """Track.download() clears the download path once every attempt fails.
 
     A backstop: Downloadable._download already discards its own partial, so in
     production this finds nothing. The downloadable is mocked here, which is
@@ -283,7 +306,7 @@ async def test_download_keeps_going_when_partial_cannot_be_removed(tmp_path, cap
         ),
         patch("streamrip.media.track.get_progress_callback", return_value=_sync_cm()),
         patch("streamrip.media.track.os.remove", side_effect=OSError("read-only fs")),
-        pytest.raises(NonStreamableError, match="after 2 attempts"),
+        pytest.raises(NonStreamableError, match="after 3 attempts"),
     ):
         await t.download()
 
