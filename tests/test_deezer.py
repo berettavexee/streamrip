@@ -1284,6 +1284,28 @@ def test_batch_url_single_call_for_multiple_tracks(mock_deezer_client):
     mock_deezer_client.client.get_track_url.assert_not_called()
 
 
+def test_batch_url_serves_album_tracks_with_integer_ids(mock_deezer_client):
+    """Album tracks come with the REST API's integer ids; the batch cache is
+    keyed by the string id read from each CDN URL. The int never matched, so
+    each album track paid its own get_url after the batch had resolved it --
+    measured on a real 14-track album: 15 get_url calls instead of 1."""
+    for tid in ("1", "2", "3"):
+        mock_deezer_client._gw_tracks.set_if_absent(
+            tid, {"TRACK_TOKEN": f"tok{tid}", "FILESIZE_FLAC": 1000}
+        )
+    mock_deezer_client.client.get_tracks_url.return_value = [
+        _cdn_url("1"),
+        _cdn_url("2"),
+        _cdn_url("3"),
+    ]
+
+    for tid in (1, 2, 3):
+        arun(mock_deezer_client.get_downloadable(tid, quality=2))
+
+    assert mock_deezer_client.client.get_tracks_url.call_count == 1
+    mock_deezer_client.client.get_track_url.assert_not_called()
+
+
 def test_batch_url_misaligned_results_never_mismatch_tracks(mock_deezer_client):
     """A track in error makes deezer-py emit TWO entries (the error object AND a
     trailing None), so the result list is longer than the token list. Matching by

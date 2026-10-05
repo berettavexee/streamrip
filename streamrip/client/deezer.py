@@ -888,6 +888,11 @@ class DeezerClient(Client):
                 "No item id provided. This can happen when searching for fallback songs.",
             )
 
+        # Album tracks arrive with the REST API's integer ids, while the batch
+        # URL cache is keyed by the string id read back from each CDN URL: an
+        # int key never matched, so every album track paid its own get_url
+        # after the batch had already resolved it.
+        item_id = str(item_id)
         quality = max(0, min(quality, 2))
         track_info = await self._get_gw_track(item_id)
         # Raises rather than returning an empty URL when nothing resolves.
