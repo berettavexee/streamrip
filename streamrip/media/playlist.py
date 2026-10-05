@@ -98,6 +98,11 @@ class PendingPlaylistTrack(Pending):
             fb = await self._resolve_fallback_metadata(str(served_id))
         if fb is not None:
             album, meta, embedded_cover_path = fb
+            # Tags and cover come from the served track, but the databases,
+            # `rip repair` and the "already downloaded" check know the
+            # playlist's entry: keep its id, or every re-run downloads the
+            # track again. (Fix from Stensel8/streamrip, review of #36.)
+            meta.info.id = self.id
         else:
             embedded_cover_path = await download_embed_cover(
                 self.client.session,

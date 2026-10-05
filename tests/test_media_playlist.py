@@ -342,6 +342,9 @@ async def test_ppt_resolve_uses_fallback_metadata_on_geoblock():
     # The Track was built with the fallback metadata and fallback cover.
     args, _ = mock_track.call_args
     assert args[0] is fb_meta  # meta
+    # ...but under the playlist entry's id: the databases and the "already
+    # downloaded" check know that one, and every re-run re-downloaded it.
+    assert fb_meta.info.id == "42"
     assert args[4] == "/fb_cover.jpg"  # embedded_cover_path
     # Fallback metadata was fetched for the served id.
     client.get_track_for_playlist.assert_any_await("999")
