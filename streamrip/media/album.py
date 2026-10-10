@@ -55,7 +55,7 @@ class Album(Media):
                 failure counts and total bytes downloaded.
         """
         if self.config.session.cli.progress_bars:
-            progress.set_overall(len(self.tracks))
+            progress.add_overall(len(self.tracks))
 
         async def _resolve_and_download(pending: Pending):
             track = None

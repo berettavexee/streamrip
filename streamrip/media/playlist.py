@@ -217,10 +217,16 @@ class Playlist(Media):
         if not batches:
             return
 
-        if self.config.session.cli.progress_bars:
-            progress.set_overall(len(self.tracks))
+        bars = self.config.session.cli.progress_bars
+        if bars:
+            progress.add_overall(len(self.tracks))
 
-        resolved = await resolve_batch(batches[0])
+        # Resolving the first batch's metadata (one gw.get_track per track)
+        # happens before any download bar exists; a spinner keeps the display
+        # from looking frozen at 0/N during those seconds.
+        resolve_desc = f"Resolving {len(self.tracks)} tracks"
+        with progress.resolving(resolve_desc, bars):
+            resolved = await resolve_batch(batches[0])
         rip_tasks: list[asyncio.Task] = []
 
         for i in range(len(batches)):
@@ -236,7 +242,11 @@ class Playlist(Media):
             # tracks complete, eliminating idle time at batch boundaries.
             for track in resolved:
                 rip_tasks.append(asyncio.create_task(safe_rip(track)))
-            resolved = await next_task if next_task is not None else []
+            if next_task is not None:
+                with progress.resolving(resolve_desc, bars):
+                    resolved = await next_task
+            else:
+                resolved = []
 
         await asyncio.gather(*rip_tasks)
 

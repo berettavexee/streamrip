@@ -120,6 +120,119 @@ def test_cleanup_noop_when_not_started(pm):
 
 
 # ---------------------------------------------------------------------------
+# ProgressManager.add_overall (accumulates across concurrent items)
+# ---------------------------------------------------------------------------
+
+
+def test_add_overall_creates_task_and_starts_live(pm):
+    pm.add_overall(10)
+    pm.live.start.assert_called_once()
+    assert pm._overall_task is not None
+    assert pm._overall_total == 10
+
+
+def test_add_overall_accumulates_without_recreating_task(pm):
+    pm._overall_progress = MagicMock()
+    pm._overall_progress.add_task.return_value = 3
+    pm.add_overall(10)
+    pm.add_overall(5)
+    assert pm._overall_total == 15
+    pm._overall_progress.add_task.assert_called_once()
+    pm._overall_progress.update.assert_called_once_with(3, total=15)
+
+
+def test_add_overall_ignores_non_positive(pm):
+    pm.add_overall(0)
+    pm.add_overall(-4)
+    assert pm._overall_task is None
+    assert pm._overall_total == 0
+    pm.live.start.assert_not_called()
+
+
+def test_cleanup_resets_overall_total(pm):
+    pm.add_overall(10)
+    pm.cleanup()
+    assert pm._overall_total == 0
+    assert pm._overall_task is None
+
+
+def test_module_add_overall_delegates_to_p(pm):
+    progress_module.add_overall(7)
+    assert pm._overall_total == 7
+
+
+# ---------------------------------------------------------------------------
+# ProgressManager.set_resolving / clear_resolving
+# ---------------------------------------------------------------------------
+
+
+def test_set_resolving_starts_live_and_adds_task(pm):
+    pm.set_resolving("Resolving 50 tracks")
+    pm.live.start.assert_called_once()
+    assert pm.started is True
+    assert pm._resolve_task is not None
+
+
+def test_set_resolving_relabels_without_new_task(pm):
+    pm._resolve_progress = MagicMock()
+    pm._resolve_progress.add_task.return_value = 7
+    pm.set_resolving("Resolving 50 tracks")
+    pm.set_resolving("Resolving 20 tracks")
+    pm._resolve_progress.add_task.assert_called_once()
+    pm._resolve_progress.update.assert_called_once_with(
+        7, description="Resolving 20 tracks"
+    )
+
+
+def test_clear_resolving_removes_task(pm):
+    pm.set_resolving("Resolving 50 tracks")
+    pm.clear_resolving()
+    assert pm._resolve_task is None
+
+
+def test_clear_resolving_noop_when_inactive(pm):
+    pm.clear_resolving()  # must not raise
+    assert pm._resolve_task is None
+
+
+def test_cleanup_clears_resolve_task(pm):
+    pm.set_resolving("Resolving 50 tracks")
+    pm.cleanup()
+    assert pm._resolve_task is None
+
+
+def test_build_group_includes_resolve_progress_when_active(pm):
+    pm.set_resolving("Resolving 50 tracks")
+    group = pm._build_group()
+    assert pm._resolve_progress in group.renderables
+
+
+# ---------------------------------------------------------------------------
+# Module-level resolving() context manager
+# ---------------------------------------------------------------------------
+
+
+def test_resolving_cm_sets_then_clears(pm):
+    with progress_module.resolving("Resolving 50 tracks"):
+        assert pm._resolve_task is not None
+    assert pm._resolve_task is None
+
+
+def test_resolving_cm_clears_on_exception(pm):
+    with pytest.raises(RuntimeError):
+        with progress_module.resolving("Resolving 50 tracks"):
+            raise RuntimeError("boom")
+    assert pm._resolve_task is None
+
+
+def test_resolving_cm_disabled_is_noop(pm):
+    with progress_module.resolving("Resolving 50 tracks", enabled=False):
+        pass
+    pm.live.start.assert_not_called()
+    assert pm._resolve_task is None
+
+
+# ---------------------------------------------------------------------------
 # ProgressManager.add_title / remove_title
 # ---------------------------------------------------------------------------
 
