@@ -73,7 +73,10 @@ class AlbumMetadata:
     }
 
     def format_folder_path(
-        self, formatter: str, effective_quality: int | None = None
+        self,
+        formatter: str,
+        effective_quality: int | None = None,
+        container_override: str | None = None,
     ) -> str:
         """Format the folder path for this album using the given template.
 
@@ -86,6 +89,11 @@ class AlbumMetadata:
                 reflect this quality level instead of the album maximum.  Pass
                 ``min(configured_quality, album.info.quality)`` from call sites
                 so the folder name matches what is actually downloaded.
+            container_override: When provided, the ``container`` token is set to
+                this value instead of being derived from the quality. Call sites
+                pass the conversion target's container when ``[conversion]`` is
+                enabled, so the folder name reflects the format written to disk
+                (e.g. ``OGG``) rather than the one downloaded (e.g. ``FLAC``).
 
         Returns:
             A sanitized relative path suitable for use as a download folder name.
@@ -104,6 +112,9 @@ class AlbumMetadata:
             container = self.info.container
             bit_depth = self.info.bit_depth
             sampling_rate = self.info.sampling_rate  # type: ignore[assignment]
+
+        if container_override is not None:
+            container = container_override
 
         info: dict[str, str | int | float] = {
             "albumartist": clean_filename(self.albumartist),

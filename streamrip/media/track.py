@@ -561,6 +561,15 @@ class PendingSingle(Pending):
         account_max = self.client.max_account_quality()
         if account_max is not None:
             effective_quality = min(effective_quality, account_max)
+        # Name the folder after the conversion target's container when enabled,
+        # so a converted single does not land in a "[FLAC]" folder (see
+        # AlbumMetadata.format_folder_path).
+        container_override = (
+            converter.target_container(c.conversion.codec)
+            if c.conversion.enabled
+            else None
+        )
         return os.path.join(
-            parent, meta.format_folder_path(formatter, effective_quality)
+            parent,
+            meta.format_folder_path(formatter, effective_quality, container_override),
         )

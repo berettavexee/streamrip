@@ -127,6 +127,7 @@ The main evolutions focus on Deezer and the following areas:
 
 ## Converter
 
+- Fix the download folder's `{container}` token showing the downloaded format instead of the conversion target: with `[conversion]` enabled (e.g. `-c OGG`), an album still landed in a `… [FLAC]` folder full of `.ogg` files. The folder is now named after the conversion codec's container (`OGG`, `OPUS`, `M4A`, …) for both albums and single tracks; without conversion the behaviour is unchanged.
 - OGG/OPUS: cover art is embedded post-conversion via `mutagen` (`METADATA_BLOCK_PICTURE`), and `-vn` prevents an unwanted Theora video stream ([#992](https://github.com/nathom/streamrip/pull/992))
 - AAC: uses `libfdk_aac` when available, falls back to the native FFmpeg `aac` encoder ([#990](https://github.com/nathom/streamrip/pull/990))
 - `OPUS` exposed as a `-c`/`--codec` option in the CLI ([#989](https://github.com/nathom/streamrip/pull/989))

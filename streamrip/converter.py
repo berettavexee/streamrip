@@ -502,3 +502,23 @@ def get(codec: str) -> type[Converter]:
         "AIF": AIFF,
     }
     return converter_classes[codec.upper()]
+
+
+def target_container(codec: str) -> str:
+    """Return the on-disk container name for a conversion codec, upper-cased.
+
+    Used to name download folders after the format conversion writes (e.g.
+    ``OGG``, ``OPUS``, ``M4A``) rather than the format downloaded, so the
+    ``container`` folder token matches the files inside.
+
+    Args:
+        codec: A ``[conversion] codec`` value (FLAC, ALAC, AIFF, OPUS, MP3,
+            VORBIS/OGG, or AAC/M4A); case-insensitive.
+
+    Returns:
+        The converter's container extension in upper case, e.g. ``"OGG"``.
+
+    Raises:
+        KeyError: If *codec* is not a recognised conversion codec.
+    """
+    return get(codec).container.upper()

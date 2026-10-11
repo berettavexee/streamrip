@@ -3,7 +3,7 @@ import logging
 import os
 from dataclasses import dataclass
 
-from .. import progress
+from .. import converter, progress
 from ..client import Client
 from ..config import Config
 from ..db import Database
@@ -162,8 +162,16 @@ class PendingAlbum(Pending):
         account_max = self.client.max_account_quality()
         if account_max is not None:
             effective_quality = min(effective_quality, account_max)
+        # When conversion is enabled the files are written in the target codec's
+        # container, so name the folder after that rather than the downloaded
+        # format (otherwise `-c OGG` still yields a "[FLAC]" folder).
+        container_override = (
+            converter.target_container(config.conversion.codec)
+            if config.conversion.enabled
+            else None
+        )
         folder = clean_filepath(
-            meta.format_folder_path(formatter, effective_quality),
+            meta.format_folder_path(formatter, effective_quality, container_override),
             config.filepaths.restrict_characters,
         )
 

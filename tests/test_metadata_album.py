@@ -281,6 +281,22 @@ def test_format_folder_path_effective_quality_not_in_table_uses_album():
     assert "24" in result
 
 
+def test_format_folder_path_container_override_replaces_container():
+    meta = _album_meta(container="FLAC")
+    result = meta.format_folder_path("[{container}]", container_override="OGG")
+    assert result == "[OGG]"
+
+
+def test_format_folder_path_container_override_wins_over_quality_table():
+    # Even when effective_quality would pick a container from the table, the
+    # override (conversion target) takes precedence.
+    meta = _album_meta(quality=3)
+    result = meta.format_folder_path(
+        "[{container}]", effective_quality=2, container_override="OPUS"
+    )
+    assert result == "[OPUS]"
+
+
 def test_format_folder_path_albumcomposer_fallback():
     meta = _album_meta(albumcomposer=None)
     result = meta.format_folder_path("{albumcomposer}")

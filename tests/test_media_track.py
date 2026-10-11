@@ -1284,5 +1284,5 @@ def test_format_folder_clips_quality_to_meta():
 
     ps._format_folder(meta)
     meta.format_folder_path.assert_called_once_with(
-        ps.config.session.filepaths.folder_format, 1
+        ps.config.session.filepaths.folder_format, 1, None
     )

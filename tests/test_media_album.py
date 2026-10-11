@@ -48,6 +48,7 @@ def _pending_album(source="deezer"):
     config.session.downloads.source_subdirectories = False
     config.session.filepaths.folder_format = "{albumartist}/{album}"
     config.session.filepaths.restrict_characters = False
+    config.session.conversion.enabled = False
     config.session.artwork = MagicMock()
     config.session.get_source.return_value.quality = 2
     return PendingAlbum(id="42", client=client, config=config, db=MagicMock())
@@ -259,9 +260,29 @@ def test_album_folder_clips_quality_to_meta():
     with patch("streamrip.media.album.clean_filepath", side_effect=lambda p, _: p):
         pa._album_folder("/dl", meta)
 
-    # effective_quality passed to format_folder_path must be min(5, 1) = 1
+    # effective_quality passed to format_folder_path must be min(5, 1) = 1;
+    # container_override is None because conversion is disabled.
     meta.format_folder_path.assert_called_once_with(
-        pa.config.session.filepaths.folder_format, 1
+        pa.config.session.filepaths.folder_format, 1, None
+    )
+
+
+def test_album_folder_uses_conversion_container_when_enabled():
+    """With conversion on, the folder is named after the target container."""
+    pa = _pending_album()
+    pa.config.session.get_source.return_value.quality = 2
+    pa.config.session.conversion.enabled = True
+    pa.config.session.conversion.codec = "OGG"
+
+    meta = MagicMock()
+    meta.info.quality = 2
+    meta.format_folder_path.return_value = "Artist/Album"
+
+    with patch("streamrip.media.album.clean_filepath", side_effect=lambda p, _: p):
+        pa._album_folder("/dl", meta)
+
+    meta.format_folder_path.assert_called_once_with(
+        pa.config.session.filepaths.folder_format, 2, "OGG"
     )
 
 
@@ -285,7 +306,7 @@ def test_album_folder_clips_quality_to_the_account(account_max, expected):
         pa._album_folder("/dl", meta)
 
     meta.format_folder_path.assert_called_once_with(
-        pa.config.session.filepaths.folder_format, expected
+        pa.config.session.filepaths.folder_format, expected, None
     )
 
 
