@@ -522,6 +522,20 @@ class PendingSingle(Pending):
         config = self.config.session
         quality = getattr(config, self.client.source).quality
         assert isinstance(quality, int)
+
+        # Resolve the downloadable first, and only fetch the cover once the
+        # track is known to be streamable. These used to run together in a
+        # gather, but asyncio.gather does not cancel the cover fetch when
+        # get_downloadable raises, so every unstreamable track still pulled its
+        # cover — `rip repair` over hundreds of still-failing tracks downloaded
+        # hundreds of covers for files that were never written.
+        try:
+            downloadable = await self.client.get_downloadable(self.id, quality)
+        except NonStreamableError as e:
+            logger.error(f"Error getting downloadable for track {self.id}: {e}")
+            self.db.set_failed(self.client.source, "track", self.id)
+            return None
+
         parent = config.downloads.folder
         if config.filepaths.add_singles_to_folder:
             folder = self._format_folder(album)
@@ -530,15 +544,12 @@ class PendingSingle(Pending):
 
         os.makedirs(folder, exist_ok=True)
 
-        embedded_cover_path, downloadable = await asyncio.gather(
-            download_embed_cover(
-                self.client.session,
-                folder,
-                album.covers,
-                self.config.session.artwork,
-                for_playlist=False,
-            ),
-            self.client.get_downloadable(self.id, quality),
+        embedded_cover_path = await download_embed_cover(
+            self.client.session,
+            folder,
+            album.covers,
+            self.config.session.artwork,
+            for_playlist=False,
         )
         return Track(
             meta,

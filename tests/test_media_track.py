@@ -1197,6 +1197,34 @@ async def test_pending_single_returns_track_with_is_single():
     assert result.is_single is True
 
 
+async def test_pending_single_does_not_fetch_cover_when_downloadable_fails():
+    """An unstreamable single must not pull its cover.
+
+    `rip repair` over hundreds of still-failing tracks used to download a cover
+    for each one because the cover fetch ran concurrently with (and was not
+    cancelled by) a failing get_downloadable.
+    """
+    ps = _pending_single()
+    ps.client.get_downloadable = AsyncMock(side_effect=NonStreamableError("no url"))
+    album = MagicMock()
+    album.info.quality = 2
+    cover = AsyncMock(return_value="/cover.jpg")
+    with (
+        patch(
+            "streamrip.media.track.AlbumMetadata.from_track_resp", return_value=album
+        ),
+        patch(
+            "streamrip.media.track.TrackMetadata.from_resp", return_value=MagicMock()
+        ),
+        patch("streamrip.media.track.download_embed_cover", new=cover),
+        patch("streamrip.media.track.os.makedirs"),
+    ):
+        result = await ps.resolve()
+    assert result is None
+    cover.assert_not_called()
+    ps.db.set_failed.assert_called_once_with("deezer", "track", "1")
+
+
 async def test_pending_single_uses_parent_folder_when_add_singles_to_folder_false():
     ps = _pending_single(add_singles_to_folder=False)
     album = MagicMock()
