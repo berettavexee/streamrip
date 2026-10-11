@@ -193,6 +193,21 @@ class DatabaseBase(DatabaseInterface):
         except FileNotFoundError:
             pass
 
+    def clear(self) -> int:
+        """Delete every row from the table, keeping the file and schema.
+
+        Unlike :meth:`reset`, which removes the database file and leaves the
+        connection unusable, this truncates the table in place so the object
+        stays valid.
+
+        Returns:
+            The number of rows that were removed.
+        """
+        removed = len(self.all())
+        self._conn.execute(f"DELETE FROM {self.name}")
+        self._conn.commit()
+        return removed
+
 
 class Downloads(DatabaseBase):
     """A table that stores the downloaded IDs."""

@@ -121,6 +121,27 @@ class TestFailed:
 
         assert len(f.all()) == 1
 
+    def test_clear_empties_table_and_returns_count(self, tmp_path_str):
+        """`rip database clear failed` purges the repair database."""
+        path = os.path.join(tmp_path_str, "failed.db")
+        f = db.Failed(path)
+        f.add(("deezer", "track", "1"))
+        f.add(("deezer", "track", "2"))
+
+        removed = f.clear()
+
+        assert removed == 2
+        assert f.all() == []
+        # The file and connection survive, so the object stays usable.
+        assert os.path.exists(path)
+        f.add(("deezer", "track", "3"))
+        assert [row[2] for row in f.all()] == ["3"]
+
+    def test_clear_empty_table_returns_zero(self, tmp_path_str):
+        path = os.path.join(tmp_path_str, "failed.db")
+        f = db.Failed(path)
+        assert f.clear() == 0
+
 
 class TestDatabaseBaseValidation:
     def test_dummy_create_noop(self):

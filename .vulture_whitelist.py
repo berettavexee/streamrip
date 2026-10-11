@@ -36,6 +36,7 @@ parse_soundcloud_id     # unused function (streamrip/metadata/playlist.py:38)
 config_open             # unused function (streamrip/rip/cli.py:345)
 config_reset            # unused function (streamrip/rip/cli.py:365)
 database_browse         # unused function (streamrip/rip/cli.py:395)
+database_clear          # unused function (streamrip/rip/cli.py:464)
 repair                  # unused function (streamrip/rip/cli.py:447)
 
 # ── Champs de config désérialisés depuis TOML (Config(**toml[...])) ───────────

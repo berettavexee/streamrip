@@ -461,6 +461,63 @@ def database_browse(ctx, table):
         )
 
 
+@database.command("clear")
+@click.argument(
+    "table",
+    type=click.Choice(["downloads", "failed", "all"], case_sensitive=False),
+)
+@click.option("-y", "--yes", is_flag=True, help="Don't ask for confirmation.")
+@click.pass_context
+def database_clear(ctx, table, yes):
+    """Purge a database table.
+
+    streamrip skips every track already in the downloads database, even after
+    its file was deleted; and `rip repair` keeps retrying every failure logged
+    in the failed-downloads database. Clearing a table forgets those entries.
+
+    Tables:
+
+        * downloads: the tracks streamrip has recorded as downloaded
+
+        * failed: the failures kept for `rip repair`
+
+        * all: both
+    """
+    if ctx.obj["config"] is None:
+        return
+    cfg: Config = ctx.obj["config"]
+
+    choice = table.lower()
+    tables = []
+    if choice in ("downloads", "all"):
+        tables.append(
+            ("downloaded track(s)", db.Downloads(cfg.session.database.downloads_path))
+        )
+    if choice in ("failed", "all"):
+        tables.append(
+            (
+                "failed download(s)",
+                db.Failed(cfg.session.database.failed_downloads_path),
+            )
+        )
+
+    counts = [len(t.all()) for _, t in tables]
+    if sum(counts) == 0:
+        console.print("[green]Nothing to clear.")
+        return
+
+    summary = " and ".join(
+        f"[yellow]{n}[/yellow] {label}" for n, (label, _) in zip(counts, tables)
+    )
+    if not yes and not Confirm.ask(f"Clear {summary}?"):
+        console.print("[green]Clear aborted")
+        return
+
+    for _, table_db in tables:
+        table_db.clear()
+    console.print(f"[green]Cleared {summary}.")
+
+
 @rip.command()
 @click.option("-y", "--yes", help="Don't ask for confirmation.", is_flag=True)
 @click.option(
